@@ -1,0 +1,68 @@
+<Page
+    x:Class="Sol.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewmodels="using:Sol.ViewModels"
+    xmlns:local="using:Sol.Helpers"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <ScrollViewer Padding="24" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="24" MaxWidth="800" HorizontalAlignment="Stretch">
+            
+            <TextBlock Text="{x:Bind S.SettingsTitle}" Style="{ThemeResource TitleLargeTextBlockStyle}" Margin="0,0,0,8"/>
+
+            <!-- General Settings Section -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind S.GeneralSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                
+                <controls:SettingsCard Header="{x:Bind S.AppLanguageLabel}" Description="{x:Bind S.RestartRequiredDesc}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <SymbolIcon Symbol="Character"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox SelectedValue="{x:Bind ViewModel.AppLanguage, Mode=TwoWay}" SelectedValuePath="Tag" Width="160">
+                        <ComboBoxItem Content="English" Tag="en"/>
+                        <ComboBoxItem Content="Deutsch" Tag="de"/>
+                    </ComboBox>
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <!-- Active Directory Configuration Section -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind S.AdSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                
+                <controls:SettingsCard Header="{x:Bind S.DomainNameLabel}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <SymbolIcon Symbol="ContactInfo"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <TextBox PlaceholderText="e.g. contoso.local" Text="{x:Bind ViewModel.AdDomain, Mode=TwoWay}" Width="320"/>
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <!-- About Section -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind S.AboutSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                
+                <controls:SettingsCard Header="Markus Mezger" Description="{x:Bind S.DeveloperLabel}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <SymbolIcon Symbol="Contact"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock Text="Sol" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="|" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind S.VersionLabel}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Version, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <Grid Margin="0,16,0,0">
+                <Button Content="{x:Bind S.SaveSettingsBtn}" Command="{x:Bind ViewModel.SaveCommand}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Right" Padding="32,8"/>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,109 @@
+<Window
+    x:Class="Sol.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:helpers="using:Sol.Helpers"
+    xmlns:models="using:Sol.Models"
+    mc:Ignorable="d">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base" />
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.Resources>
+            <Storyboard x:Name="SplashScreenFadeOutStoryboard">
+                <DoubleAnimation Storyboard.TargetName="SplashScreenOverlay"
+                                 Storyboard.TargetProperty="Opacity"
+                                 From="1.0"
+                                 To="0.0"
+                                 Duration="0:0:0.25">
+                    <DoubleAnimation.EasingFunction>
+                        <CubicEase EasingMode="EaseOut"/>
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Custom Draggable TitleBar Area (44px Fluent 2 Standard) -->
+        <Grid x:Name="AppTitleBar" Height="44" Grid.Row="0" Padding="16,0,140,0" VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- App Branding (Left) -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+                <Image Source="ms-appx:///Assets/StoreLogo.png" Width="18" Height="18"/>
+                <TextBlock Text="{x:Bind S.AppTitle}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Running As Identity Badge (Right) -->
+            <StackPanel Grid.Column="2" x:Name="RunningAsContainer" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8" ToolTipService.ToolTip="Connected Active Directory Context">
+                <PersonPicture Width="22" Height="22" x:Name="RunningAsPicture" />
+                <TextBlock x:Name="RunningAsText" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Shell Navigation -->
+        <NavigationView x:Name="RootNavigationView"
+                        Grid.Row="1"
+                        IsBackButtonVisible="Collapsed"
+                        PaneDisplayMode="Left"
+                        ItemInvoked="RootNavigationView_ItemInvoked"
+                        SelectionChanged="RootNavigationView_SelectionChanged">
+            
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="{x:Bind S.NavHome}" Tag="HomePage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="{x:Bind S.NavUserWorkspace}" Tag="UserWorkspacePage">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Contact" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="{x:Bind S.NavComputerWorkspace}" Tag="ComputerWorkspacePage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7F8;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Frame x:Name="ContentFrame" Padding="0" />
+        </NavigationView>
+
+        <!-- Global Floating Notification InfoBar -->
+        <InfoBar x:Name="GlobalInfoBar" 
+                 Grid.Row="1" 
+                 IsOpen="False" 
+                 Margin="24,16,24,0" 
+                 VerticalAlignment="Top" 
+                 HorizontalAlignment="Center"
+                 MaxWidth="500"
+                 Canvas.ZIndex="1000" />
+
+        <!-- Native Windows 11 Extended Splash Screen Overlay -->
+        <Grid x:Name="SplashScreenOverlay"
+              Grid.Row="0"
+              Grid.RowSpan="2"
+              Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+              Canvas.ZIndex="9999">
+            <Image Source="ms-appx:///Assets/StoreLogo.png"
+                   Width="72"
+                   Height="72"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</Window>
+

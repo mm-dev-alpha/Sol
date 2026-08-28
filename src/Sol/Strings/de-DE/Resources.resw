@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Greeting1" xml:space="preserve">
+    <value>Schon mal mit Aus- und Einschalten probiert? 🔌</value>
+  </data>
+  <data name="Greeting2" xml:space="preserve">
+    <value>Bereit, ein paar Passwörter zurückzusetzen? 🔑</value>
+  </data>
+  <data name="Greeting3" xml:space="preserve">
+    <value>Ein neuer Tag, ein weiteres gesperrtes Konto. 🔓</value>
+  </data>
+  <data name="Greeting4" xml:space="preserve">
+    <value>Lass uns ein paar DAU-Fehler beheben. 🪑</value>
+  </data>
+  <data name="Greeting5" xml:space="preserve">
+    <value>Zuerst Kaffee, dann Tickets. ☕</value>
+  </data>
+  <data name="Greeting6" xml:space="preserve">
+    <value>Zeit, den Tag zu retten (schon wieder). 🦸‍♂️</value>
+  </data>
+  <data name="Greeting7" xml:space="preserve">
+    <value>Wer hat diesmal den Drucker kaputt gemacht? 🖨️</value>
+  </data>
+  <data name="Greeting8" xml:space="preserve">
+    <value>Leite alle Pakete nach /dev/null weiter... 🖧</value>
+  </data>
+  <data name="Greeting9" xml:space="preserve">
+    <value>Möge der Ping mit dir sein. 📡</value>
+  </data>
+  <data name="Greeting10" xml:space="preserve">
+    <value>Strg+Alt+Entf? Nicht mit uns. 🛡️</value>
+  </data>
+  <data name="Greeting11" xml:space="preserve">
+    <value>Wir lösen Layer-8-Probleme seit 9 Uhr. 🧠</value>
+  </data>
+  <data name="Greeting12" xml:space="preserve">
+    <value>Keine Panik, die IT ist da! 🚑</value>
+  </data>
+  <data name="Greeting13" xml:space="preserve">
+    <value>Hoffentlich hast du ein Backup gemacht! 💾</value>
+  </data>
+  <data name="Greeting14" xml:space="preserve">
+    <value>Wir wissen, was du in den Proxy-Logs getan hast. 🕵️</value>
+  </data>
+  <data name="Greeting15" xml:space="preserve">
+    <value>Hat hier jemand 'dringend' gesagt? 🚨</value>
+  </data>
+  <data name="Greeting16" xml:space="preserve">
+    <value>Cache leeren macht alles besser. 🧹</value>
+  </data>
+  <data name="Greeting17" xml:space="preserve">
+    <value>Windows wird aktualisiert... Bitte nicht ausschalten. 🔄</value>
+  </data>
+  <data name="Greeting18" xml:space="preserve">
+    <value>Ruhig bleiben und die Event-Logs prüfen. 📋</value>
+  </data>
+  <data name="Greeting19" xml:space="preserve">
+    <value>Die Cloud ist auch nur der Computer eines anderen. ☁️</value>
+  </data>
+  <data name="Greeting20" xml:space="preserve">
+    <value>Auf meinem Rechner funktioniert's! 🤷‍♂️</value>
+  </data>
+</root>

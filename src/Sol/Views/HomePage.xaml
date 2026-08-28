@@ -1,0 +1,97 @@
+<Page
+    x:Class="Sol.Views.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:Sol.Models"
+    mc:Ignorable="d">
+
+    <Grid>
+        <!-- Center Landing Hero Card -->
+        <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="720" Margin="24">
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                    Padding="44,36">
+                <StackPanel Spacing="22" HorizontalAlignment="Center">
+                    <!-- Sol Logo -->
+                    <Image Source="ms-appx:///Assets/StoreLogo.png" Width="64" Height="64" HorizontalAlignment="Center"/>
+
+                    <!-- Sol by MM Branding Title -->
+                    <TextBlock Text="Sol by MM" 
+                               Style="{ThemeResource TitleLargeTextBlockStyle}" 
+                               HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                    
+                    <!-- Random IT/Support Startup Greeting Card -->
+                    <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="{ThemeResource ControlCornerRadius}" 
+                            Padding="20,14"
+                            MaxWidth="560">
+                        <TextBlock Text="{x:Bind ViewModel.StartupGreeting, Mode=OneWay}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextAlignment="Center" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <!-- Search Users AutoSuggestBox -->
+                    <AutoSuggestBox x:Name="UserSearchBox"
+                                    PlaceholderText="{x:Bind S.SearchUserPlaceholder}" 
+                                    Text="{x:Bind ViewModel.CenterUserSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ItemsSource="{x:Bind ViewModel.CenterUserSuggestions, Mode=OneWay}"
+                                    TextChanged="UserSearchBox_TextChanged"
+                                    QuerySubmitted="UserSearchBox_QuerySubmitted"
+                                    SuggestionChosen="UserSearchBox_SuggestionChosen"
+                                    Width="540"
+                                    HorizontalAlignment="Center"
+                                    UpdateTextOnSelect="False">
+                        <AutoSuggestBox.QueryIcon>
+                            <FontIcon Glyph="&#xE77B;"/>
+                        </AutoSuggestBox.QueryIcon>
+                        <AutoSuggestBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:AdUser">
+                                <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,4">
+                                    <PersonPicture DisplayName="{x:Bind DisplayName}" Width="28" Height="28" VerticalAlignment="Center"/>
+                                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind DisplayName}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="{x:Bind SamAccountName}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </AutoSuggestBox.ItemTemplate>
+                    </AutoSuggestBox>
+
+                    <!-- Search Computers AutoSuggestBox -->
+                    <AutoSuggestBox x:Name="ComputerSearchBox"
+                                    PlaceholderText="{x:Bind S.SearchComputerPlaceholder}" 
+                                    Text="{x:Bind ViewModel.CenterComputerSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ItemsSource="{x:Bind ViewModel.CenterComputerSuggestions, Mode=OneWay}"
+                                    TextChanged="ComputerSearchBox_TextChanged"
+                                    QuerySubmitted="ComputerSearchBox_QuerySubmitted"
+                                    SuggestionChosen="ComputerSearchBox_SuggestionChosen"
+                                    Width="540"
+                                    HorizontalAlignment="Center"
+                                    UpdateTextOnSelect="False">
+                        <AutoSuggestBox.QueryIcon>
+                            <FontIcon Glyph="&#xE7F8;"/>
+                        </AutoSuggestBox.QueryIcon>
+                        <AutoSuggestBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:AdComputer">
+                                <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,4">
+                                    <FontIcon Glyph="&#xE7F8;" FontSize="18" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="{x:Bind DnsHostName}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </AutoSuggestBox.ItemTemplate>
+                    </AutoSuggestBox>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

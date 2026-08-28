@@ -1,0 +1,372 @@
+<Page
+    x:Class="Sol.Views.ComputerWorkspacePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:Sol.Models"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    mc:Ignorable="d">
+
+    <Grid>
+        <!-- Loading Overlay -->
+        <Grid Canvas.ZIndex="100" Background="{ThemeResource SmokeFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <ProgressRing IsActive="True" Width="48" Height="48"/>
+                <TextBlock Text="{x:Bind S.LoadingUserData}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Empty State Hero Card (When no computer is loaded) -->
+        <Grid Visibility="{x:Bind ViewModel.EmptyStateVisibility, Mode=OneWay}"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              MaxWidth="720" Margin="24">
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                    Padding="44,36">
+                <StackPanel Spacing="22" HorizontalAlignment="Center">
+                    <Border Width="64" Height="64" CornerRadius="32" Background="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE7F8;" FontSize="28" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <TextBlock Text="{x:Bind S.NavComputerWorkspace}" 
+                               Style="{ThemeResource TitleLargeTextBlockStyle}" 
+                               HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                    
+                    <AutoSuggestBox PlaceholderText="{x:Bind S.SearchComputerPlaceholder}" 
+                                    Text="{x:Bind ViewModel.CenterSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ItemsSource="{x:Bind ViewModel.CenterSuggestions, Mode=OneWay}"
+                                    TextChanged="CenterSearchBox_TextChanged"
+                                    QuerySubmitted="CenterSearchBox_QuerySubmitted"
+                                    SuggestionChosen="CenterSearchBox_SuggestionChosen"
+                                    Width="540"
+                                    HorizontalAlignment="Center"
+                                    UpdateTextOnSelect="False">
+                        <AutoSuggestBox.QueryIcon>
+                            <FontIcon Glyph="&#xE7F8;"/>
+                        </AutoSuggestBox.QueryIcon>
+                        <AutoSuggestBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:AdComputer">
+                                <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,4">
+                                    <FontIcon Glyph="&#xE7F8;" FontSize="18" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="{x:Bind DnsHostName}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </AutoSuggestBox.ItemTemplate>
+                    </AutoSuggestBox>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Multiple Matches Selection State -->
+        <Grid Visibility="{x:Bind ViewModel.MultipleMatchesVisibility, Mode=OneWay}"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              MaxWidth="640" Padding="24">
+            <StackPanel Spacing="16">
+                <TextBlock Text="{x:Bind S.MultipleComputersFound}" Style="{ThemeResource TitleTextBlockStyle}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{x:Bind S.SelectComputerPrompt}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center"/>
+                <ListView ItemsSource="{x:Bind ViewModel.SearchResults, Mode=OneWay}" 
+                          SelectionChanged="MatchesListView_SelectionChanged"
+                          MaxHeight="400"
+                          BorderThickness="1"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                          CornerRadius="{ThemeResource CardCornerRadius}"
+                          Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:AdComputer">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,10">
+                                <FontIcon Glyph="&#xE7F8;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{x:Bind Name}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <TextBlock Text="{x:Bind DnsHostName}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </Grid>
+
+        <!-- Active Computer Workspace Content -->
+        <ScrollViewer Visibility="{x:Bind ViewModel.ComputerContentVisibility, Mode=OneWay}"
+                      Padding="24,16,32,24"
+                      VerticalScrollBarVisibility="Auto">
+            
+            <StackPanel Spacing="20" HorizontalAlignment="Stretch">
+                
+                <!-- Quick Command Bar -->
+                <CommandBar DefaultLabelPosition="Right" Background="Transparent">
+                    <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllDetailsCommand}" />
+                    <AppBarSeparator/>
+                    <AppBarButton Icon="Play" Label="{x:Bind S.PingBtn}" Click="Ping_Click"/>
+                    <AppBarButton Icon="Remote" Label="{x:Bind S.RdpBtn}" Click="Rdp_Click"/>
+                    <AppBarSeparator/>
+                    <AppBarButton Icon="Home" Label="{x:Bind S.CloseWorkspaceBtn}" Command="{x:Bind ViewModel.CloseWorkspaceCommand}"/>
+                </CommandBar>
+
+                <!-- HERO HEADER CARD -->
+                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                      BorderThickness="1"
+                      CornerRadius="{ThemeResource CardCornerRadius}"
+                      Padding="20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Border Grid.Column="0" Width="68" Height="68" CornerRadius="34" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Margin="0,0,20,0">
+                        <FontIcon Glyph="&#xE7F8;" FontSize="32" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                        <TextBlock Text="{x:Bind ViewModel.CurrentComputer.Name, Mode=OneWay}" Style="{ThemeResource TitleTextBlockStyle}"/>
+                        
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.CurrentComputer.OperatingSystem, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                <FontIcon Glyph="&#xE7F8;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="{x:Bind ViewModel.CurrentComputer.OperatingSystem, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.CurrentComputer.DnsHostName, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                <FontIcon Glyph="&#xE774;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="{x:Bind ViewModel.CurrentComputer.DnsHostName, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Account Status Badge -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay, Converter={StaticResource AccountStatusBrushConverter}}"/>
+                            <TextBlock Text="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Header Quick Actions -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Button Content="{x:Bind S.EnableAccountBtn}" Style="{ThemeResource AccentButtonStyle}"
+                                Command="{x:Bind ViewModel.ToggleComputerAccountCommand}"
+                                Visibility="{x:Bind ViewModel.IsAccountDisabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        
+                        <Button Content="{x:Bind S.DisableAccountBtn}"
+                                Command="{x:Bind ViewModel.ToggleComputerAccountCommand}"
+                                Visibility="{x:Bind ViewModel.IsAccountEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                        <DropDownButton Content="PowerShell">
+                            <DropDownButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Get-ADComputer" Click="CopyPs_GetAdComputer"/>
+                                    <MenuFlyoutItem Text="Test-Connection (Ping)" Click="CopyPs_TestConnection"/>
+                                    <MenuFlyoutItem Text="Enter-PSSession" Click="CopyPs_EnterPsSession"/>
+                                    <MenuFlyoutItem Text="mstsc (RDP)" Click="CopyPs_Mstsc"/>
+                                </MenuFlyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
+                </Grid>
+
+                <!-- TWO-COLUMN RESPONSIVE LAYOUT -->
+                <Grid ColumnSpacing="20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT COLUMN: System Identity & BitLocker Keys -->
+                    <StackPanel Grid.Column="0" Spacing="20">
+                        
+                        <!-- System Identity Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.SystemIdentityTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.ComputerNameLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentComputer.SamAccountName, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentComputer.SamAccountName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}">
+                                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                        </Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.DnsHostNameLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentComputer.DnsHostName, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentComputer.DnsHostName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}">
+                                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                        </Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.OperatingSystemLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentComputer.OperatingSystem, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.OsVersionLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentComputer.OperatingSystemVersion, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.OuPathLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentComputer.OuPath, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" MaxWidth="280"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentComputer.OuPath, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}">
+                                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                        </Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.DescriptionLabel}" Visibility="{x:Bind ViewModel.CurrentComputer.Description, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentComputer.Description, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- BitLocker Recovery Keys Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.BitLockerKeysTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <!-- When no keys -->
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.HasBitLockerKeys, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind S.NoBitLockerKeysForComputer}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                </controls:SettingsCard>
+
+                                <!-- Keys list -->
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.BitLockerKeys, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="models:BitLockerKeyInfo">
+                                            <controls:SettingsCard Header="{x:Bind RecoveryPassword}"
+                                                                   Description="{x:Bind FormattedCreated}"
+                                                                   Margin="0,0,0,4">
+                                                <controls:SettingsCard.HeaderIcon>
+                                                    <FontIcon Glyph="&#xE8D7;" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                </controls:SettingsCard.HeaderIcon>
+                                                <Button Style="{ThemeResource AccentButtonStyle}"
+                                                        Click="CopyBitLockerKey_Click"
+                                                        Tag="{x:Bind RecoveryPassword}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                                        <TextBlock Text="Kopieren"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </controls:SettingsCard>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+
+                    </StackPanel>
+
+                    <!-- RIGHT COLUMN: Account Status, Management & Groups -->
+                    <StackPanel Grid.Column="1" Spacing="20">
+                        
+                        <!-- Account Status & Activity Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.AccountSecurityTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.AccountStatusLabel}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay, Converter={StaticResource AccountStatusBrushConverter}}"/>
+                                        <TextBlock Text="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.PasswordLastSetLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.FormattedPasswordLastSet, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.LastLogonLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.FormattedLastLogon, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.ObjectCreatedLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.FormattedCreated, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Management & Location Section -->
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.HasManagedBy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="{x:Bind S.ManagedByLabel}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.ManagedByLabel}">
+                                    <Button Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.NavigateToManagedByUserCommand}" ToolTipService.ToolTip="Benutzer im Arbeitsbereich öffnen">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <PersonPicture DisplayName="{x:Bind ViewModel.CurrentComputer.ManagedBy, Mode=OneWay}" Width="24" Height="24"/>
+                                            <TextBlock Text="{x:Bind ViewModel.CurrentComputer.ManagedBy, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.LocationLabel}" Visibility="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Group Memberships Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.GroupsTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <!-- Filter & Add Group Row -->
+                                <controls:SettingsCard>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="GroupFilterBox" Grid.Column="0"
+                                                 PlaceholderText="{x:Bind S.FilterGroupsPlaceholder}"
+                                                 TextChanged="GroupFilterBox_TextChanged"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Click="AddGroupFlyout_Click">
+                                            <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                                            <Button.Flyout>
+                                                <Flyout x:Name="AddGroupFlyout">
+                                                    <StackPanel Spacing="10" Width="260">
+                                                        <TextBlock Text="{x:Bind S.AddGroupTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                        <TextBox x:Name="NewGroupNameBox" Text="{x:Bind ViewModel.NewGroupName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Gruppenname..."/>
+                                                        <Button Content="{x:Bind S.AddBtn}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Right" Click="ConfirmAddGroup_Click"/>
+                                                    </StackPanel>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+
+                                <!-- Groups List -->
+                                <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}" MaxHeight="300" SelectionMode="None">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Grid Padding="4,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <FontIcon Glyph="&#xE716;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    <TextBlock Text="{x:Bind}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Click="RemoveGroup_Click" Tag="{x:Bind}" ToolTipService.ToolTip="Entfernen">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
+                        </StackPanel>
+
+                    </StackPanel>
+                </Grid>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
