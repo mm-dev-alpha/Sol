@@ -437,6 +437,7 @@ releases/
 samples/
 
 # Internal dev docs & AI agent config (local only)
+.agents/
 .antigravity/
 docs/
 GEMINI.md

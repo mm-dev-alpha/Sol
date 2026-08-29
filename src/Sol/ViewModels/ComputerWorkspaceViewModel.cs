@@ -18,6 +18,8 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 {
     private readonly IActiveDirectoryService _adService;
     private readonly INavigationService _navigationService;
+    private readonly IComputerDiagnosticService _diagnosticService;
+    private System.Threading.CancellationTokenSource? _diagnosticCts;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ComputerContentVisibility))]
@@ -33,6 +35,28 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasManagedBy))]
     public partial AdComputer? CurrentComputer { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHardwareSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasHardwareError))]
+    [NotifyPropertyChangedFor(nameof(HasWarrantyLink))]
+    [NotifyPropertyChangedFor(nameof(WarrantyUrl))]
+    public partial ComputerHardwareSnapshot? HardwareSnapshot { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUptimeSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasUptimeError))]
+    public partial ComputerUptimeSnapshot? UptimeSnapshot { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiskSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasDiskError))]
+    [NotifyPropertyChangedFor(nameof(HasNoDrivesFound))]
+    [NotifyPropertyChangedFor(nameof(DrivesCountBadge))]
+    public partial ComputerDiskSnapshot? DiskSnapshot { get; set; }
+
+    [ObservableProperty] public partial bool IsHardwareLoading { get; set; }
+    [ObservableProperty] public partial bool IsUptimeLoading { get; set; }
+    [ObservableProperty] public partial bool IsDiskLoading { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string StatusMessage { get; set; } = string.Empty;
     [ObservableProperty] public partial string GroupFilterQuery { get; set; } = string.Empty;
@@ -48,24 +72,55 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public string FormattedPasswordLastSet => CurrentComputer?.PasswordLastSet?.ToString("g") ?? "N/A";
     public string FormattedLastLogon => CurrentComputer?.LastLogon?.ToString("g") ?? (CurrentComputer?.LastLogonTimestamp?.ToString("g") ?? "N/A");
     public string FormattedCreated => CurrentComputer?.Created?.ToString("g") ?? "N/A";
+    public string FormattedModified => CurrentComputer?.Modified?.ToString("g") ?? "N/A";
     public bool HasBitLockerKeys => CurrentComputer?.BitLockerKeys?.Count > 0;
     public string BitLockerKeysCount => CurrentComputer?.BitLockerKeys?.Count.ToString() ?? "0";
     public bool HasManagedBy => !string.IsNullOrWhiteSpace(CurrentComputer?.ManagedBy);
 
+    public bool HasHardwareSnapshot => HardwareSnapshot != null && HardwareSnapshot.IsSuccess;
+    public bool HasHardwareError => HardwareSnapshot != null && !HardwareSnapshot.IsSuccess;
+    public bool HasWarrantyLink => !string.IsNullOrWhiteSpace(WarrantyUrl);
+    public string? WarrantyUrl => _diagnosticService.GetWarrantyUrl(HardwareSnapshot?.Manufacturer, HardwareSnapshot?.SerialNumber);
+
+    public bool HasUptimeSnapshot => UptimeSnapshot != null && UptimeSnapshot.IsSuccess;
+    public bool HasUptimeError => UptimeSnapshot != null && !UptimeSnapshot.IsSuccess;
+
+    public bool HasDiskSnapshot => DiskSnapshot != null && DiskSnapshot.IsSuccess && DiskSnapshot.Drives.Count > 0;
+    public bool HasDiskError => DiskSnapshot != null && !DiskSnapshot.IsSuccess;
+    public bool HasNoDrivesFound => DiskSnapshot != null && DiskSnapshot.IsSuccess && DiskSnapshot.Drives.Count == 0;
+    public string DrivesCountBadge => DiskSnapshot?.Drives?.Count.ToString() ?? "0";
+
+    public bool IsDiagnosticsLoading => IsHardwareLoading || IsUptimeLoading || IsDiskLoading;
+
+    public string GroupCountBadge => CurrentComputer?.Groups?.Count.ToString() ?? "0";
+    public bool HasNoFilteredGroups => FilteredGroups.Count == 0;
+
     public ObservableCollection<AdComputer> SearchResults { get; } = new();
     public ObservableCollection<AdComputer> CenterSuggestions { get; } = new();
     public ObservableCollection<string> FilteredGroups { get; } = new();
+    public ObservableCollection<string> GroupSearchSuggestions { get; } = new();
     public ObservableCollection<BitLockerKeyInfo> BitLockerKeys { get; } = new();
+    public ObservableCollection<ComputerDiskDriveInfo> Drives { get; } = new();
 
-    public ComputerWorkspaceViewModel(IActiveDirectoryService adService, INavigationService navigationService)
+    public ComputerWorkspaceViewModel(
+        IActiveDirectoryService adService, 
+        INavigationService navigationService,
+        IComputerDiagnosticService diagnosticService)
     {
         _adService = adService;
         _navigationService = navigationService;
+        _diagnosticService = diagnosticService;
     }
 
     [RelayCommand]
     public void ResetToHeroState()
     {
+        _diagnosticCts?.Cancel();
+        _diagnosticCts?.Dispose();
+        _diagnosticCts = null;
+        HardwareSnapshot = null;
+        IsHardwareLoading = false;
+
         CurrentComputer = null;
         SearchResults.Clear();
         CenterSuggestions.Clear();
@@ -145,6 +200,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             RefreshFilteredGroups();
             RefreshBitLockerKeys();
             NotifyPropertiesChanged();
+            _ = FetchHardwareSnapshotAsync(computer);
         }
         finally
         {
@@ -172,6 +228,28 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         foreach (var g in filtered)
         {
             FilteredGroups.Add(g);
+        }
+        OnPropertyChanged(nameof(HasNoFilteredGroups));
+    }
+
+    [RelayCommand]
+    public async Task SearchGroupsAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            GroupSearchSuggestions.Clear();
+            return;
+        }
+
+        try
+        {
+            var results = await _adService.SearchGroupsAsync(query);
+            GroupSearchSuggestions.Clear();
+            foreach (var r in results) GroupSearchSuggestions.Add(r);
+        }
+        catch
+        {
+            // Ignore suggestions failure
         }
     }
 
@@ -202,7 +280,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
                 AccountStatus = targetState ? "Enabled" : "Disabled"
             };
             NotifyPropertiesChanged();
-            ShowInfo(targetState ? Strings.S.AccountEnabledSuccess : Strings.S.AccountDisabledSuccess);
+            ShowInfo(targetState ? Strings.S.ComputerEnabledSuccess : Strings.S.ComputerDisabledSuccess);
         }
         catch (Exception ex)
         {
@@ -319,6 +397,23 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
         }
 
+        if (HardwareSnapshot != null && HardwareSnapshot.IsSuccess)
+        {
+            sb.AppendLine("Hardware Diagnostics:");
+            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.Manufacturer) || !string.IsNullOrWhiteSpace(HardwareSnapshot.Model))
+                sb.AppendLine($"  - Model: {HardwareSnapshot.Manufacturer} {HardwareSnapshot.Model}".Trim());
+            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.SerialNumber))
+                sb.AppendLine($"  - Serial / Service Tag: {HardwareSnapshot.SerialNumber}");
+            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.BiosVersion))
+                sb.AppendLine($"  - BIOS: {HardwareSnapshot.BiosVersion} ({HardwareSnapshot.BiosReleaseDate})");
+            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.BuildNumber))
+                sb.AppendLine($"  - OS Build: {HardwareSnapshot.FormattedBuild}");
+            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.CpuName))
+                sb.AppendLine($"  - CPU: {HardwareSnapshot.CpuName}");
+            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.TotalMemoryFormatted))
+                sb.AppendLine($"  - Memory: {HardwareSnapshot.TotalMemoryFormatted}");
+        }
+
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(sb.ToString());
         Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
@@ -326,8 +421,123 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void CopyToClipboard(string text)
+    public async Task RefreshHardwareSnapshotAsync()
     {
+        if (CurrentComputer == null) return;
+        await FetchHardwareSnapshotAsync(CurrentComputer);
+    }
+
+    [RelayCommand]
+    public async Task OpenVendorWarrantyAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WarrantyUrl)) return;
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(new Uri(WarrantyUrl));
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    public async Task FetchHardwareSnapshotAsync(AdComputer computer) => await FetchDiagnosticsAsync(computer);
+
+    public async Task FetchDiagnosticsAsync(AdComputer computer)
+    {
+        _diagnosticCts?.Cancel();
+        _diagnosticCts?.Dispose();
+        _diagnosticCts = new System.Threading.CancellationTokenSource();
+        var token = _diagnosticCts.Token;
+
+        string targetHost = !string.IsNullOrWhiteSpace(computer.DnsHostName) ? computer.DnsHostName : computer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        IsHardwareLoading = true;
+        IsUptimeLoading = true;
+        IsDiskLoading = true;
+        HardwareSnapshot = null;
+        UptimeSnapshot = null;
+        DiskSnapshot = null;
+        Drives.Clear();
+        NotifyHardwarePropertiesChanged();
+        NotifyUptimePropertiesChanged();
+        NotifyDiskPropertiesChanged();
+
+        try
+        {
+            var hwTask = _diagnosticService.GetHardwareSnapshotAsync(targetHost, token);
+            var uptimeTask = _diagnosticService.GetUptimeSnapshotAsync(targetHost, token);
+            var diskTask = _diagnosticService.GetDiskSnapshotAsync(targetHost, token);
+
+            await Task.WhenAll(hwTask, uptimeTask, diskTask);
+
+            if (!token.IsCancellationRequested)
+            {
+                HardwareSnapshot = await hwTask;
+                UptimeSnapshot = await uptimeTask;
+                DiskSnapshot = await diskTask;
+                RefreshDrivesCollection();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled
+        }
+        catch (Exception ex)
+        {
+            if (!token.IsCancellationRequested)
+            {
+                HardwareSnapshot ??= new ComputerHardwareSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                UptimeSnapshot ??= new ComputerUptimeSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                DiskSnapshot ??= new ComputerDiskSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+            }
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                IsHardwareLoading = false;
+                IsUptimeLoading = false;
+                IsDiskLoading = false;
+                NotifyHardwarePropertiesChanged();
+                NotifyUptimePropertiesChanged();
+                NotifyDiskPropertiesChanged();
+            }
+        }
+    }
+
+    private void RefreshDrivesCollection()
+    {
+        Drives.Clear();
+        if (DiskSnapshot?.Drives != null)
+        {
+            foreach (var drive in DiskSnapshot.Drives)
+            {
+                Drives.Add(drive);
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void CopyToClipboard(object? parameter)
+    {
+        string? text = parameter?.ToString();
         if (string.IsNullOrEmpty(text)) return;
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(text);
@@ -347,7 +557,16 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [RelayCommand]
     public void CloseWorkspace()
     {
-        ResetToHeroState();
+        CurrentComputer = null;
+        SearchResults.Clear();
+        FilteredGroups.Clear();
+        BitLockerKeys.Clear();
+        HardwareSnapshot = null;
+        UptimeSnapshot = null;
+        DiskSnapshot = null;
+        Drives.Clear();
+        CenterSearchQuery = string.Empty;
+        NotifyPropertiesChanged();
     }
 
     public void NotifyPropertiesChanged()
@@ -361,9 +580,46 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(FormattedPasswordLastSet));
         OnPropertyChanged(nameof(FormattedLastLogon));
         OnPropertyChanged(nameof(FormattedCreated));
+        OnPropertyChanged(nameof(FormattedModified));
         OnPropertyChanged(nameof(HasBitLockerKeys));
         OnPropertyChanged(nameof(BitLockerKeysCount));
         OnPropertyChanged(nameof(HasManagedBy));
+        OnPropertyChanged(nameof(GroupCountBadge));
+        OnPropertyChanged(nameof(HasNoFilteredGroups));
+        NotifyHardwarePropertiesChanged();
+        NotifyUptimePropertiesChanged();
+        NotifyDiskPropertiesChanged();
+    }
+
+    public void NotifyHardwarePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(HardwareSnapshot));
+        OnPropertyChanged(nameof(IsHardwareLoading));
+        OnPropertyChanged(nameof(IsDiagnosticsLoading));
+        OnPropertyChanged(nameof(HasHardwareSnapshot));
+        OnPropertyChanged(nameof(HasHardwareError));
+        OnPropertyChanged(nameof(HasWarrantyLink));
+        OnPropertyChanged(nameof(WarrantyUrl));
+    }
+
+    public void NotifyUptimePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(UptimeSnapshot));
+        OnPropertyChanged(nameof(IsUptimeLoading));
+        OnPropertyChanged(nameof(IsDiagnosticsLoading));
+        OnPropertyChanged(nameof(HasUptimeSnapshot));
+        OnPropertyChanged(nameof(HasUptimeError));
+    }
+
+    public void NotifyDiskPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(DiskSnapshot));
+        OnPropertyChanged(nameof(IsDiskLoading));
+        OnPropertyChanged(nameof(IsDiagnosticsLoading));
+        OnPropertyChanged(nameof(HasDiskSnapshot));
+        OnPropertyChanged(nameof(HasDiskError));
+        OnPropertyChanged(nameof(HasNoDrivesFound));
+        OnPropertyChanged(nameof(DrivesCountBadge));
     }
 
     private void ShowInfo(string message)

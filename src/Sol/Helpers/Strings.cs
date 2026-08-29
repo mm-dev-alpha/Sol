@@ -75,6 +75,8 @@ public class Strings
     public string Active => IsDe ? "Aktiviert" : "Active";
     public string EnableAccountBtn => IsDe ? "Konto aktivieren" : "Enable Account";
     public string DisableAccountBtn => IsDe ? "Konto deaktivieren" : "Disable Account";
+    public string EnableComputerBtn => IsDe ? "Computer aktivieren" : "Enable Computer";
+    public string DisableComputerBtn => IsDe ? "Computer deaktivieren" : "Disable Computer";
     public string UnlockAccountBtn => IsDe ? "Konto entsperren" : "Unlock Account";
     public string PasswordActionsBtn => IsDe ? "Kennwortaktionen" : "Password Actions";
     public string ResetPasswordBtn => IsDe ? "Kennwort zurücksetzen" : "Reset Password";
@@ -112,7 +114,7 @@ public class Strings
     public static string PasswordExpiresInDays(int days) => IsDe ? $"Läuft in {days} Tagen ab" : $"Expires in {days} days";
     public string PasswordStatusUnknown => IsDe ? "Unbekannt" : "Unknown";
 
-    // UserWorkspacePage - Group Memberships
+    // Group Memberships Component (Standardized across Workspaces)
     public string GroupsTitle => IsDe ? "Gruppenmitgliedschaften" : "Group Memberships";
     public string AddGroupTitle => IsDe ? "Zu Gruppe hinzufügen" : "Add to Group";
     public string AddGroupBtn => IsDe ? "Hinzufügen" : "Add";
@@ -120,11 +122,18 @@ public class Strings
     public string RemoveBtn => IsDe ? "Entfernen" : "Remove";
     public string AddGroupPlaceholder => IsDe ? "Zur Gruppe hinzufügen..." : "Add to group...";
     public string FilterGroupsPlaceholder => IsDe ? "Gruppen filtern..." : "Filter groups...";
+    public string NoGroupsFound => IsDe ? "Keine Gruppen gefunden." : "No groups found.";
+    public string NoGroupsMatchFilter => IsDe ? "Keine Gruppen entsprechen dem Filter." : "No groups match the filter.";
+    public string AddGroupTooltip => IsDe ? "Gruppe hinzufügen" : "Add to group";
+    public string RemoveGroupTooltip => IsDe ? "Aus Gruppe entfernen" : "Remove from group";
+    public string SearchGroupToAddPlaceholder => IsDe ? "Gruppenname suchen oder eingeben..." : "Search or enter group name...";
 
     // Notifications (Toasts / InfoBar)
     public string AccountUnlockedSuccess => IsDe ? "Konto erfolgreich entsperrt." : "Account unlocked successfully.";
     public string AccountEnabledSuccess => IsDe ? "Konto aktiviert." : "Account enabled.";
     public string AccountDisabledSuccess => IsDe ? "Konto deaktiviert." : "Account disabled.";
+    public string ComputerEnabledSuccess => IsDe ? "Computer aktiviert." : "Computer enabled.";
+    public string ComputerDisabledSuccess => IsDe ? "Computer deaktiviert." : "Computer disabled.";
     public string PasswordResetSuccess => IsDe ? "Kennwort erfolgreich zurückgesetzt und in die Zwischenablage kopiert." : "Password reset successfully. Copied to clipboard.";
     public string ForcePasswordChangeSuccess => IsDe ? "Benutzer muss das Kennwort bei der nächsten Anmeldung ändern." : "User forced to change password at next logon.";
     public string ProfileUpdatedSuccess => IsDe ? "Profil erfolgreich aktualisiert." : "Profile updated successfully.";
@@ -173,14 +182,60 @@ public class Strings
     public string LocationLabel => IsDe ? "Standort" : "Location";
     public string AccountSecurityTitle => IsDe ? "Kontostatus & Sicherheit" : "Account Status & Security";
     public string ObjectCreatedLabel => IsDe ? "Objekt erstellt am" : "Object Created";
+    public string ObjectModifiedLabel => IsDe ? "Objekt geändert am" : "Object Modified";
     public string QuickDiagnosticTitle => IsDe ? "Diagnose & Fernwartung" : "Diagnostics & Remote Tools";
     public string PingBtn => IsDe ? "Erreichbarkeit prüfen (Ping)" : "Test Connection (Ping)";
     public string RemotePsBtn => IsDe ? "Remote PowerShell starten" : "Launch Remote PowerShell";
     public string RdpBtn => IsDe ? "Remotedesktop (RDP)" : "Remote Desktop (RDP)";
-    public string ResetComputerAccountBtn => IsDe ? "Computerkonto zurücksetzen" : "Reset Computer Account";
-    public string CopyBitLockerKeyBtn => IsDe ? "Schlüssel kopieren" : "Copy Key";
-    public string KeyIdLabel => IsDe ? "Schlüssel-ID:" : "Key ID:";
     public string DateLabel => IsDe ? "Erstellt am:" : "Created:";
+
+    // Computer Workspace - Hardware & Asset Diagnostics
+    public string HardwareDiagnosticsTitle => IsDe ? "Hardware & Gerätediagnose" : "Hardware & Diagnostics";
+    public string HardwareModelLabel => IsDe ? "Modell & Hersteller" : "Model & Manufacturer";
+    public string SerialNumberLabel => IsDe ? "Seriennummer / Service-Tag" : "Serial Number / Service Tag";
+    public string BiosVersionLabel => IsDe ? "BIOS-Version & Datum" : "BIOS Version & Date";
+    public string OsBuildLabel => IsDe ? "Windows Build & Version" : "Windows Build & Version";
+    public string CpuLabel => IsDe ? "Prozessor (CPU)" : "Processor (CPU)";
+    public string TotalMemoryLabel => IsDe ? "Arbeitsspeicher (RAM)" : "Installed Memory (RAM)";
+    public string CheckWarrantyTooltip => IsDe ? "Hersteller-Garantie aufrufen" : "Check Vendor Warranty";
+    public string OpenUserWorkspaceTooltip => IsDe ? "Benutzer im Arbeitsbereich öffnen" : "Open user in workspace";
+    public string FetchingHardwareData => IsDe ? "Hardware-Spezifikationen werden remote abgefragt..." : "Querying remote hardware specs...";
+    public string HardwareDiagnosticFailed => IsDe ? "Hardware-Diagnose nicht erreichbar (Computer offline oder WMI/RPC blockiert)" : "Hardware diagnostics unreachable (endpoint offline or WMI/RPC blocked)";
+    public string RefreshHardwareBtn => IsDe ? "Hardware-Diagnose aktualisieren" : "Refresh Hardware Diagnostics";
+    public string WarrantyBtn => IsDe ? "Garantie prüfen" : "Check Warranty";
+
+    // Feature 2: Uptime & Pending Reboot Detection
+    public string SystemUptimeLabel => IsDe ? "System-Betriebszeit" : "System Uptime";
+    public string LastBootTimeLabel => IsDe ? "Letzter Systemstart" : "Last Boot Time";
+    public string PendingRebootLabel => IsDe ? "Ausstehender Neustart" : "Pending Reboot";
+    public string RebootRequired => IsDe ? "Neustart erforderlich" : "Reboot Required";
+    public string NoRebootRequired => IsDe ? "Kein Neustart erforderlich" : "No Reboot Required";
+    public string RebootStatusUnknown => IsDe ? "Unbekannt (Registry nicht erreichbar)" : "Unknown (Registry unreachable)";
+    public static string RebootReasonsTooltip(string reasons) => IsDe ? $"Erkannte Ursachen: {reasons}" : $"Detected reasons: {reasons}";
+    public static string FormatUptimeDays(int days, int hours) => IsDe ? $"{days} Tage, {hours} Std." : $"{days} days, {hours} hrs";
+    public static string FormatUptimeHours(int hours, int minutes) => IsDe ? $"{hours} Std., {minutes} Min." : $"{hours} hrs, {minutes} mins";
+    public static string FormatUptimeMinutes(int minutes) => IsDe ? $"{minutes} Min." : $"{minutes} mins";
+
+    // Feature 3: Disk Space & Drive Health
+    public string DrivesAndStorageTitle => IsDe ? "Laufwerke & Speicherplatz" : "Drives & Storage";
+    public string RefreshDrivesBtn => IsDe ? "Laufwerksdaten aktualisieren" : "Refresh Drive Data";
+    public string FetchingDrivesData => IsDe ? "Laufwerksdaten werden über WMI abgerufen..." : "Querying remote storage & drives...";
+    public string DrivesDiagnosticFailed => IsDe ? "Laufwerks-Diagnose nicht erreichbar (Computer offline oder WMI blockiert)" : "Drive diagnostics unreachable (endpoint offline or WMI blocked)";
+    public string NoDrivesFound => IsDe ? "Keine lokalen Festplattenlaufwerke gefunden." : "No local fixed disk drives found.";
+    public string FreeOfLabel => IsDe ? "frei von" : "free of";
+    public string UsedLabel => IsDe ? "belegt" : "used";
+    public string LowDiskSpaceWarning => IsDe ? "Geringer Speicherplatz (< 15%)" : "Low disk space (< 15%)";
+    public string CriticalDiskSpaceWarning => IsDe ? "Kritischer Speicherplatz (< 5%)" : "Critical low disk space (< 5%)";
+    public string DriveHealthOk => IsDe ? "Fehlerfrei (OK)" : "Healthy (OK)";
+    public string DriveHealthWarning => IsDe ? "Warnung" : "Warning";
+    public string DriveHealthCritical => IsDe ? "Kritisch" : "Critical";
+    public string HealthyDriveTooltip => IsDe ? "Laufwerkszustand: Einwandfrei (OK)" : "Drive health: Healthy (OK)";
+    public static string FormatDriveHealthTooltip(string health, string media) => IsDe
+        ? $"Laufwerkszustand: {health} ({media})"
+        : $"Drive health: {health} ({media})";
+    public static string FormatDriveCapacity(string freeFormatted, string totalFormatted, double usedPct) => IsDe
+        ? $"{freeFormatted} frei von {totalFormatted} ({usedPct:F0}% belegt)"
+        : $"{freeFormatted} free of {totalFormatted} ({usedPct:F0}% used)";
 
     // Advanced Attribute Editor (Safe Whitelist & Inspector)
     public string AdvancedEditorBtn => IsDe ? "Attribut-Editor" : "Attribute Editor";

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Sol.Models;
@@ -28,6 +28,7 @@ public record AdComputer
     public DateTime? LastLogonTimestamp { get; init; }
     public DateTime? PasswordLastSet { get; init; }
     public DateTime? Created { get; init; }
+    public DateTime? Modified { get; init; }
 
     // BitLocker Recovery Keys
     public List<BitLockerKeyInfo> BitLockerKeys { get; init; } = [];

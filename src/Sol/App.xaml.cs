@@ -47,6 +47,7 @@ public partial class App : Application
             services.AddSingleton<Sol.Services.IGreetingService, Sol.Services.GreetingService>();
             services.AddSingleton<Sol.Services.INavigationService, Sol.Services.NavigationService>();
             services.AddSingleton<Sol.Services.IExportService, Sol.Services.ExportService>();
+            services.AddSingleton<Sol.Services.IComputerDiagnosticService, Sol.Services.ComputerDiagnosticService>();
 
             // ViewModels
             services.AddSingleton<Sol.ViewModels.GlobalSearchViewModel>();

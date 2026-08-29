@@ -46,6 +46,10 @@ public record AdUser
     public int BadPasswordCount { get; init; }
     public DateTime? BadPasswordTime { get; init; }
 
+    // Object Metadata
+    public DateTime? Created { get; init; }
+    public DateTime? Modified { get; init; }
+
     // Groups
     public List<string> Groups { get; init; } = [];
 }

@@ -84,6 +84,33 @@ public sealed partial class UserWorkspacePage : Page
         }
     }
 
+    private void GroupSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (args.SelectedItem is string groupName)
+        {
+            ViewModel.NewGroupName = groupName;
+        }
+    }
+
+    private async void GroupSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (!string.IsNullOrWhiteSpace(args.QueryText))
+        {
+            ViewModel.NewGroupName = args.QueryText;
+            await ViewModel.AddToGroupCommand.ExecuteAsync(null);
+            AddGroupFlyout?.Hide();
+        }
+    }
+
+    private async void ConfirmAddGroup_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(ViewModel.NewGroupName))
+        {
+            await ViewModel.AddToGroupCommand.ExecuteAsync(null);
+            AddGroupFlyout?.Hide();
+        }
+    }
+
     private async void RemoveGroup_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string groupName)
@@ -94,13 +121,15 @@ public sealed partial class UserWorkspacePage : Page
 
     private async void DirectReport_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is HyperlinkButton btn)
+        string? target = null;
+        if (sender is FrameworkElement fe)
         {
-            var target = btn.DataContext as string ?? btn.Content as string;
-            if (!string.IsNullOrWhiteSpace(target))
-            {
-                await ViewModel.NavigateToUserCommand.ExecuteAsync(target);
-            }
+            target = fe.Tag as string ?? fe.DataContext as string;
+        }
+
+        if (!string.IsNullOrWhiteSpace(target))
+        {
+            await ViewModel.NavigateToUserCommand.ExecuteAsync(target);
         }
     }
 

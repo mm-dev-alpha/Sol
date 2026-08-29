@@ -217,6 +217,20 @@
                                         <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Sid, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.ObjectCreatedLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.FormattedCreated, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.FormattedCreated, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.ObjectModifiedLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.FormattedModified, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.FormattedModified, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
                             </StackPanel>
                         </StackPanel>
 
@@ -237,6 +251,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditGivenName, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.GivenName, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.GivenName, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.LastNameLabel}">
@@ -244,6 +259,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditSurname, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Surname, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Surname, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.AddressLabel}">
@@ -251,6 +267,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditAddress, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.StreetAddress, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.StreetAddress, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.OfficeLabel}">
@@ -258,6 +275,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditOffice, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Office, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Office, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.OfficePhoneLabel}">
@@ -268,31 +286,112 @@
                                         <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.OfficePhone, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.MobilePhoneLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditMobilePhone, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.MobilePhone, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.MobilePhone, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
                             </StackPanel>
                         </StackPanel>
 
                         <!-- Group Memberships Section -->
                         <StackPanel Spacing="8">
-                            <TextBlock Text="{x:Bind S.GroupsTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                                <StackPanel>
-                                    <TextBox PlaceholderText="{x:Bind S.FilterGroupsPlaceholder}" Margin="12,12,12,6" TextChanged="GroupFilterBox_TextChanged"/>
-                                    <Grid Padding="12,6" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <AutoSuggestBox Text="{x:Bind ViewModel.NewGroupName, Mode=TwoWay}" Grid.Column="0" PlaceholderText="{x:Bind S.AddGroupPlaceholder}" ItemsSource="{x:Bind ViewModel.GroupSearchSuggestions, Mode=OneWay}" Margin="0,0,8,0" UpdateTextOnSelect="True" TextChanged="GroupSearchBox_TextChanged"/>
-                                        <Button Grid.Column="1" Content="{x:Bind S.AddGroupBtn}" Command="{x:Bind ViewModel.AddToGroupCommand}" Style="{ThemeResource AccentButtonStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Section Header with Group Count Pill -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind S.GroupsTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind ViewModel.GroupCountBadge, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Quick Add Group Button with Flyout -->
+                                <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.AddGroupTooltip}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE710;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="{x:Bind S.AddBtn}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    </StackPanel>
+                                    <Button.Flyout>
+                                        <Flyout x:Name="AddGroupFlyout">
+                                            <StackPanel Spacing="10" Width="300" Padding="4">
+                                                <TextBlock Text="{x:Bind S.AddGroupTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                <AutoSuggestBox x:Name="NewGroupNameBox"
+                                                                Text="{x:Bind ViewModel.NewGroupName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                PlaceholderText="{x:Bind S.SearchGroupToAddPlaceholder}"
+                                                                ItemsSource="{x:Bind ViewModel.GroupSearchSuggestions, Mode=OneWay}"
+                                                                TextChanged="GroupSearchBox_TextChanged"
+                                                                SuggestionChosen="GroupSearchBox_SuggestionChosen"
+                                                                QuerySubmitted="GroupSearchBox_QuerySubmitted"
+                                                                UpdateTextOnSelect="True">
+                                                    <AutoSuggestBox.QueryIcon>
+                                                        <FontIcon Glyph="&#xE716;"/>
+                                                    </AutoSuggestBox.QueryIcon>
+                                                </AutoSuggestBox>
+                                                <Button Content="{x:Bind S.AddGroupBtn}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Right" Click="ConfirmAddGroup_Click"/>
+                                            </StackPanel>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+
+                            <!-- Card Container -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{ThemeResource CardCornerRadius}">
+                                <StackPanel Spacing="0">
+                                    <!-- Filter Search Bar -->
+                                    <Grid Padding="12,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                        <TextBox x:Name="GroupFilterBox"
+                                                 PlaceholderText="{x:Bind S.FilterGroupsPlaceholder}"
+                                                 Text="{x:Bind ViewModel.GroupFilterQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 TextChanged="GroupFilterBox_TextChanged"/>
                                     </Grid>
-                                    <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}" SelectionMode="None" MaxHeight="250">
+
+                                    <!-- Groups List -->
+                                    <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}"
+                                              MaxHeight="260"
+                                              SelectionMode="None"
+                                              Padding="0,4">
                                         <ListView.ItemTemplate>
                                             <DataTemplate x:DataType="sys:String">
-                                                <controls:SettingsCard Header="{x:Bind}" Margin="0,0,0,2">
-                                                    <Button Style="{StaticResource SubtleIconButtonStyle}" Click="RemoveGroup_Click" Tag="{x:Bind}">
-                                                        <FontIcon Glyph="&#xE711;" FontSize="12"/>
+                                                <Grid Padding="12,8" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <!-- Group Icon -->
+                                                    <FontIcon Grid.Column="0" Glyph="&#xE716;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                    
+                                                    <!-- Group Name -->
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    
+                                                    <!-- Delete Button -->
+                                                    <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
+                                                            Click="RemoveGroup_Click" Tag="{x:Bind}"
+                                                            ToolTipService.ToolTip="{x:Bind local:Strings.S.RemoveGroupTooltip}">
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
                                                     </Button>
-                                                </controls:SettingsCard>
+                                                </Grid>
                                             </DataTemplate>
                                         </ListView.ItemTemplate>
                                     </ListView>
+
+                                    <!-- Empty Filter State -->
+                                    <Grid Padding="16,20" HorizontalAlignment="Center"
+                                          Visibility="{x:Bind ViewModel.HasNoFilteredGroups, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind S.NoGroupsMatchFilter}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -330,7 +429,18 @@
                                                 </DataTemplate>
                                             </AutoSuggestBox.ItemTemplate>
                                         </AutoSuggestBox>
-                                        <HyperlinkButton Grid.Column="0" Content="{x:Bind ViewModel.CurrentUser.Manager, Mode=OneWay}" Click="ManagerLink_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+
+                                        <!-- Manager Display Button (Avatar + Name + Open icon) -->
+                                        <Button Grid.Column="0" Style="{StaticResource SubtleIconButtonStyle}" Click="ManagerLink_Click" ToolTipService.ToolTip="{x:Bind S.OpenUserWorkspaceTooltip}" HorizontalAlignment="Right" Visibility="{x:Bind ViewModel.ManagerDisplayVisibility, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PersonPicture DisplayName="{x:Bind ViewModel.CurrentUser.Manager, Mode=OneWay}" Width="24" Height="24"/>
+                                                <TextBlock Text="{x:Bind ViewModel.CurrentUser.Manager, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                <FontIcon Glyph="&#xE8A7;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- No Manager Assigned Fallback -->
+                                        <TextBlock Grid.Column="0" Text="N/A" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind ViewModel.NoManagerDisplayVisibility, Mode=OneWay}"/>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.TitleLabel}">
@@ -338,6 +448,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditTitle, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Title, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Title, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.DepartmentLabel}">
@@ -345,15 +456,37 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditDepartment, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Department, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Department, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
+                                
+                                <!-- Direct Reports Section -->
                                 <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.HasDirectReports, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Padding="16,12">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{x:Bind S.DirectReportsLabel}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <StackPanel Spacing="10">
+                                        <!-- Header with Count Badge Pill -->
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind S.DirectReportsLabel}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind ViewModel.DirectReportsCountBadge, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- Direct Reports List with PersonPicture & link glyph -->
                                         <ListView ItemsSource="{x:Bind ViewModel.CurrentUser.DirectReports, Mode=OneWay}" SelectionMode="None" MaxHeight="250">
                                             <ListView.ItemTemplate>
                                                 <DataTemplate x:DataType="sys:String">
-                                                    <HyperlinkButton Content="{x:Bind}" Click="DirectReport_Click" HorizontalAlignment="Left" Padding="0,4"/>
+                                                    <Button Style="{StaticResource SubtleIconButtonStyle}" Click="DirectReport_Click" ToolTipService.ToolTip="{x:Bind local:Strings.S.OpenUserWorkspaceTooltip}" Tag="{x:Bind}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,6" Margin="0,0,0,4">
+                                                        <Grid ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <PersonPicture Grid.Column="0" DisplayName="{x:Bind}" Width="24" Height="24"/>
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis"/>
+                                                            <FontIcon Grid.Column="2" Glyph="&#xE8A7;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                        </Grid>
+                                                    </Button>
                                                 </DataTemplate>
                                             </ListView.ItemTemplate>
                                         </ListView>
@@ -367,22 +500,46 @@
                             <TextBlock Text="{x:Bind S.SecurityLogonSection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             <StackPanel Spacing="4">
                                 <controls:SettingsCard Header="{x:Bind S.PasswordLastSetLabel}">
-                                    <TextBlock Text="{x:Bind ViewModel.FormattedPasswordLastSet, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.FormattedPasswordLastSet, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.FormattedPasswordLastSet, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.PasswordExpiryLabel}">
-                                    <TextBlock Text="{x:Bind ViewModel.CurrentUser.PasswordExpiryStatus, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.PasswordExpiryStatus, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.PasswordExpiryStatus, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.MustChangePasswordLabel}">
-                                    <TextBlock Text="{x:Bind ViewModel.MustChangePassword, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.MustChangePassword, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.MustChangePassword, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.AccountExpiresLabel}">
-                                    <TextBlock Text="{x:Bind ViewModel.CurrentUser.AccountExpiresStatus, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.AccountExpiresStatus, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.AccountExpiresStatus, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.BadPasswordCountLabel}">
-                                    <TextBlock Text="{x:Bind ViewModel.CurrentUser.BadPasswordCount, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.FormattedBadPasswordCount, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.FormattedBadPasswordCount, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.LastLogonLabel}">
-                                    <TextBlock Text="{x:Bind ViewModel.FormattedLastLogon, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.FormattedLastLogon, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.FormattedLastLogon, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
                                 </controls:SettingsCard>
                             </StackPanel>
                         </StackPanel>

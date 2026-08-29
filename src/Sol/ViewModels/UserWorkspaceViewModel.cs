@@ -50,13 +50,20 @@ public partial class UserWorkspaceViewModel : ObservableObject
     public Visibility MultipleMatchesVisibility => SearchResults.Count > 0 && CurrentUser == null ? Visibility.Visible : Visibility.Collapsed;
 
     // Derived properties for UI
+    public bool HasManager => !string.IsNullOrWhiteSpace(CurrentUser?.Manager);
+    public Visibility ManagerDisplayVisibility => !IsEditing && HasManager ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility NoManagerDisplayVisibility => !IsEditing && !HasManager ? Visibility.Visible : Visibility.Collapsed;
     public bool HasDirectReports => CurrentUser?.DirectReports?.Count > 0;
     public string DirectReportsCount => CurrentUser?.DirectReports?.Count.ToString() ?? "0";
+    public string DirectReportsCountBadge => CurrentUser?.DirectReports?.Count.ToString() ?? "0";
     public string MustChangePassword => CurrentUser?.PasswordLastSet == null || CurrentUser.PasswordLastSet == DateTime.MinValue || CurrentUser.PasswordLastSet.Value.Year < 1900 ? Strings.S.Yes : Strings.S.No;
     public bool IsAccountEnabled => CurrentUser?.AccountStatus == "Enabled";
     public bool IsAccountDisabled => CurrentUser?.AccountStatus == "Disabled";
     public string FormattedPasswordLastSet => CurrentUser?.PasswordLastSet?.ToString("d") ?? "N/A";
     public string FormattedLastLogon => CurrentUser?.LastLogon?.ToString("d") ?? "N/A";
+    public string FormattedCreated => CurrentUser?.Created?.ToString("g") ?? "N/A";
+    public string FormattedModified => CurrentUser?.Modified?.ToString("g") ?? "N/A";
+    public string FormattedBadPasswordCount => CurrentUser != null ? CurrentUser.BadPasswordCount.ToString() : "0";
 
     [ObservableProperty]
     public partial string StartupGreeting { get; set; } = string.Empty;
@@ -88,6 +95,9 @@ public partial class UserWorkspaceViewModel : ObservableObject
         NotifyPropertiesChanged();
     }
 
+    public string GroupCountBadge => CurrentUser?.Groups?.Count.ToString() ?? "0";
+    public bool HasNoFilteredGroups => FilteredGroups.Count == 0;
+
     [RelayCommand]
     public void FilterGroups(string query)
     {
@@ -108,6 +118,7 @@ public partial class UserWorkspaceViewModel : ObservableObject
         {
             FilteredGroups.Add(g);
         }
+        OnPropertyChanged(nameof(HasNoFilteredGroups));
     }
 
     [RelayCommand]
@@ -168,9 +179,14 @@ public partial class UserWorkspaceViewModel : ObservableObject
         }
     }
 
-    // Edit properties
     [ObservableProperty] public partial bool IsEditing { get; set; }
     [ObservableProperty] public partial bool IsAdvancedEditorOpen { get; set; }
+
+    partial void OnIsEditingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ManagerDisplayVisibility));
+        OnPropertyChanged(nameof(NoManagerDisplayVisibility));
+    }
     [ObservableProperty] public partial string EditTitle { get; set; } = string.Empty;
     [ObservableProperty] public partial string EditDepartment { get; set; } = string.Empty;
     [ObservableProperty] public partial string EditManager { get; set; } = string.Empty;
@@ -194,13 +210,22 @@ public partial class UserWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(UserContentVisibility));
         OnPropertyChanged(nameof(EmptyStateVisibility));
         OnPropertyChanged(nameof(MultipleMatchesVisibility));
+        OnPropertyChanged(nameof(HasManager));
+        OnPropertyChanged(nameof(ManagerDisplayVisibility));
+        OnPropertyChanged(nameof(NoManagerDisplayVisibility));
         OnPropertyChanged(nameof(HasDirectReports));
         OnPropertyChanged(nameof(DirectReportsCount));
+        OnPropertyChanged(nameof(DirectReportsCountBadge));
         OnPropertyChanged(nameof(MustChangePassword));
         OnPropertyChanged(nameof(IsAccountEnabled));
         OnPropertyChanged(nameof(IsAccountDisabled));
         OnPropertyChanged(nameof(FormattedPasswordLastSet));
         OnPropertyChanged(nameof(FormattedLastLogon));
+        OnPropertyChanged(nameof(FormattedCreated));
+        OnPropertyChanged(nameof(FormattedModified));
+        OnPropertyChanged(nameof(FormattedBadPasswordCount));
+        OnPropertyChanged(nameof(GroupCountBadge));
+        OnPropertyChanged(nameof(HasNoFilteredGroups));
     }
 
     public async Task LoadUserAsync(string query)
@@ -677,8 +702,9 @@ public partial class UserWorkspaceViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CopyToClipboard(string text)
+    private void CopyToClipboard(object? parameter)
     {
+        string? text = parameter?.ToString();
         if (string.IsNullOrEmpty(text)) return;
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(text);

@@ -69,6 +69,31 @@ public sealed partial class ComputerWorkspacePage : Page
         // Handled in XAML Flyout
     }
 
+    private async void GroupSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            await ViewModel.SearchGroupsCommand.ExecuteAsync(sender.Text);
+        }
+    }
+
+    private void GroupSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (args.SelectedItem is string groupName)
+        {
+            ViewModel.NewGroupName = groupName;
+        }
+    }
+
+    private async void GroupSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (!string.IsNullOrWhiteSpace(args.QueryText))
+        {
+            await ViewModel.AddToGroupCommand.ExecuteAsync(args.QueryText);
+            AddGroupFlyout?.Hide();
+        }
+    }
+
     private async void ConfirmAddGroup_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrWhiteSpace(ViewModel.NewGroupName))
