@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Sol.Services;
@@ -11,7 +11,7 @@ public partial class SettingsViewModel : ObservableObject
 {
     private readonly ISettingsService _settings;
 
-    [ObservableProperty] public partial string Version { get; set; } = "3.3.3";
+    [ObservableProperty] public partial string Version { get; set; } = "3.4.0";
     [ObservableProperty] public partial string AdDomain { get; set; } = string.Empty;
     [ObservableProperty] public partial string AppLanguage { get; set; } = "en";
 
