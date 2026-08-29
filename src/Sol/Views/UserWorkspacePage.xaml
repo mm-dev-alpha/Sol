@@ -1,0 +1,434 @@
+<Page
+    x:Name="PageRoot"
+    x:Class="Sol.Views.UserWorkspacePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:Sol.Models"
+    xmlns:sys="using:System"
+    xmlns:scg="using:System.Collections.Generic"
+    xmlns:viewmodels="using:Sol.ViewModels"
+    xmlns:local="using:Sol.Helpers"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <!-- Empty State Hero Card (When no user is loaded) -->
+        <Grid Visibility="{x:Bind ViewModel.EmptyStateVisibility, Mode=OneWay}"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              MaxWidth="720" Margin="24">
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                    Padding="44,36">
+                <StackPanel Spacing="22" HorizontalAlignment="Center">
+                    <Border Width="64" Height="64" CornerRadius="32" Background="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE77B;" FontSize="28" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <TextBlock Text="{x:Bind S.NavUserWorkspace}" 
+                               Style="{ThemeResource TitleLargeTextBlockStyle}" 
+                               HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                    
+                    <!-- Search Users Box -->
+                    <AutoSuggestBox PlaceholderText="{x:Bind S.SearchUserPlaceholder}" 
+                                    Text="{x:Bind ViewModel.CenterSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ItemsSource="{x:Bind ViewModel.CenterSuggestions, Mode=OneWay}"
+                                    TextChanged="CenterSearchBox_TextChanged"
+                                    QuerySubmitted="CenterSearchBox_QuerySubmitted"
+                                    SuggestionChosen="CenterSearchBox_SuggestionChosen"
+                                    Width="540"
+                                    HorizontalAlignment="Center"
+                                    UpdateTextOnSelect="False">
+                        <AutoSuggestBox.QueryIcon>
+                            <FontIcon Glyph="&#xE77B;"/>
+                        </AutoSuggestBox.QueryIcon>
+                        <AutoSuggestBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:AdUser">
+                                <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,4">
+                                    <PersonPicture DisplayName="{x:Bind DisplayName}" Width="28" Height="28"/>
+                                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind DisplayName}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="{x:Bind SamAccountName}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </AutoSuggestBox.ItemTemplate>
+                    </AutoSuggestBox>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Multiple Matches Selection State -->
+        <Grid Visibility="{x:Bind ViewModel.MultipleMatchesVisibility, Mode=OneWay}"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              MaxWidth="640" Padding="24">
+            <StackPanel Spacing="16">
+                <TextBlock Text="{x:Bind S.MultipleUsersFound}" Style="{ThemeResource TitleTextBlockStyle}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{x:Bind S.SelectUserPrompt}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center"/>
+                <ListView ItemsSource="{x:Bind ViewModel.SearchResults, Mode=OneWay}" 
+                          SelectionChanged="MatchesListView_SelectionChanged"
+                          MaxHeight="400"
+                          BorderThickness="1"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                          CornerRadius="{ThemeResource CardCornerRadius}"
+                          Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:AdUser">
+                            <StackPanel Margin="16,10" Spacing="2">
+                                <TextBlock Text="{x:Bind DisplayName}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                <TextBlock Text="{x:Bind SamAccountName}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </Grid>
+
+        <!-- Active User Workspace Content -->
+        <ScrollViewer Visibility="{x:Bind ViewModel.UserContentVisibility, Mode=OneWay}"
+                      Padding="24,16,32,24"
+                      VerticalScrollBarVisibility="Auto">
+            
+            <StackPanel Spacing="20" HorizontalAlignment="Stretch">
+                
+                <!-- Quick Command Bar -->
+                <CommandBar DefaultLabelPosition="Right" Background="Transparent">
+                    <AppBarButton Icon="Edit" Label="{x:Bind S.EditBtn}" Command="{x:Bind ViewModel.BeginEditCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
+                    <AppBarButton Icon="Save" Label="{x:Bind S.SaveBtn}" Command="{x:Bind ViewModel.SaveProfileCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <AppBarButton Icon="Cancel" Label="{x:Bind S.CancelBtn}" Command="{x:Bind ViewModel.CancelEditCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <AppBarSeparator/>
+                    <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllCommand}" />
+                    <AppBarButton Icon="Keyboard" Label="{x:Bind S.CopyPowerShellBtn}" Command="{x:Bind ViewModel.CopyPowerShellCommand}" />
+                    <AppBarButton Icon="Repair" Label="{x:Bind S.AdvancedEditorBtn}" Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}" />
+                    <AppBarButton Icon="Home" Label="{x:Bind S.CloseWorkspaceBtn}" Command="{x:Bind ViewModel.CloseWorkspaceCommand}"/>
+                </CommandBar>
+
+                <!-- HERO HEADER CARD -->
+                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                      BorderThickness="1"
+                      CornerRadius="{ThemeResource CardCornerRadius}"
+                      Padding="20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <PersonPicture Grid.Column="0" DisplayName="{x:Bind ViewModel.CurrentUser.DisplayName, Mode=OneWay}" Width="72" Height="72" Margin="0,0,20,0"/>
+                    
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                        <TextBlock Text="{x:Bind ViewModel.CurrentUser.DisplayName, Mode=OneWay}" Style="{ThemeResource TitleTextBlockStyle}"/>
+                        
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.CurrentUser.Title, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                <FontIcon Glyph="&#xE779;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="{x:Bind ViewModel.CurrentUser.Title, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.CurrentUser.Department, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                <FontIcon Glyph="&#xEC05;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="{x:Bind ViewModel.CurrentUser.Department, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Account Status Badge -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind ViewModel.CurrentUser.AccountStatus, Mode=OneWay, Converter={StaticResource AccountStatusBrushConverter}}"/>
+                            <TextBlock Text="{x:Bind ViewModel.CurrentUser.AccountStatus, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Header Quick Actions -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Button Content="{x:Bind S.EnableAccountBtn}" Style="{ThemeResource AccentButtonStyle}"
+                                Command="{x:Bind ViewModel.EnableAccountCommand}" 
+                                Visibility="{x:Bind ViewModel.IsAccountDisabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                        <Button Content="{x:Bind S.DisableAccountBtn}" 
+                                Command="{x:Bind ViewModel.DisableAccountCommand}" 
+                                Visibility="{x:Bind ViewModel.IsAccountEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        
+                        <Button Content="{x:Bind S.UnlockAccountBtn}" 
+                                Command="{x:Bind ViewModel.UnlockAccountCommand}" 
+                                Visibility="{x:Bind ViewModel.CurrentUser.IsLockedOut, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Style="{ThemeResource AccentButtonStyle}"/>
+
+                        <DropDownButton Content="{x:Bind S.PasswordActionsBtn}">
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                    <MenuFlyoutItem Text="{x:Bind S.ResetPasswordBtn}" Icon="Permissions" Click="ResetPassword_Click"/>
+                                    <MenuFlyoutItem Text="{x:Bind S.ForcePasswordChangeBtn}" Click="ForcePasswordChange_Click"/>
+                                </MenuFlyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Standard Content Layout (2-Column Fluent 2 Cards) -->
+                <Grid ColumnSpacing="20" Visibility="{x:Bind ViewModel.IsAdvancedEditorOpen, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT COLUMN -->
+                    <StackPanel Grid.Column="0" Spacing="20">
+                        
+                        <!-- Account & Identity Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.AccountIdentitySection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.LogonNameLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.SamAccountName, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.SamAccountName, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.UpnLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Upn, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Upn, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.EmployeeIdLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.EmployeeId, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.EmployeeId, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.OuPathLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.OuPath, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" MaxWidth="280"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.OuPath, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.SidLabel}" Visibility="{x:Bind ViewModel.CurrentUser.Sid, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Sid, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" MaxWidth="280"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Sid, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Contact & Location Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.ContactInfoSection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.EmailLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditEmail, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Email, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.Email, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.FirstNameLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditGivenName, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.GivenName, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.LastNameLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditSurname, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Surname, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.AddressLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditAddress, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.StreetAddress, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.OfficeLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditOffice, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Office, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.OfficePhoneLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditOfficePhone, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.OfficePhone, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.OfficePhone, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Group Memberships Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.GroupsTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                <StackPanel>
+                                    <TextBox PlaceholderText="{x:Bind S.FilterGroupsPlaceholder}" Margin="12,12,12,6" TextChanged="GroupFilterBox_TextChanged"/>
+                                    <Grid Padding="12,6" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <AutoSuggestBox Text="{x:Bind ViewModel.NewGroupName, Mode=TwoWay}" Grid.Column="0" PlaceholderText="{x:Bind S.AddGroupPlaceholder}" ItemsSource="{x:Bind ViewModel.GroupSearchSuggestions, Mode=OneWay}" Margin="0,0,8,0" UpdateTextOnSelect="True" TextChanged="GroupSearchBox_TextChanged"/>
+                                        <Button Grid.Column="1" Content="{x:Bind S.AddGroupBtn}" Command="{x:Bind ViewModel.AddToGroupCommand}" Style="{ThemeResource AccentButtonStyle}"/>
+                                    </Grid>
+                                    <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}" SelectionMode="None" MaxHeight="250">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:String">
+                                                <controls:SettingsCard Header="{x:Bind}" Margin="0,0,0,2">
+                                                    <Button Style="{StaticResource SubtleIconButtonStyle}" Click="RemoveGroup_Click" Tag="{x:Bind}">
+                                                        <FontIcon Glyph="&#xE711;" FontSize="12"/>
+                                                    </Button>
+                                                </controls:SettingsCard>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- RIGHT COLUMN -->
+                    <StackPanel Grid.Column="1" Spacing="20">
+                        
+                        <!-- Organization & Hierarchy Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.OrganizationHierarchySection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.ManagerLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <AutoSuggestBox Grid.Column="0" 
+                                                        Text="{x:Bind ViewModel.EditManager, Mode=TwoWay}" 
+                                                        PlaceholderText="{x:Bind S.SearchManagerPlaceholder}" 
+                                                        ItemsSource="{x:Bind ViewModel.ManagerSearchSuggestions, Mode=OneWay}" 
+                                                        TextMemberPath="DisplayName" 
+                                                        MinWidth="200" 
+                                                        HorizontalAlignment="Stretch" 
+                                                        Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" 
+                                                        TextChanged="ManagerSearchBox_TextChanged" 
+                                                        SuggestionChosen="ManagerSearchBox_SuggestionChosen">
+                                            <AutoSuggestBox.ItemTemplate>
+                                                <DataTemplate x:DataType="models:AdUser">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="4,2">
+                                                        <PersonPicture DisplayName="{x:Bind DisplayName}" Width="24" Height="24"/>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="{x:Bind DisplayName}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                            <TextBlock Text="{x:Bind SamAccountName}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </AutoSuggestBox.ItemTemplate>
+                                        </AutoSuggestBox>
+                                        <HyperlinkButton Grid.Column="0" Content="{x:Bind ViewModel.CurrentUser.Manager, Mode=OneWay}" Click="ManagerLink_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.TitleLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditTitle, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Title, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.DepartmentLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind ViewModel.EditDepartment, Mode=TwoWay}" MinWidth="200" TextAlignment="Right" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.Department, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </controls:SettingsCard>
+                                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.HasDirectReports, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Padding="16,12">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Bind S.DirectReportsLabel}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                        <ListView ItemsSource="{x:Bind ViewModel.CurrentUser.DirectReports, Mode=OneWay}" SelectionMode="None" MaxHeight="250">
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate x:DataType="sys:String">
+                                                    <HyperlinkButton Content="{x:Bind}" Click="DirectReport_Click" HorizontalAlignment="Left" Padding="0,4"/>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Security & Logon Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind S.SecurityLogonSection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.PasswordLastSetLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.FormattedPasswordLastSet, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.PasswordExpiryLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentUser.PasswordExpiryStatus, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.MustChangePasswordLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.MustChangePassword, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.AccountExpiresLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentUser.AccountExpiresStatus, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.BadPasswordCountLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentUser.BadPasswordCount, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.LastLogonLabel}">
+                                    <TextBlock Text="{x:Bind ViewModel.FormattedLastLogon, Mode=OneWay}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ADVANCED ATTRIBUTE INSPECTOR & SAFE EDITOR -->
+                <Grid Visibility="{x:Bind ViewModel.IsAdvancedEditorOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{x:Bind S.AttributeEditorTitle}" Style="{ThemeResource TitleTextBlockStyle}"/>
+                            <TextBlock Text="{x:Bind S.AttributeEditorDesc}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- Search / Filter Bar -->
+                        <Grid>
+                            <TextBox x:Name="AttributeFilterBox" PlaceholderText="{x:Bind S.FilterAttributesPlaceholder}" TextChanged="AttributeFilterBox_TextChanged" MaxWidth="400" HorizontalAlignment="Left"/>
+                        </Grid>
+                        
+                        <!-- Virtualized Attributes Table -->
+                        <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                            <ListView ItemsSource="{x:Bind ViewModel.AdvancedAttributes, Mode=OneWay}" MaxHeight="600" SelectionMode="None">
+                                <ListView.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ItemsStackPanel AreStickyGroupHeadersEnabled="True" ItemsUpdatingScrollMode="KeepItemsInView"/>
+                                    </ItemsPanelTemplate>
+                                </ListView.ItemsPanel>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:AdAttributeItem">
+                                        <Grid Padding="16,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="260"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind Key}" FontWeight="SemiBold" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Value}" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="8,0" FontFamily="{StaticResource CodeFontFamily}"/>
+                                            <Button Grid.Column="2" Content="{x:Bind local:Strings.S.EditBtn}" Click="EditAttribute_Click" Tag="{x:Bind}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Sol (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Sol (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

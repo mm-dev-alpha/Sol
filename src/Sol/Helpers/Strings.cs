@@ -1,0 +1,277 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+namespace Sol.Helpers;
+
+public class Strings
+{
+    public static Strings S { get; } = new();
+
+    public static string CurrentLanguage { get; set; } = "en";
+    private static string Lang => CurrentLanguage;
+    public static bool IsDe => Lang == "de";
+
+    private static readonly Dictionary<string, PropertyInfo> _propertyCache =
+        typeof(Strings).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+
+    public static string Get(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return string.Empty;
+        if (_propertyCache.TryGetValue(key, out var prop))
+        {
+            return prop.GetValue(S) as string ?? string.Empty;
+        }
+        return $"[{key}]";
+    }
+
+    // General & Common
+    public string Yes => IsDe ? "Ja" : "Yes";
+    public string No => IsDe ? "Nein" : "No";
+    public string Never => IsDe ? "Nie" : "Never";
+    public string SaveBtn => IsDe ? "Speichern" : "Save";
+    public string HomeBtn => IsDe ? "Startseite" : "Home";
+    public string LoadingUserData => IsDe ? "Daten werden geladen..." : "Loading data...";
+    public string CopiedToClipboard => IsDe ? "In die Zwischenablage kopiert." : "Copied to clipboard.";
+
+    // MainWindow
+    public string NavHome => IsDe ? "Startseite" : "Home";
+    public string NavUserWorkspace => IsDe ? "Benutzer-Arbeitsbereich" : "User Workspace";
+    public string NavComputerWorkspace => IsDe ? "Computer-Arbeitsbereich" : "Computer Workspace";
+    public string NavSettings => IsDe ? "Einstellungen" : "Settings";
+    public string RunningAs => IsDe ? "Ausgeführt als: " : "Running as: ";
+
+    // User & Computer Search
+    public string SearchUserPlaceholder => IsDe ? "Nach einem Benutzer suchen..." : "Search for a user...";
+    public string SearchComputerPlaceholder => IsDe ? "Nach einem Computer suchen..." : "Search for a computer...";
+    public string MultipleUsersFound => IsDe ? "Mehrere Benutzer gefunden" : "Multiple Users Found";
+    public string SelectUserPrompt => IsDe ? "Bitte wählen Sie den gewünschten Benutzer aus:" : "Please select the correct user:";
+    public static string NoUsersFound(string query) => IsDe ? $"Keine Benutzer gefunden, die '{query}' entsprechen." : $"No users found matching '{query}'.";
+    public static string ErrorLoadingUser(string msg) => IsDe ? $"Fehler beim Laden des Benutzers: {msg}" : $"Error loading user: {msg}";
+
+    // UserWorkspacePage - Hero & Actions
+    public string UserDetailsTitle => IsDe ? "Benutzerdetails" : "User Details";
+    public string FirstNameLabel => IsDe ? "Vorname" : "First Name";
+    public string LastNameLabel => IsDe ? "Nachname" : "Last Name";
+    public string DisplayNameLabel => IsDe ? "Anzeigename" : "Display Name";
+    public string EmailLabel => IsDe ? "E-Mail" : "Email";
+    public string DepartmentLabel => IsDe ? "Abteilung" : "Department";
+    public string TitleLabel => IsDe ? "Position" : "Title";
+    public string ManagerLabel => IsDe ? "Vorgesetzter" : "Manager";
+    public string AccountStatusLabel => IsDe ? "Kontostatus" : "Account Status";
+    public string SidLabel => IsDe ? "Sicherheitskennung (SID)" : "Security Identifier (SID)";
+    public string AddressLabel => IsDe ? "Adresse" : "Address";
+    public string WebsiteLabel => IsDe ? "Webseite" : "Website";
+    public string EditBtn => IsDe ? "Bearbeiten" : "Edit";
+    public string CancelBtn => IsDe ? "Abbrechen" : "Cancel";
+    public string CopyBtn => IsDe ? "Kopieren" : "Copy";
+    public string CopyAllBtn => IsDe ? "Alle kopieren" : "Copy All";
+    public string CloseWorkspaceBtn => IsDe ? "Arbeitsbereich schließen" : "Close Workspace";
+    
+    public string LockedOut => IsDe ? "Gesperrt" : "Locked Out";
+    public string Disabled => IsDe ? "Deaktiviert" : "Disabled";
+    public string Active => IsDe ? "Aktiviert" : "Active";
+    public string EnableAccountBtn => IsDe ? "Konto aktivieren" : "Enable Account";
+    public string DisableAccountBtn => IsDe ? "Konto deaktivieren" : "Disable Account";
+    public string UnlockAccountBtn => IsDe ? "Konto entsperren" : "Unlock Account";
+    public string PasswordActionsBtn => IsDe ? "Kennwortaktionen" : "Password Actions";
+    public string ResetPasswordBtn => IsDe ? "Kennwort zurücksetzen" : "Reset Password";
+    public string ForcePasswordChangeBtn => IsDe ? "Kennwortänderung bei nächster Anmeldung" : "User must change password at next logon";
+    public string SetNewPasswordTitle => IsDe ? "Neues Kennwort festlegen" : "Set New Password";
+    public string NewPasswordLabel => IsDe ? "Neues Kennwort" : "New Password";
+    public string NewPasswordPlaceholder => IsDe ? "Neues Kennwort eingeben oder generieren" : "Enter new password or generate";
+    public string GeneratePasswordBtn => IsDe ? "Kennwort generieren" : "Generate Password";
+    public string MustChangePasswordCheckbox => IsDe ? "Kennwort bei nächster Anmeldung ändern" : "User must change password at next logon";
+    public string UnlockAccountCheckbox => IsDe ? "Konto entsperren, falls gesperrt" : "Unlock account if locked out";
+    public string PasswordResetAuditNotice => IsDe ? "Das neue Kennwort wird bei Bestätigung in die Zwischenablage kopiert. Diese Aktion wird protokolliert." : "The new password will be copied to your clipboard upon confirmation. This action is logged.";
+    public static string ResetPasswordDialogTitle(string name) => IsDe ? $"Kennwort für {name} zurücksetzen" : $"Reset Password for {name}";
+
+    // UserWorkspacePage - Contact Information Section
+    public string ContactInfoSection => IsDe ? "Kontaktinformationen" : "Contact Information";
+    public string OfficeLabel => IsDe ? "Büro" : "Office";
+    public string OfficePhoneLabel => IsDe ? "Rufnummer geschäftlich" : "Office Phone";
+    public string MobilePhoneLabel => IsDe ? "Mobiltelefon" : "Mobile Phone";
+    public string ViewManagerBtn => IsDe ? "Vorgesetzten anzeigen" : "View Manager";
+    public string DirectReportsLabel => IsDe ? "Direkte Mitarbeiter" : "Direct Reports";
+    public string ViewProfileBtn => IsDe ? "Profil anzeigen" : "View Profile";
+    public string SearchManagerPlaceholder => IsDe ? "Vorgesetzten suchen..." : "Search manager...";
+
+    // UserWorkspacePage - Security & Logon Section
+    public string SecurityLogonSection => IsDe ? "Sicherheit & Anmeldung" : "Security & Logon";
+    public string PasswordLastSetLabel => IsDe ? "Kennwort zuletzt festgelegt" : "Password Last Set";
+    public string PasswordExpiryLabel => IsDe ? "Kennwortablauf" : "Password Expiry";
+    public string MustChangePasswordLabel => IsDe ? "Kennwort bei nächster Anmeldung ändern" : "Must change password at next logon";
+    public string BadPasswordCountLabel => IsDe ? "Fehlerhafte Kennworteingaben" : "Bad Password Count";
+    public string LastLogonLabel => IsDe ? "Letzte Anmeldung" : "Last Logon";
+    public string PasswordNeverExpires => IsDe ? "Läuft nie ab" : "Never expires";
+    public string PasswordExpired => IsDe ? "Abgelaufen" : "Expired";
+    public string PasswordExpiresToday => IsDe ? "Läuft heute ab" : "Expires today";
+    public string PasswordExpiresTomorrow => IsDe ? "Läuft morgen ab" : "Expires tomorrow";
+    public static string PasswordExpiresInDays(int days) => IsDe ? $"Läuft in {days} Tagen ab" : $"Expires in {days} days";
+    public string PasswordStatusUnknown => IsDe ? "Unbekannt" : "Unknown";
+
+    // UserWorkspacePage - Group Memberships
+    public string GroupsTitle => IsDe ? "Gruppenmitgliedschaften" : "Group Memberships";
+    public string AddGroupTitle => IsDe ? "Zu Gruppe hinzufügen" : "Add to Group";
+    public string AddGroupBtn => IsDe ? "Hinzufügen" : "Add";
+    public string AddBtn => IsDe ? "Hinzufügen" : "Add";
+    public string RemoveBtn => IsDe ? "Entfernen" : "Remove";
+    public string AddGroupPlaceholder => IsDe ? "Zur Gruppe hinzufügen..." : "Add to group...";
+    public string FilterGroupsPlaceholder => IsDe ? "Gruppen filtern..." : "Filter groups...";
+
+    // Notifications (Toasts / InfoBar)
+    public string AccountUnlockedSuccess => IsDe ? "Konto erfolgreich entsperrt." : "Account unlocked successfully.";
+    public string AccountEnabledSuccess => IsDe ? "Konto aktiviert." : "Account enabled.";
+    public string AccountDisabledSuccess => IsDe ? "Konto deaktiviert." : "Account disabled.";
+    public string PasswordResetSuccess => IsDe ? "Kennwort erfolgreich zurückgesetzt und in die Zwischenablage kopiert." : "Password reset successfully. Copied to clipboard.";
+    public string ForcePasswordChangeSuccess => IsDe ? "Benutzer muss das Kennwort bei der nächsten Anmeldung ändern." : "User forced to change password at next logon.";
+    public string ProfileUpdatedSuccess => IsDe ? "Profil erfolgreich aktualisiert." : "Profile updated successfully.";
+    public static string AddedToGroupSuccess(string group) => IsDe ? $"Zu '{group}' hinzugefügt." : $"Added to {group}.";
+    public static string RemovedFromGroupSuccess(string group) => IsDe ? $"Aus '{group}' entfernt." : $"Removed from {group}.";
+    public static string SaveProfileFailed(string error) => IsDe ? $"Speichern fehlgeschlagen: {error}" : $"Save failed: {error}";
+
+    // TitleBar & Shell
+    public string AppTitle => "Sol";
+    public string TitleBarSearchPlaceholder => IsDe ? "Nach einem Benutzer suchen..." : "Search for a user...";
+    public string SearchUserPlaceholderWithShortcut => IsDe ? "Nach einem Benutzer suchen..." : "Search for a user...";
+    public string ExportBtn => IsDe ? "Exportieren" : "Export";
+    public string FilterPlaceholder => IsDe ? "Filtern..." : "Filter...";
+    public string RefreshBtn => IsDe ? "Aktualisieren" : "Refresh";
+    public string CloseBtn => IsDe ? "Schließen" : "Close";
+    public string ConfirmBtn => IsDe ? "Bestätigen" : "Confirm";
+
+    // User Workspace Sections
+    public string AccountIdentitySection => IsDe ? "Konto & Identität" : "Account & Identity";
+    public string OrganizationHierarchySection => IsDe ? "Organisation & Hierarchie" : "Organization & Hierarchy";
+    public string LogonNameLabel => IsDe ? "Anmeldename" : "Logon Name";
+    public string UpnLabel => IsDe ? "Benutzerprinzipalname (UPN)" : "User Principal Name (UPN)";
+    public string EmployeeIdLabel => IsDe ? "Mitarbeiter-ID" : "Employee ID";
+    public string OuPathLabel => IsDe ? "Organisationseinheit (OU)" : "OU Path";
+    public string AccountExpiresLabel => IsDe ? "Kontoablauf" : "Account Expires";
+    public string CopyPowerShellBtn => IsDe ? "PowerShell-Befehl kopieren" : "Copy PowerShell Command";
+    public string PowerShellCommandCopied => IsDe ? "PowerShell-Befehl in die Zwischenablage kopiert." : "PowerShell command copied to clipboard.";
+    public string PowerShellCopiedSuccess => IsDe ? "PowerShell-Befehl in die Zwischenablage kopiert." : "PowerShell command copied to clipboard.";
+    public string AllInfoCopiedSuccess => IsDe ? "Alle Profilinformationen in die Zwischenablage kopiert." : "All profile information copied to clipboard.";
+    public string ExportProfileBtn => IsDe ? "Profil exportieren" : "Export Profile";
+
+    // Computer Workspace
+    public string NoComputerFound => IsDe ? "Kein passender Computer im Active Directory gefunden." : "No matching computer found in Active Directory.";
+    public string MultipleComputersFound => IsDe ? "Mehrere Computer gefunden" : "Multiple Computers Found";
+    public string SelectComputerPrompt => IsDe ? "Bitte wählen Sie das gewünschte Computerkonto aus:" : "Please select the computer account:";
+    public string BitLockerKeysTitle => IsDe ? "BitLocker-Wiederherstellungsschlüssel" : "BitLocker Recovery Keys";
+    public string BitLockerKeyCopiedSuccess => IsDe ? "Wiederherstellungsschlüssel in die Zwischenablage kopiert." : "Recovery key copied to clipboard.";
+    public string NoBitLockerKeysForComputer => IsDe ? "Keine BitLocker-Wiederherstellungsschlüssel für dieses Computerkonto hinterlegt." : "No BitLocker recovery keys stored for this computer account.";
+    public string SystemIdentityTitle => IsDe ? "System & Netzwerkidentität" : "System & Network Identity";
+    public string ComputerNameLabel => IsDe ? "Computername" : "Computer Name";
+    public string DnsHostNameLabel => IsDe ? "DNS-Hostname" : "DNS Hostname";
+    public string OperatingSystemLabel => IsDe ? "Betriebssystem" : "Operating System";
+    public string OsVersionLabel => IsDe ? "Betriebssystemversion" : "OS Version";
+    public string DescriptionLabel => IsDe ? "Beschreibung" : "Description";
+    public string ManagedByLabel => IsDe ? "Verwaltet von" : "Managed By";
+    public string LocationLabel => IsDe ? "Standort" : "Location";
+    public string AccountSecurityTitle => IsDe ? "Kontostatus & Sicherheit" : "Account Status & Security";
+    public string ObjectCreatedLabel => IsDe ? "Objekt erstellt am" : "Object Created";
+    public string QuickDiagnosticTitle => IsDe ? "Diagnose & Fernwartung" : "Diagnostics & Remote Tools";
+    public string PingBtn => IsDe ? "Erreichbarkeit prüfen (Ping)" : "Test Connection (Ping)";
+    public string RemotePsBtn => IsDe ? "Remote PowerShell starten" : "Launch Remote PowerShell";
+    public string RdpBtn => IsDe ? "Remotedesktop (RDP)" : "Remote Desktop (RDP)";
+    public string ResetComputerAccountBtn => IsDe ? "Computerkonto zurücksetzen" : "Reset Computer Account";
+    public string CopyBitLockerKeyBtn => IsDe ? "Schlüssel kopieren" : "Copy Key";
+    public string KeyIdLabel => IsDe ? "Schlüssel-ID:" : "Key ID:";
+    public string DateLabel => IsDe ? "Erstellt am:" : "Created:";
+
+    // Advanced Attribute Editor (Safe Whitelist & Inspector)
+    public string AdvancedEditorBtn => IsDe ? "Attribut-Editor" : "Attribute Editor";
+    public string AttributeEditorTitle => IsDe ? "Active Directory-Attribut-Editor" : "Active Directory Attribute Editor";
+    public string AttributeEditorDesc => IsDe ? "Schemaattribute für diesen Benutzer prüfen und sicher bearbeiten." : "Inspect and safely modify schema attributes for this user.";
+    public string FilterAttributesPlaceholder => IsDe ? "Attribute filtern..." : "Filter attributes...";
+    public string EditAttributeBtn => IsDe ? "Wert bearbeiten" : "Edit Value";
+    public string OldValueLabel => IsDe ? "Bisheriger Wert:" : "Current Value:";
+    public string NewValueLabel => IsDe ? "Neuer Wert:" : "New Value:";
+    public string ConfirmAttributeChangeTitle => IsDe ? "Attributänderung bestätigen" : "Confirm Attribute Change";
+    public static string ConfirmAttributeChangePrompt(string attr, string oldVal, string newVal) => IsDe 
+        ? $"Möchten Sie das Attribut '{attr}' wirklich von '{oldVal}' zu '{newVal}' ändern? Diese Aktion wird protokolliert."
+        : $"Are you sure you want to update attribute '{attr}' from '{oldVal}' to '{newVal}'? This action will be audited.";
+    public static string AttributeUpdateSuccess(string attr) => IsDe ? $"Attribut '{attr}' erfolgreich aktualisiert." : $"Attribute '{attr}' updated successfully.";
+    public static string AttributeUpdateFailed(string attr, string err) => IsDe ? $"Aktualisierung von '{attr}' fehlgeschlagen: {err}" : $"Failed to update '{attr}': {err}";
+    public static string AttributeLabel(string key) => IsDe ? $"Attribut: {key}" : $"Attribute: {key}";
+    public string AuditLogNotice => IsDe ? "Alle Änderungen an diesem Attribut werden dauerhaft im Sicherheitsprotokoll erfasst." : "All modifications to this attribute will be durably written to the security audit log.";
+    public string NonEditableAttributeTooltip => IsDe ? "Dieses Attribut ist schreibgeschützt (Typ nicht zur Bearbeitung freigegeben)." : "This attribute is read-only (type excluded from safe editing).";
+
+    // SettingsPage
+    public string SettingsTitle => IsDe ? "Einstellungen" : "Settings";
+    public string GeneralSettings => IsDe ? "Allgemein" : "General";
+    public string AppLanguageLabel => IsDe ? "App-Sprache" : "App Language";
+    public string RestartRequiredDesc => IsDe ? "Neustart erforderlich, um Sprachänderungen zu übernehmen" : "Restart required to apply changes";
+    public string AdSettings => IsDe ? "Active Directory" : "Active Directory";
+    public string DomainNameLabel => IsDe ? "Domänenname" : "Domain Name";
+    
+    public string SaveSettingsBtn => IsDe ? "Einstellungen speichern" : "Save Settings";
+    public string TestAdBtn => IsDe ? "AD-Verbindung testen" : "Test AD Connection";
+    public string SettingsSavedPrompt => IsDe ? "Einstellungen gespeichert. Bitte App neu starten, um Sprachänderungen zu übernehmen." : "Settings saved. Restart app to apply language.";
+    public string TestingConnection => IsDe ? "Verbindung wird getestet..." : "Testing connection...";
+
+    public string AboutSettings => IsDe ? "Über" : "About";
+    public string VersionLabel => IsDe ? "Version" : "Version";
+    public string DeveloperLabel => IsDe ? "Entwickler" : "Developer";
+
+    public static string[] AllGreetings => IsDe 
+        ? new[] 
+        {
+            "\"Ich habe nichts gemacht, das war plötzlich einfach so!\" 🤷‍♀️",
+            "\"Gestern ging es aber noch!\" ⏳",
+            "\"Ich brauche ein neues Passwort, das alte funktioniert schon wieder nicht.\" 🔑",
+            "\"Können Sie das schnell beheben? Es brennt wirklich und ich muss in 5 Minuten ein Dokument abgeben!\" 🔥",
+            "\"Das Internet ist komplett gelöscht!\" 🌐",
+            "\"Ich habe den PC schon dreimal neu gestartet! (Monitor aus- und wieder eingeschaltet)\" 🖥️",
+            "\"Mein Bildschirm ist ganz schwarz, woran liegt das?\" (Stromkabel liegt daneben) 🕶️",
+            "\"Können Sie das nicht einfach magisch reparieren, ohne dass ich etwas tun muss?\" 🧙‍♂️",
+            "\"Ich habe auf den Link in der komischen E-Mail geklickt, weil da stand, ich hätte ein iPhone gewonnen.\" 🎁",
+            "\"Mein Passwort? Das klebt doch als Post-it direkt am Monitor!\" 📝",
+            "\"Seit dem letzten Windows-Update ist die Kaffeemaschine kaputt!\" ☕",
+            "\"Können Sie mir das Internet schneller machen? Das lädt heute so langsam.\" 🐌",
+            "\"Die Datei ist einfach verschwunden! (Liegt im Papierkorb)\" 🗑️",
+            "\"Können Sie kurz vorbeikommen? Übers Telefon verstehe ich das nicht.\" 🏃‍♂️",
+            "\"Ich habe das Dokument gespeichert, aber ich weiß nicht wo.\" 📁",
+            "\"Mein Headset geht nicht, hören Sie mich?!\" 🎧",
+            "\"Können Sie mir mein Passwort verraten? Sie müssen das doch sehen können!\" 🔐",
+            "\"Ich kann mich nicht einloggen! (Feststelltaste ist dauerhaft an)\" 🔡",
+            "\"Der PC macht so ein komisches Geräusch, als würde er gleich abheben!\" 🛸",
+            "\"Ich habe doch gar nichts angeklickt, das Fenster ging von ganz alleine auf!\" 🪟",
+            "\"Ich gebe euch mal 5 Minuten eurer Zeit zurück.\" ⏱️",
+            "\"Ich sehe eine Hand oben – ist das noch eine alte Hand oder eine neue Frage?\" 🙋‍♂️",
+            "\"Könnt ihr mich alle gut hören?\" 🎙️",
+            "\"Ich schicke den Link dazu gleich mal in den Chat.\" 💬",
+            "\"Sorry für die Verspätung, der vorherige Termin hat etwas überzogen.\" 🏃💨"
+        }
+        : new[] 
+        {
+            "\"I didn't do anything, it just happened suddenly!\" 🤷‍♀️",
+            "\"But it worked yesterday!\" ⏳",
+            "\"I need a new password, the old one isn't working again.\" 🔑",
+            "\"Can you fix this quickly? It's an absolute emergency and I have to submit a document in 5 minutes!\" 🔥",
+            "\"The internet has been completely deleted!\" 🌐",
+            "\"I've already restarted the PC three times! (Turned the monitor off and on again)\" 🖥️",
+            "\"My screen is completely black, why is that?\" (Power cable lying next to it) 🕶️",
+            "\"Can't you just magically fix it without me having to do anything?\" 🧙‍♂️",
+            "\"I clicked the link in that weird email because it said I won an iPhone.\" 🎁",
+            "\"My password? It's on a Post-it right on my monitor!\" 📝",
+            "\"Ever since the last Windows update, the coffee machine is broken!\" ☕",
+            "\"Can you make the internet faster for me? It's loading so slowly today.\" 🐌",
+            "\"The file just disappeared! (It's in the recycle bin)\" 🗑️",
+            "\"Can you quickly drop by? I don't understand this over the phone.\" 🏃‍♂️",
+            "\"I saved the document, but I don't know where.\" 📁",
+            "\"My headset isn't working, can you hear me?!\" 🎧",
+            "\"Can you tell me my password? You must be able to see it!\" 🔐",
+            "\"I can't log in! (Caps Lock is permanently on)\" 🔡",
+            "\"The PC is making a weird noise, like it's about to take off!\" 🛸",
+            "\"I didn't click anything, the window opened all by itself!\" 🪟",
+            "\"I'll give you back 5 minutes of your time.\" ⏱️",
+            "\"I see a hand raised – is that a legacy hand or a new question?\" 🙋‍♂️",
+            "\"Can you all hear me well?\" 🎙️",
+            "\"I'll drop the link for that in the chat right now.\" 💬",
+            "\"Sorry I'm late, the previous meeting ran over.\" 🏃💨"
+        };
+}
