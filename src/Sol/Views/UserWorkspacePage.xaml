@@ -101,6 +101,13 @@
                     <AppBarButton Icon="Save" Label="{x:Bind S.SaveBtn}" Click="SaveProfile_Click" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <AppBarButton Icon="Cancel" Label="{x:Bind S.CancelBtn}" Command="{x:Bind ViewModel.CancelEditCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <AppBarSeparator/>
+                    <AppBarButton Label="{x:Bind S.AdvancedEditorBtn}" 
+                                  ToolTipService.ToolTip="{x:Bind S.AttributeEditorTitle}" 
+                                  Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE943;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllCommand}" />
                     <AppBarButton Label="{x:Bind S.ViewJiraTicketsBtn}" 
                                   ToolTipService.ToolTip="{x:Bind S.ViewJiraTicketsTooltip}" 
@@ -556,10 +563,22 @@
                 <!-- ADVANCED ATTRIBUTE INSPECTOR & SAFE EDITOR -->
                 <Grid Visibility="{x:Bind ViewModel.IsAdvancedEditorOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel Spacing="16">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="{x:Bind S.AttributeEditorTitle}" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <TextBlock Text="{x:Bind S.AttributeEditorDesc}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{x:Bind S.AttributeEditorTitle}" Style="{ThemeResource TitleTextBlockStyle}"/>
+                                <TextBlock Text="{x:Bind S.AttributeEditorDesc}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" VerticalAlignment="Center" Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE72B;" FontSize="12"/>
+                                    <TextBlock Text="{x:Bind S.BackToProfileBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
 
                         <!-- Search / Filter Bar -->
                         <Grid>

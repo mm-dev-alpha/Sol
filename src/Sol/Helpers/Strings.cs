@@ -402,6 +402,7 @@ public class Strings
 
     // Advanced Attribute Editor (Safe Whitelist & Inspector)
     public string AdvancedEditorBtn => IsDe ? "Attribut-Editor" : "Attribute Editor";
+    public string BackToProfileBtn => IsDe ? "Zurück zum Profil" : "Back to Profile";
     public string AttributeEditorTitle => IsDe ? "Active Directory-Attribut-Editor" : "Active Directory Attribute Editor";
     public string AttributeEditorDesc => IsDe ? "Schemaattribute für diesen Benutzer prüfen und sicher bearbeiten." : "Inspect and safely modify schema attributes for this user.";
     public string FilterAttributesPlaceholder => IsDe ? "Attribute filtern..." : "Filter attributes...";
