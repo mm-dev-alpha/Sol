@@ -1,14 +1,4 @@
 # Security Policy
-
-## Supported Versions
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
-
----
-
 ## Reporting a Vulnerability
 
 We take the security and integrity of Sol seriously. Since Sol interacts directly with enterprise Active Directory environments and system diagnostics, responsible disclosure of security vulnerabilities is deeply appreciated.
