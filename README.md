@@ -29,9 +29,8 @@
 
 ## 🎬 Showcase
 
-<!-- HERO DEMO PLACEHOLDER: Replace with assets/demo.gif or video embed -->
 <div align="center">
-  <img src="assets/demo-placeholder.png" alt="Sol Hero Showcase" width="90%">
+  <img src="assets/Showcase.gif" alt="Sol Hero Showcase" width="95%">
   <p><em>Instant Active Directory search, remote diagnostics, and BitLocker recovery key discovery.</em></p>
 </div>
 
