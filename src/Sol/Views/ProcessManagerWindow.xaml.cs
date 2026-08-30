@@ -88,9 +88,18 @@ public sealed partial class ProcessManagerWindow : Window
         ViewModel.FilterProcessesCommand.Execute(SearchBox.Text);
     }
 
+    private bool _isDialogOpen;
+
     private async void RefreshBtn_Click(object sender, RoutedEventArgs e)
     {
-        await ViewModel.RefreshProcessesCommand.ExecuteAsync(null);
+        try
+        {
+            await ViewModel.RefreshProcessesCommand.ExecuteAsync(null);
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
     }
 
     private void SortColumn_Click(object sender, RoutedEventArgs e)
@@ -114,25 +123,38 @@ public sealed partial class ProcessManagerWindow : Window
 
     private async void TerminateProcess_Click(object sender, RoutedEventArgs e)
     {
+        if (_isDialogOpen) return;
         if (sender is Button btn && btn.Tag is ComputerProcessInfo process)
         {
             if (!process.CanTerminate) return;
 
-            string host = ViewModel.CurrentComputer?.SamAccountName ?? string.Empty;
-            var confirmDialog = new ContentDialog
+            _isDialogOpen = true;
+            try
             {
-                XamlRoot = this.Content.XamlRoot,
-                Title = S.ConfirmTerminateProcessTitle,
-                Content = Strings.ConfirmTerminateProcessPrompt(process.Name, process.ProcessId, host),
-                PrimaryButtonText = S.ConfirmBtn,
-                CloseButtonText = S.CancelBtn,
-                DefaultButton = ContentDialogButton.Close
-            };
+                string host = ViewModel.CurrentComputer?.SamAccountName ?? string.Empty;
+                var confirmDialog = new ContentDialog
+                {
+                    XamlRoot = this.Content.XamlRoot,
+                    Title = S.ConfirmTerminateProcessTitle,
+                    Content = Strings.ConfirmTerminateProcessPrompt(process.Name, process.ProcessId, host),
+                    PrimaryButtonText = S.ConfirmBtn,
+                    CloseButtonText = S.CancelBtn,
+                    DefaultButton = ContentDialogButton.Close
+                };
 
-            var result = await confirmDialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
+                var result = await confirmDialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    await ViewModel.TerminateProcessCommand.ExecuteAsync(process);
+                }
+            }
+            catch (Exception ex)
             {
-                await ViewModel.TerminateProcessCommand.ExecuteAsync(process);
+                ViewModel.ShowError(ex.Message);
+            }
+            finally
+            {
+                _isDialogOpen = false;
             }
         }
     }

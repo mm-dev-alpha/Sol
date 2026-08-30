@@ -271,7 +271,103 @@ public sealed partial class ComputerWorkspacePage : Page
         }
     }
 
+    private async void RemoteGpupdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentComputer == null) return;
+        try
+        {
+            string host = !string.IsNullOrWhiteSpace(ViewModel.CurrentComputer.DnsHostName) 
+                ? ViewModel.CurrentComputer.DnsHostName 
+                : ViewModel.CurrentComputer.Name;
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmRemoteGpupdateTitle,
+                Content = Strings.ConfirmRemoteGpupdatePrompt(host),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.TriggerRemoteGpupdateCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
+    }
+
+    private async void SuspendBitLocker_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentComputer == null) return;
+        try
+        {
+            string host = !string.IsNullOrWhiteSpace(ViewModel.CurrentComputer.DnsHostName) 
+                ? ViewModel.CurrentComputer.DnsHostName 
+                : ViewModel.CurrentComputer.Name;
+            string drive = ViewModel.BitLockerSnapshot?.DriveLetter ?? "C:";
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmSuspendBitLockerTitle,
+                Content = Strings.ConfirmSuspendBitLockerPrompt(host, drive),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.SuspendBitLockerProtectionCommand.ExecuteAsync((uint)1);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
+    }
+
+    private async void ResumeBitLocker_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentComputer == null) return;
+        try
+        {
+            string host = !string.IsNullOrWhiteSpace(ViewModel.CurrentComputer.DnsHostName) 
+                ? ViewModel.CurrentComputer.DnsHostName 
+                : ViewModel.CurrentComputer.Name;
+            string drive = ViewModel.BitLockerSnapshot?.DriveLetter ?? "C:";
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmResumeBitLockerTitle,
+                Content = Strings.ConfirmResumeBitLockerPrompt(host, drive),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.ResumeBitLockerProtectionCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
+    }
+
     private ProcessManagerWindow? _processManagerWindow;
+    private ServicesInspectorWindow? _servicesInspectorWindow;
 
     private void OpenProcessManager_Click(object sender, RoutedEventArgs e)
     {
@@ -289,6 +385,24 @@ public sealed partial class ComputerWorkspacePage : Page
             _processManagerWindow = null;
         };
         _processManagerWindow.Activate();
+    }
+
+    private void OpenServicesInspector_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentComputer == null) return;
+
+        if (_servicesInspectorWindow != null)
+        {
+            _servicesInspectorWindow.Activate();
+            return;
+        }
+
+        _servicesInspectorWindow = new ServicesInspectorWindow(ViewModel);
+        _servicesInspectorWindow.Closed += (s, args) =>
+        {
+            _servicesInspectorWindow = null;
+        };
+        _servicesInspectorWindow.Activate();
     }
 
     private void Ping_Click(object sender, RoutedEventArgs e)

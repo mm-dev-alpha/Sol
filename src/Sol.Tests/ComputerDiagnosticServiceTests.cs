@@ -186,7 +186,9 @@ public class ComputerDiagnosticServiceTests
         var mockSearchSvc = new MockSearchService();
         var mockSearch = new GlobalSearchViewModel(mockSearchSvc);
         var mockGreeting = new GreetingService();
-        var vm = new UserWorkspaceViewModel(mockAd, mockSearch, mockGreeting);
+        var mockSettings = new MockSettingsService();
+        var mockNav = new MockNavigationService();
+        var vm = new UserWorkspaceViewModel(mockAd, mockSearch, mockGreeting, mockSettings, mockNav);
         var testDateCreated = new DateTime(2024, 1, 10, 8, 15, 0);
         var testDateModified = new DateTime(2024, 6, 25, 16, 50, 0);
 
@@ -209,7 +211,9 @@ public class ComputerDiagnosticServiceTests
         var mockSearchSvc = new MockSearchService();
         var mockSearch = new GlobalSearchViewModel(mockSearchSvc);
         var mockGreeting = new GreetingService();
-        var vm = new UserWorkspaceViewModel(mockAd, mockSearch, mockGreeting);
+        var mockSettings = new MockSettingsService();
+        var mockNav = new MockNavigationService();
+        var vm = new UserWorkspaceViewModel(mockAd, mockSearch, mockGreeting, mockSettings, mockNav);
 
         vm.CurrentUser = new AdUser
         {
@@ -845,6 +849,451 @@ public class ComputerDiagnosticServiceTests
         vm.CloseProcessManagerRequested += () => closeRequested = true;
         vm.ResetToHeroState();
         Assert.True(closeRequested);
+    }
+
+    [Fact]
+    public void BitLockerSnapshot_PropertiesAndFormatters_EvaluateCorrectly()
+    {
+        var snapshot = new ComputerBitLockerSnapshot
+        {
+            Hostname = "TEST-PC",
+            DriveLetter = "C:",
+            ProtectionStatus = 1,
+            ConversionStatus = 1,
+            EncryptionMethod = 7,
+            IsSuspended = false,
+            IsSuccess = true
+        };
+
+        Assert.True(snapshot.IsProtectionActive);
+        Assert.False(snapshot.IsProtectionSuspended);
+        Assert.True(snapshot.IsFullyEncrypted);
+        Assert.Equal("XTS-AES 256-Bit", snapshot.FormattedEncryptionMethod);
+        Assert.Equal("Fully Encrypted (100 %)", snapshot.FormattedConversionStatus);
+
+        // Test Suspended State
+        var suspendedSnapshot = snapshot with { IsSuspended = true, ProtectionStatus = 0 };
+        Assert.False(suspendedSnapshot.IsProtectionActive);
+        Assert.True(suspendedSnapshot.IsProtectionSuspended);
+
+        // Test Other Encryption Methods
+        Assert.Equal("XTS-AES 128-Bit", (snapshot with { EncryptionMethod = 6 }).FormattedEncryptionMethod);
+        Assert.Equal("AES-CBC 256-Bit", (snapshot with { EncryptionMethod = 4 }).FormattedEncryptionMethod);
+        Assert.Equal("AES-CBC 128-Bit", (snapshot with { EncryptionMethod = 3 }).FormattedEncryptionMethod);
+        Assert.Equal("None", (snapshot with { EncryptionMethod = 0 }).FormattedEncryptionMethod);
+    }
+
+    [Fact]
+    public async Task DiagnosticService_GroupPolicyUpdate_HandlesHostsCorrectly()
+    {
+        var service = new ComputerDiagnosticService();
+
+        // Empty host
+        Assert.False(await service.TriggerGroupPolicyUpdateAsync(string.Empty));
+        Assert.False(await service.TriggerGroupPolicyUpdateAsync("   "));
+
+        // Demo host
+        bool demoResult = await service.TriggerGroupPolicyUpdateAsync("DEMO-WORKSTATION-01.contoso.local");
+        Assert.True(demoResult);
+    }
+
+    [Fact]
+    public async Task DiagnosticService_BitLockerStatusAndTransitions_WorkCorrectly()
+    {
+        var service = new ComputerDiagnosticService();
+        string demoHost = "DEMO-BITLOCKER-PC.company.local";
+
+        // 1. Initial State -> Protected
+        var initialSnapshot = await service.GetBitLockerStatusAsync(demoHost);
+        Assert.True(initialSnapshot.IsSuccess);
+        Assert.True(initialSnapshot.IsProtectionActive);
+        Assert.False(initialSnapshot.IsProtectionSuspended);
+        Assert.Equal("C:", initialSnapshot.DriveLetter);
+
+        // 2. Suspend Protection (1 Reboot)
+        bool suspendSuccess = await service.SuspendBitLockerProtectionAsync(demoHost, 1);
+        Assert.True(suspendSuccess);
+
+        var suspendedSnapshot = await service.GetBitLockerStatusAsync(demoHost);
+        Assert.True(suspendedSnapshot.IsSuccess);
+        Assert.False(suspendedSnapshot.IsProtectionActive);
+        Assert.True(suspendedSnapshot.IsProtectionSuspended);
+
+        // 3. Resume Protection
+        bool resumeSuccess = await service.ResumeBitLockerProtectionAsync(demoHost);
+        Assert.True(resumeSuccess);
+
+        var resumedSnapshot = await service.GetBitLockerStatusAsync(demoHost);
+        Assert.True(resumedSnapshot.IsSuccess);
+        Assert.True(resumedSnapshot.IsProtectionActive);
+        Assert.False(resumedSnapshot.IsProtectionSuspended);
+    }
+
+    [Fact]
+    public async Task ComputerWorkspaceViewModel_BitLockerAndGpupdateCommands_ExecuteCleanly()
+    {
+        var mockAd = new MockAdService();
+        var mockNav = new MockNavigationService();
+        var diagService = new ComputerDiagnosticService();
+        var vm = new ComputerWorkspaceViewModel(mockAd, mockNav, diagService);
+
+        vm.CurrentComputer = new AdComputer
+        {
+            Name = "DEMO-PC",
+            DnsHostName = "DEMO-PC.company.local"
+        };
+
+        // Trigger GPUpdate
+        await vm.TriggerRemoteGpupdateCommand.ExecuteAsync(null);
+
+        // Refresh BitLocker
+        await vm.RefreshBitLockerStatusCommand.ExecuteAsync(null);
+        Assert.True(vm.HasBitLockerSnapshot);
+        Assert.True(vm.IsBitLockerProtectionActive);
+
+        // Suspend BitLocker
+        await vm.SuspendBitLockerProtectionCommand.ExecuteAsync((uint)1);
+        Assert.True(vm.IsBitLockerProtectionSuspended);
+
+        // Resume BitLocker
+        await vm.ResumeBitLockerProtectionCommand.ExecuteAsync(null);
+        Assert.True(vm.IsBitLockerProtectionActive);
+    }
+
+    [Fact]
+    public void JiraTicket_Model_EvaluatesPropertiesAndFormattersCorrectly()
+    {
+        var ticket = new JiraTicket
+        {
+            Key = "ITSM-1042",
+            Summary = "VPN client fails to reconnect",
+            Status = "In Progress",
+            StatusCategoryKey = "indeterminate",
+            Priority = "High",
+            Created = new DateTime(2026, 8, 25, 14, 30, 0),
+            BrowseUrl = "https://jira.corp.contoso.com/browse/ITSM-1042"
+        };
+
+        Assert.Equal("ITSM-1042", ticket.Key);
+        Assert.True(ticket.IsInProgress);
+        Assert.False(ticket.IsDone);
+        Assert.Contains("2026", ticket.FormattedCreated);
+
+        var doneTicket = ticket with { Status = "Closed", StatusCategoryKey = "done" };
+        Assert.True(doneTicket.IsDone);
+        Assert.False(doneTicket.IsInProgress);
+    }
+
+    [Fact]
+    public async Task JiraService_DemoMode_ReturnsRealisticTickets()
+    {
+        var mockSettings = new MockSettingsService
+        {
+            IsJiraEnabled = true,
+            JiraBaseUrl = "https://jira.corp.contoso.com",
+            JiraDeploymentMode = "DataCenter"
+        };
+        var service = new JiraService(mockSettings);
+
+        var tickets = await service.GetTicketsCreatedByUserAsync("john.doe@contoso.com", 0, 10);
+        Assert.NotEmpty(tickets);
+        Assert.True(tickets.Count <= 10);
+        Assert.All(tickets, t =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(t.Key));
+            Assert.False(string.IsNullOrWhiteSpace(t.Summary));
+            Assert.StartsWith("https://jira.corp.contoso.com/browse/", t.BrowseUrl);
+        });
+
+        // Empty user returns empty
+        var emptyTickets = await service.GetTicketsCreatedByUserAsync("");
+        Assert.Empty(emptyTickets);
+    }
+
+    [Fact]
+    public async Task JiraService_TestConnection_DemoMode_Succeeds()
+    {
+        var mockSettings = new MockSettingsService
+        {
+            IsJiraEnabled = true,
+            JiraBaseUrl = "https://jira.corp.contoso.com",
+            JiraDeploymentMode = "DataCenter"
+        };
+        var service = new JiraService(mockSettings);
+
+        bool success = await service.TestConnectionAsync();
+        Assert.True(success);
+    }
+
+    [Fact]
+    public async Task JiraWorkspaceViewModel_FilterAndPagination_WorkCorrectly()
+    {
+        var mockSettings = new MockSettingsService { IsJiraEnabled = true };
+        var jiraService = new JiraService(mockSettings);
+        var mockAd = new MockAdService();
+        var mockSearchSvc = new MockSearchService();
+        var mockSearch = new GlobalSearchViewModel(mockSearchSvc);
+        var mockNav = new MockNavigationService();
+
+        var vm = new JiraWorkspaceViewModel(jiraService, mockAd, mockSearch, mockNav);
+        var user = new AdUser
+        {
+            DisplayName = "John Doe",
+            SamAccountName = "john.doe",
+            Email = "john.doe@contoso.com"
+        };
+
+        // 1. Load User
+        await vm.LoadUserAsync(user);
+        Assert.True(vm.HasUser);
+        Assert.True(vm.HasTickets);
+        Assert.False(vm.HasNoTickets);
+        int initialCount = vm.FilteredTickets.Count;
+
+        // 2. Client-side filtering
+        vm.FilterQuery = "VPN";
+        Assert.Single(vm.FilteredTickets);
+        Assert.Equal("ITSM-1042", vm.FilteredTickets[0].Key);
+
+        vm.FilterQuery = "NONEXISTENT_QUERY_12345";
+        Assert.Empty(vm.FilteredTickets);
+        Assert.True(vm.HasNoTickets);
+
+        vm.FilterQuery = string.Empty;
+        Assert.Equal(initialCount, vm.FilteredTickets.Count);
+
+        // 3. Reset
+        vm.ResetToSearchState();
+        Assert.False(vm.HasUser);
+        Assert.Empty(vm.AllTickets);
+    }
+
+    [Fact]
+    public void SettingsService_JiraProperties_PersistAndReloadCorrectly()
+    {
+        var settings = new SettingsService();
+        settings.IsJiraEnabled = true;
+        settings.JiraDeploymentMode = "Cloud";
+        settings.JiraBaseUrl = "https://test-company.atlassian.net";
+        settings.JiraCloudEmail = "admin@test-company.com";
+        settings.Save();
+
+        var reloaded = new SettingsService();
+        reloaded.Load();
+
+        Assert.True(reloaded.IsJiraEnabled);
+        Assert.Equal("Cloud", reloaded.JiraDeploymentMode);
+        Assert.Equal("https://test-company.atlassian.net", reloaded.JiraBaseUrl);
+        Assert.Equal("admin@test-company.com", reloaded.JiraCloudEmail);
+    }
+
+    [Fact]
+    public void UserWorkspaceViewModel_NavigateToJira_ExecutesCleanly()
+    {
+        var mockAd = new MockAdService();
+        var mockSearchSvc = new MockSearchService();
+        var mockSearch = new GlobalSearchViewModel(mockSearchSvc);
+        var mockGreeting = new GreetingService();
+        var mockSettings = new MockSettingsService { IsJiraEnabled = true };
+        var mockNav = new MockNavigationService();
+        var vm = new UserWorkspaceViewModel(mockAd, mockSearch, mockGreeting, mockSettings, mockNav);
+
+        vm.CurrentUser = new AdUser
+        {
+            DisplayName = "Test User",
+            SamAccountName = "test.user",
+            Email = "test.user@contoso.com"
+        };
+
+        Assert.True(vm.IsJiraEnabled);
+        vm.NavigateToJiraCommand.Execute(null);
+    }
+
+    [Fact]
+    public async Task ServicesSnapshot_DemoMode_ReturnsRealisticServices()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetServicesSnapshotAsync("PC-DEMO-01");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.NotEmpty(snapshot.Services);
+        Assert.True(snapshot.TotalServiceCount >= 30);
+        Assert.True(snapshot.RunningCount > 0);
+        Assert.True(snapshot.StoppedCount > 0);
+
+        // Check common expected Windows services
+        Assert.Contains(snapshot.Services, s => s.Name == "Spooler" && s.DisplayName == "Print Spooler");
+        Assert.Contains(snapshot.Services, s => s.Name == "wuauserv" && s.DisplayName == "Windows Update");
+        Assert.Contains(snapshot.Services, s => s.Name == "RpcSs");
+    }
+
+    [Fact]
+    public async Task ServicesSnapshot_DemoMode_IncludesMixOfStatesAndModes()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetServicesSnapshotAsync("PC-DEMO-02");
+
+        Assert.True(snapshot.IsSuccess);
+        var running = snapshot.Services.Where(s => s.IsRunning).ToList();
+        var stopped = snapshot.Services.Where(s => s.IsStopped).ToList();
+        var auto = snapshot.Services.Where(s => s.NormalizedStartMode == "Auto").ToList();
+        var manual = snapshot.Services.Where(s => s.NormalizedStartMode == "Manual").ToList();
+        var disabled = snapshot.Services.Where(s => s.NormalizedStartMode == "Disabled").ToList();
+
+        Assert.NotEmpty(running);
+        Assert.NotEmpty(stopped);
+        Assert.NotEmpty(auto);
+        Assert.NotEmpty(manual);
+        Assert.NotEmpty(disabled);
+    }
+
+    [Fact]
+    public void CriticalServiceNames_AreProtectedFromStopping()
+    {
+        Assert.True(ComputerServiceInfo.IsCritical("RpcSs"));
+        Assert.True(ComputerServiceInfo.IsCritical("EventLog"));
+        Assert.True(ComputerServiceInfo.IsCritical("PlugPlay"));
+        Assert.True(ComputerServiceInfo.IsCritical("Winmgmt"));
+        Assert.True(ComputerServiceInfo.IsCritical("Netlogon"));
+        Assert.False(ComputerServiceInfo.IsCritical("Spooler"));
+        Assert.False(ComputerServiceInfo.IsCritical("Fax"));
+
+        var rpcSvc = new ComputerServiceInfo
+        {
+            Name = "RpcSs",
+            DisplayName = "Remote Procedure Call (RPC)",
+            State = "Running",
+            StartMode = "Auto",
+            AcceptStop = true
+        };
+
+        Assert.True(rpcSvc.IsCriticalService);
+        Assert.False(rpcSvc.CanStop);
+        Assert.False(rpcSvc.CanRestart);
+        Assert.False(rpcSvc.CanChangeStartMode);
+
+        var spooler = new ComputerServiceInfo
+        {
+            Name = "Spooler",
+            DisplayName = "Print Spooler",
+            State = "Running",
+            StartMode = "Auto",
+            AcceptStop = true
+        };
+
+        Assert.False(spooler.IsCriticalService);
+        Assert.True(spooler.CanStop);
+        Assert.True(spooler.CanRestart);
+        Assert.True(spooler.CanChangeStartMode);
+    }
+
+    [Fact]
+    public async Task StartStopRestartService_DemoMode_Succeeds()
+    {
+        var service = new ComputerDiagnosticService();
+
+        // 1. Stop Spooler
+        bool stopResult = await service.StopServiceAsync("PC-DEMO-03", "Spooler");
+        Assert.True(stopResult);
+
+        var snapshotAfterStop = await service.GetServicesSnapshotAsync("PC-DEMO-03");
+        var stoppedSpooler = snapshotAfterStop.Services.FirstOrDefault(s => s.Name == "Spooler");
+        Assert.NotNull(stoppedSpooler);
+        Assert.Equal("Stopped", stoppedSpooler.State);
+
+        // 2. Start Spooler
+        bool startResult = await service.StartServiceAsync("PC-DEMO-03", "Spooler");
+        Assert.True(startResult);
+
+        var snapshotAfterStart = await service.GetServicesSnapshotAsync("PC-DEMO-03");
+        var runningSpooler = snapshotAfterStart.Services.FirstOrDefault(s => s.Name == "Spooler");
+        Assert.NotNull(runningSpooler);
+        Assert.Equal("Running", runningSpooler.State);
+
+        // 3. Restart Spooler
+        bool restartResult = await service.RestartServiceAsync("PC-DEMO-03", "Spooler");
+        Assert.True(restartResult);
+
+        // 4. Critical service cannot be stopped
+        bool criticalStop = await service.StopServiceAsync("PC-DEMO-03", "RpcSs");
+        Assert.False(criticalStop);
+    }
+
+    [Fact]
+    public async Task SetServiceStartMode_DemoMode_Succeeds()
+    {
+        var service = new ComputerDiagnosticService();
+
+        // Change Spooler to Disabled
+        bool setResult = await service.SetServiceStartModeAsync("PC-DEMO-04", "Spooler", "Disabled");
+        Assert.True(setResult);
+
+        var snapshot = await service.GetServicesSnapshotAsync("PC-DEMO-04");
+        var spooler = snapshot.Services.FirstOrDefault(s => s.Name == "Spooler");
+        Assert.NotNull(spooler);
+        Assert.Equal("Disabled", spooler.StartMode);
+
+        // Critical service cannot be modified
+        bool criticalSet = await service.SetServiceStartModeAsync("PC-DEMO-04", "RpcSs", "Disabled");
+        Assert.False(criticalSet);
+    }
+
+    [Fact]
+    public async Task ServicesViewModel_FilterAndSort_WorkCorrectly()
+    {
+        var mockAd = new MockAdService();
+        var mockNav = new MockNavigationService();
+        var diagnosticService = new ComputerDiagnosticService();
+
+        var vm = new ComputerWorkspaceViewModel(mockAd, mockNav, diagnosticService);
+        var computer = new AdComputer
+        {
+            Name = "PC-DEMO-05",
+            SamAccountName = "PC-DEMO-05$",
+            DnsHostName = "pc-demo-05.contoso.local"
+        };
+        vm.CurrentComputer = computer;
+
+        // Fetch services
+        await vm.RefreshServicesAsync();
+
+        Assert.NotNull(vm.ServicesSnapshot);
+        Assert.True(vm.ServicesSnapshot.IsSuccess);
+        Assert.NotEmpty(vm.FilteredServices);
+        int totalCount = vm.FilteredServices.Count;
+
+        // Filter by Running status tab
+        vm.SetServiceStatusFilterCommand.Execute("Running");
+        Assert.All(vm.FilteredServices, s => Assert.True(s.IsRunning));
+        Assert.True(vm.FilteredServices.Count < totalCount);
+
+        // Filter by Stopped status tab
+        vm.SetServiceStatusFilterCommand.Execute("Stopped");
+        Assert.All(vm.FilteredServices, s => Assert.True(s.IsStopped));
+
+        // Filter by text search
+        vm.SetServiceStatusFilterCommand.Execute("All");
+        vm.FilterServicesCommand.Execute("Print");
+        Assert.Contains(vm.FilteredServices, s => s.Name == "Spooler");
+        Assert.All(vm.FilteredServices, s => Assert.Contains("Print", s.DisplayName, StringComparison.OrdinalIgnoreCase));
+
+        // Toggle sort by Name
+        vm.FilterServicesCommand.Execute("");
+        vm.ToggleServiceSortCommand.Execute("Name");
+        Assert.Equal("Name", vm.ServiceSortColumn);
+        Assert.True(vm.ServiceSortAscending);
+    }
+
+    private class MockSettingsService : ISettingsService
+    {
+        public string AdDomain { get; set; } = "contoso.local";
+        public string AppLanguage { get; set; } = "en";
+        public bool IsJiraEnabled { get; set; } = false;
+        public string JiraDeploymentMode { get; set; } = "DataCenter";
+        public string JiraBaseUrl { get; set; } = "https://jira.corp.contoso.com";
+        public string JiraCloudEmail { get; set; } = string.Empty;
+        public void Load() { }
+        public void Save() { }
     }
 
     private class MockNavigationService : INavigationService

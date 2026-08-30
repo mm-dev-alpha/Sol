@@ -55,6 +55,7 @@ public partial class App : Application
             services.AddSingleton<Sol.Services.INavigationService, Sol.Services.NavigationService>();
             services.AddSingleton<Sol.Services.IExportService, Sol.Services.ExportService>();
             services.AddSingleton<Sol.Services.IComputerDiagnosticService, Sol.Services.ComputerDiagnosticService>();
+            services.AddSingleton<Sol.Services.IJiraService, Sol.Services.JiraService>();
 
             // ViewModels
             services.AddSingleton<Sol.ViewModels.GlobalSearchViewModel>();
@@ -62,6 +63,7 @@ public partial class App : Application
             services.AddSingleton<Sol.ViewModels.HomeViewModel>();
             services.AddSingleton<Sol.ViewModels.UserWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.ComputerWorkspaceViewModel>();
+            services.AddSingleton<Sol.ViewModels.JiraWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.SettingsViewModel>();
         }).
         Build();

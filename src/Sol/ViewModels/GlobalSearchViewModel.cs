@@ -38,6 +38,7 @@ public partial class GlobalSearchViewModel : ObservableObject
 
         // Cancel any pending search
         _searchCts?.Cancel();
+        _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         var token = _searchCts.Token;
 
@@ -65,7 +66,7 @@ public partial class GlobalSearchViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            // Expected
+            App.MainWindow?.DispatcherQueue.TryEnqueue(() => IsLoading = false);
         }
         catch (Exception)
         {

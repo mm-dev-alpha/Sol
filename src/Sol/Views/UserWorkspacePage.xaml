@@ -102,7 +102,15 @@
                     <AppBarButton Icon="Cancel" Label="{x:Bind S.CancelBtn}" Command="{x:Bind ViewModel.CancelEditCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <AppBarSeparator/>
                     <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllCommand}" />
-                    <AppBarButton Icon="Repair" Label="{x:Bind S.AdvancedEditorBtn}" Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}" />
+                    <AppBarButton Label="{x:Bind S.ViewJiraTicketsBtn}" 
+                                  ToolTipService.ToolTip="{x:Bind S.ViewJiraTicketsTooltip}" 
+                                  Command="{x:Bind ViewModel.NavigateToJiraCommand}" 
+                                  Visibility="{x:Bind ViewModel.IsJiraEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <AppBarButton.Icon>
+                            <BitmapIcon UriSource="ms-appx:///Assets/JiraLogo.png" ShowAsMonochrome="False"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarSeparator/>
                     <AppBarButton Icon="Home" Label="{x:Bind S.CloseWorkspaceBtn}" Command="{x:Bind ViewModel.CloseWorkspaceCommand}"/>
                 </CommandBar>
 

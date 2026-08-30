@@ -77,6 +77,13 @@
                         <FontIcon Glyph="&#xE7F8;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="{x:Bind S.NavJiraWorkspace}" 
+                                    Tag="JiraWorkspacePage"
+                                    Visibility="{x:Bind ViewModel.JiraNavVisibility, Mode=OneWay}">
+                    <NavigationViewItem.Icon>
+                        <BitmapIcon UriSource="ms-appx:///Assets/JiraLogo.png" ShowAsMonochrome="False"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <Frame x:Name="ContentFrame" Padding="0" />

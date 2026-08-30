@@ -518,7 +518,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             using var user = UserPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, samAccountName);
             if (user == null) throw new Exception("User not found.");
 
-            var entry = (DirectoryEntry)user.GetUnderlyingObject();
+            using var entry = (DirectoryEntry)user.GetUnderlyingObject();
             entry.RefreshCache();
 
             foreach (string propertyName in entry.Properties.PropertyNames)

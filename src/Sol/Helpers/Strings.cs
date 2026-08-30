@@ -355,6 +355,51 @@ public class Strings
     public string NoProcessesFound => IsDe ? "Keine laufenden Prozesse gefunden." : "No running processes found.";
     public static string TotalProcessesCountBadge(int count) => IsDe ? $"{count} Prozesse" : $"{count} processes";
 
+    // Feature 7: Remote Group Policy Refresh (GPUpdate)
+    public string RemoteGpupdateBtn => "GPUpdate";
+    public string RemoteGpupdateTooltip => IsDe ? "Gruppenrichtlinien auf dem Remote-Computer sofort aktualisieren (/force /nowait)" : "Trigger immediate Group Policy refresh remotely (/force /nowait)";
+    public string ConfirmRemoteGpupdateTitle => IsDe ? "Remote-GPUpdate auslösen" : "Trigger Remote GPUpdate";
+    public static string ConfirmRemoteGpupdatePrompt(string host) => IsDe
+        ? $"Möchten Sie die Gruppenrichtlinien auf '{host}' wirklich aktualisieren? Dies führt 'gpupdate.exe /force /nowait' im Hintergrund auf dem Zielcomputer aus."
+        : $"Are you sure you want to refresh Group Policy on '{host}'? This will execute 'gpupdate.exe /force /nowait' in the background on the target computer.";
+    public static string RemoteGpupdateInitiated(string host) => IsDe
+        ? $"Gruppenrichtlinien-Aktualisierung auf '{host}' eingeleitet."
+        : $"Group Policy update initiated on '{host}'.";
+    public static string RemoteGpupdateFailed(string host, string error) => IsDe
+        ? $"Fehler beim Auslösen der Gruppenrichtlinien-Aktualisierung auf '{host}': {error}"
+        : $"Failed to trigger Group Policy update on '{host}': {error}";
+
+    // Feature 8: BitLocker Drive Encryption & Maintenance
+    public string BitLockerSectionTitle => IsDe ? "BitLocker & Laufwerksverschlüsselung" : "BitLocker & Drive Encryption";
+    public string BitLockerProtectionActive => IsDe ? "Schutz aktiv (Verschlüsselt)" : "Protection On (Active)";
+    public string BitLockerProtectionSuspended => IsDe ? "Schutz ausgesetzt (1 Neustart)" : "Protection Suspended (1 Reboot)";
+    public string BitLockerProtectionOff => IsDe ? "Schutz deaktiviert" : "Protection Off";
+    public string BitLockerProtectionUnknown => IsDe ? "Schutzstatus unbekannt" : "Protection Unknown";
+    public string BitLockerMethodLabel => IsDe ? "Verschlüsselungsmethode" : "Encryption Method";
+    public string BitLockerStatusLabel => IsDe ? "Laufwerksstatus" : "Volume Status";
+    public string SuspendBitLockerBtn => IsDe ? "Schutz aussetzen (1 Neustart)" : "Suspend (1 Reboot)";
+    public string ResumeBitLockerBtn => IsDe ? "Schutz fortsetzen" : "Resume Protection";
+    public string RefreshBitLockerBtn => IsDe ? "BitLocker-Status aktualisieren" : "Refresh BitLocker Status";
+    public string FetchingBitLockerData => IsDe ? "BitLocker-Status wird remote abgefragt..." : "Querying remote BitLocker status...";
+    public string ConfirmSuspendBitLockerTitle => IsDe ? "BitLocker-Schutz aussetzen" : "Suspend BitLocker Protection";
+    public static string ConfirmSuspendBitLockerPrompt(string host, string drive) => IsDe
+        ? $"Möchten Sie den BitLocker-Schutz auf '{host}' (Laufwerk {drive}) für 1 Neustart wirklich aussetzen? Dadurch wird die BitLocker-Verschlüsselung beim nächsten Neustart für Firmware- oder BIOS-Wartungen temporär umgangen."
+        : $"Are you sure you want to suspend BitLocker protection on '{host}' (Drive {drive}) for 1 reboot? This temporarily bypasses BitLocker encryption on the next restart for firmware or BIOS maintenance.";
+    public string ConfirmResumeBitLockerTitle => IsDe ? "BitLocker-Schutz fortsetzen" : "Resume BitLocker Protection";
+    public static string ConfirmResumeBitLockerPrompt(string host, string drive) => IsDe
+        ? $"Möchten Sie den BitLocker-Schutz auf '{host}' (Laufwerk {drive}) sofort wieder aktivieren?"
+        : $"Are you sure you want to resume BitLocker protection on '{host}' (Drive {drive}) immediately?";
+    public static string BitLockerSuspendedSuccess(string host) => IsDe
+        ? $"BitLocker-Schutz für 1 Neustart auf '{host}' ausgesetzt."
+        : $"BitLocker protection suspended for 1 reboot on '{host}'.";
+    public static string BitLockerResumedSuccess(string host) => IsDe
+        ? $"BitLocker-Schutz auf '{host}' erfolgreich fortgesetzt."
+        : $"BitLocker protection resumed successfully on '{host}'.";
+    public static string BitLockerActionFailed(string host, string error) => IsDe
+        ? $"BitLocker-Vorgang auf '{host}' fehlgeschlagen: {error}"
+        : $"BitLocker operation failed on '{host}': {error}";
+    public string BitLockerKeysSubtitle => IsDe ? "Active Directory-Wiederherstellungsschlüssel" : "Active Directory Recovery Keys";
+
     // Advanced Attribute Editor (Safe Whitelist & Inspector)
     public string AdvancedEditorBtn => IsDe ? "Attribut-Editor" : "Attribute Editor";
     public string AttributeEditorTitle => IsDe ? "Active Directory-Attribut-Editor" : "Active Directory Attribute Editor";
@@ -373,6 +418,113 @@ public class Strings
     public string AuditLogNotice => IsDe ? "Alle Änderungen an diesem Attribut werden dauerhaft im Sicherheitsprotokoll erfasst." : "All modifications to this attribute will be durably written to the security audit log.";
     public string NonEditableAttributeTooltip => IsDe ? "Dieses Attribut ist schreibgeschützt (Typ nicht zur Bearbeitung freigegeben)." : "This attribute is read-only (type excluded from safe editing).";
 
+    // Feature 9: JIRA Ticket Integration
+    public string NavJiraWorkspace => IsDe ? "JIRA-Integration" : "JIRA Integration";
+    public string JiraWorkspaceTitle => IsDe ? "JIRA-Integration" : "JIRA Integration";
+    public string SearchUserForJiraPlaceholder => IsDe ? "Benutzer suchen, um erstellte JIRA-Tickets anzuzeigen..." : "Search for a user to view created JIRA tickets...";
+    public string JiraTicketsSectionTitle => IsDe ? "Erstellte JIRA-Tickets" : "Created JIRA Tickets";
+    public string JiraFilterPlaceholder => IsDe ? "Nach Vorgangsschlüssel oder Zusammenfassung filtern..." : "Filter by issue key or summary...";
+    public string JiraKeyColumn => IsDe ? "Schlüssel" : "Key";
+    public string JiraStatusColumn => IsDe ? "Status" : "Status";
+    public string JiraSummaryColumn => IsDe ? "Zusammenfassung" : "Summary";
+    public string JiraPriorityColumn => IsDe ? "Priorität" : "Priority";
+    public string JiraCreatedColumn => IsDe ? "Erstellt" : "Created";
+    public string LoadMoreBtn => IsDe ? "Weitere Tickets laden" : "Load More Tickets";
+    public string NoJiraTicketsForUser => IsDe ? "Keine offenen JIRA-Tickets für diesen Benutzer gefunden." : "No open JIRA tickets found for this user.";
+    public string FetchingJiraTickets => IsDe ? "JIRA-Tickets werden abgerufen..." : "Fetching JIRA tickets...";
+    public string JiraFetchError => IsDe ? "Fehler beim Abrufen der JIRA-Tickets" : "Error fetching JIRA tickets";
+    public string ViewJiraTicketsBtn => IsDe ? "JIRA-Tickets anzeigen" : "View JIRA Tickets";
+    public string ViewJiraTicketsTooltip => IsDe ? "Offene JIRA-Tickets dieses Benutzers anzeigen" : "View open JIRA tickets created by this user";
+    public static string TotalJiraTicketsCountBadge(int count) => count == 1 
+        ? (IsDe ? "1 offenes Ticket" : "1 open ticket") 
+        : (IsDe ? $"{count} offene Tickets" : $"{count} open tickets");
+    public string JiraNotConfiguredPrompt => IsDe ? "JIRA-Integration ist in den Einstellungen nicht aktiviert oder konfiguriert." : "JIRA integration is not enabled or configured in Settings.";
+    public string RefreshJiraBtn => IsDe ? "JIRA-Tickets aktualisieren" : "Refresh JIRA Tickets";
+
+    // JIRA Settings Configuration
+    public string JiraSettings => IsDe ? "JIRA-Integration" : "JIRA Integration";
+    public string JiraIntegrationHeader => IsDe ? "JIRA-Ticketsystem anbinden" : "Connect JIRA Ticket System";
+    public string JiraIntegrationDesc => IsDe ? "Offene JIRA-Tickets von Benutzern direkt in Sol abrufen und anzeigen." : "Fetch and inspect open JIRA tickets created by users directly in Sol.";
+    public string JiraDeploymentModeLabel => IsDe ? "Bereitstellungsmodell" : "Deployment Model";
+    public string JiraDataCenterOption => "Jira Data Center / Server";
+    public string JiraCloudOption => "Jira Cloud (Atlassian)";
+    public string JiraBaseUrlLabel => IsDe ? "Basis-URL" : "Base URL";
+    public string JiraCloudEmailLabel => IsDe ? "Atlassian-Konto-E-Mail" : "Atlassian Account Email";
+    public string JiraPatLabel => "Personal Access Token (PAT)";
+    public string JiraPatPlaceholder => IsDe ? "Persönliches Zugriffstoken eingeben..." : "Enter Personal Access Token...";
+    public string JiraApiTokenLabel => IsDe ? "Atlassian API-Token" : "Atlassian API Token";
+    public string JiraApiTokenPlaceholder => IsDe ? "API-Token eingeben..." : "Enter API token...";
+    public string TestJiraConnectionBtn => IsDe ? "Verbindung testen" : "Test Connection";
+    public string TestingJiraConnection => IsDe ? "JIRA-Verbindung wird getestet..." : "Testing JIRA connection...";
+    public string JiraConnectionSuccessPrompt => IsDe ? "JIRA-Verbindung erfolgreich hergestellt." : "JIRA connection established successfully.";
+    public string JiraConnectionFailedPrompt => IsDe ? "JIRA-Verbindung fehlgeschlagen. Bitte URL und Zugangsdaten prüfen." : "JIRA connection failed. Please verify URL and credentials.";
+    public string JiraCredentialsSavedPrompt => IsDe ? "JIRA-Anmeldeinformationen sicher im Windows-Tresor gespeichert." : "JIRA credentials securely saved in Windows Credential Locker.";
+
+    // Feature 10: Remote Windows Services Inspector & Controller
+    public string ServicesInspectorTitle => IsDe ? "Remotedienste-Manager" : "Remote Services Manager";
+    public string ServicesInspectorBtn => IsDe ? "Dienste" : "Services";
+    public string ServicesInspectorTooltip => IsDe ? "Windows-Dienste auf dem Remote-Computer anzeigen und verwalten" : "View and manage Windows services on remote computer";
+    public string ServiceDisplayNameCol => IsDe ? "Anzeigename" : "Display Name";
+    public string ServiceNameCol => IsDe ? "Dienstname" : "Service Name";
+    public string ServiceStatusCol => "Status";
+    public string ServiceStatusRunning => IsDe ? "Wird ausgeführt" : "Running";
+    public string ServiceStatusStopped => IsDe ? "Beendet" : "Stopped";
+    public string ServiceStartupTypeCol => IsDe ? "Starttyp" : "Startup Type";
+    public string ServiceLogOnAsCol => IsDe ? "Anmelden als" : "Log On As";
+    public string ServiceActionsCol => IsDe ? "Aktionen" : "Actions";
+    public string ServiceFilterAll => IsDe ? "Alle" : "All";
+    public string ServiceFilterRunning => IsDe ? "Wird ausgeführt" : "Running";
+    public string ServiceFilterStopped => IsDe ? "Beendet" : "Stopped";
+    public string SearchServicesPlaceholder => IsDe ? "Dienste filtern (Name, Anzeigename, Anmeldekonto)..." : "Filter services (Name, Display Name, Account)...";
+    public string FetchingServicesData => IsDe ? "Dienstliste wird remote abgefragt..." : "Querying remote services list...";
+    public string NoServicesFound => IsDe ? "Keine Dienste gefunden." : "No services found.";
+    public string StartServiceBtn => IsDe ? "Starten" : "Start";
+    public string StartServiceTooltip => IsDe ? "Dienst starten" : "Start service";
+    public string StopServiceBtn => IsDe ? "Beenden" : "Stop";
+    public string StopServiceTooltip => IsDe ? "Dienst beenden" : "Stop service";
+    public string RestartServiceBtn => IsDe ? "Neu starten" : "Restart";
+    public string RestartServiceTooltip => IsDe ? "Dienst neu starten" : "Restart service";
+    public string CriticalServiceProtected => IsDe ? "Kritischer Systemdienst (geschützt vor Beenden/Neustart)" : "Critical system service (protected from stop/restart)";
+    public string ServiceStartModeAuto => IsDe ? "Automatisch" : "Automatic";
+    public string ServiceStartModeManual => IsDe ? "Manuell" : "Manual";
+    public string ServiceStartModeDisabled => IsDe ? "Deaktiviert" : "Disabled";
+    public string ConfirmStartServiceTitle => IsDe ? "Dienst starten" : "Start Service";
+    public string ConfirmStopServiceTitle => IsDe ? "Dienst beenden" : "Stop Service";
+    public string ConfirmRestartServiceTitle => IsDe ? "Dienst neu starten" : "Restart Service";
+    public string ConfirmChangeStartupTypeTitle => IsDe ? "Starttyp ändern" : "Change Startup Type";
+    public static string ConfirmStartServicePrompt(string displayName, string host) => IsDe
+        ? $"Möchten Sie den Dienst '{displayName}' auf '{host}' wirklich starten?"
+        : $"Are you sure you want to start service '{displayName}' on '{host}'?";
+    public static string ConfirmStopServicePrompt(string displayName, string host) => IsDe
+        ? $"Möchten Sie den Dienst '{displayName}' auf '{host}' wirklich beenden? Abhängige Anwendungen funktionieren möglicherweise nicht mehr ordnungsgemäß."
+        : $"Are you sure you want to stop service '{displayName}' on '{host}'? Dependent applications may stop functioning properly.";
+    public static string ConfirmRestartServicePrompt(string displayName, string host) => IsDe
+        ? $"Möchten Sie den Dienst '{displayName}' auf '{host}' wirklich neu starten?"
+        : $"Are you sure you want to restart service '{displayName}' on '{host}'?";
+    public static string ConfirmChangeStartupTypePrompt(string displayName, string host, string newMode) => IsDe
+        ? $"Möchten Sie den Starttyp für '{displayName}' auf '{host}' wirklich auf '{newMode}' ändern?"
+        : $"Are you sure you want to change the startup type for '{displayName}' on '{host}' to '{newMode}'?";
+    public static string ServiceStartedSuccess(string displayName) => IsDe ? $"Dienst '{displayName}' erfolgreich gestartet." : $"Service '{displayName}' started successfully.";
+    public static string ServiceStoppedSuccess(string displayName) => IsDe ? $"Dienst '{displayName}' erfolgreich beendet." : $"Service '{displayName}' stopped successfully.";
+    public static string ServiceRestartedSuccess(string displayName) => IsDe ? $"Dienst '{displayName}' erfolgreich neu gestartet." : $"Service '{displayName}' restarted successfully.";
+    public static string ServiceStartModeChangedSuccess(string displayName, string mode) => IsDe ? $"Starttyp für '{displayName}' auf '{mode}' geändert." : $"Startup type for '{displayName}' changed to '{mode}'.";
+    public static string ServiceActionFailed(string action, string error) => IsDe ? $"Dienstaktion '{action}' fehlgeschlagen: {error}" : $"Service action '{action}' failed: {error}";
+    public string ServiceAccessDenied => IsDe ? "Zugriff verweigert. Administratorrechte erforderlich." : "Access denied. Administrator privileges required.";
+    public string ServiceLocalElevationRequired => IsDe ? "Lokale Dienststeuerung erfordert das Ausführen der App als Administrator (Rechtsklick -> 'Als Administrator ausführen')." : "Controlling local services requires running the app as Administrator (Right-click -> 'Run as administrator').";
+    public string ServiceDependentServicesRunning => IsDe ? "Dienst kann nicht beendet werden, da abhängige Dienste noch ausgeführt werden." : "Service cannot be stopped because dependent services are still running.";
+    public string ServiceCannotAcceptControl => IsDe ? "Dienst kann die Steuerung derzeit nicht annehmen (möglicherweise wird er bereits gestartet oder beendet)." : "Service cannot accept control at this time (it may be starting or stopping).";
+    public string ServiceDisabled => IsDe ? "Dienst ist deaktiviert. Ändern Sie zuerst den Starttyp auf Manuell oder Automatisch." : "Service is disabled. Change startup type to Manual or Automatic first.";
+    public string ServiceLogonFailed => IsDe ? "Dienstanmeldung fehlgeschlagen. Dienstkonto-Anmeldeinformationen prüfen." : "Service logon failed. Verify service account credentials.";
+    public string ServiceAlreadyRunning => IsDe ? "Dienst wird bereits ausgeführt." : "Service is already running.";
+    public string ServiceAlreadyStopped => IsDe ? "Dienst ist bereits beendet." : "Service is already stopped.";
+    public string ServiceRequestTimeout => IsDe ? "Zeitüberschreitung bei der Dienstanforderung." : "Service control request timed out.";
+    public string ServiceNotSupported => IsDe ? "Dienstaktion wird vom Dienst nicht unterstützt." : "Service action is not supported by the service.";
+    public string ServiceInvalidControl => IsDe ? "Ungültiger Steuerungsbefehl für diesen Dienst." : "Invalid control command for this service.";
+    public string ServiceInvalidParameter => IsDe ? "Ungültiger Parameter für die Dienstkonfiguration." : "Invalid parameter for service configuration.";
+    public static string TotalServicesCountBadge(int count) => IsDe ? $"{count} Dienste" : $"{count} services";
+    public static string RunningServicesCountBadge(int count) => IsDe ? $"{count} aktiv" : $"{count} running";
+    public static string StoppedServicesCountBadge(int count) => IsDe ? $"{count} beendet" : $"{count} stopped";
+
     // SettingsPage
     public string SettingsTitle => IsDe ? "Einstellungen" : "Settings";
     public string GeneralSettings => IsDe ? "Allgemein" : "General";
@@ -384,67 +536,35 @@ public class Strings
     public string SaveSettingsBtn => IsDe ? "Einstellungen speichern" : "Save Settings";
     public string TestAdBtn => IsDe ? "AD-Verbindung testen" : "Test AD Connection";
     public string SettingsSavedPrompt => IsDe ? "Einstellungen gespeichert. Bitte App neu starten, um Sprachänderungen zu übernehmen." : "Settings saved. Restart app to apply language.";
+    public string SettingsSaveErrorPrompt => IsDe ? "Fehler beim Speichern der Einstellungen oder Anmeldeinformationen." : "Error saving settings or credentials.";
     public string TestingConnection => IsDe ? "Verbindung wird getestet..." : "Testing connection...";
 
     public string AboutSettings => IsDe ? "Über" : "About";
     public string VersionLabel => IsDe ? "Version" : "Version";
     public string DeveloperLabel => IsDe ? "Entwickler" : "Developer";
+    public string GitHubProfileLabel => "GitHub (@mm-dev-alpha)";
 
     public static string[] AllGreetings => IsDe 
         ? new[] 
         {
-            "\"Ich habe nichts gemacht, das war plötzlich einfach so!\" 🤷‍♀️",
-            "\"Gestern ging es aber noch!\" ⏳",
-            "\"Ich brauche ein neues Passwort, das alte funktioniert schon wieder nicht.\" 🔑",
-            "\"Können Sie das schnell beheben? Es brennt wirklich und ich muss in 5 Minuten ein Dokument abgeben!\" 🔥",
-            "\"Das Internet ist komplett gelöscht!\" 🌐",
-            "\"Ich habe den PC schon dreimal neu gestartet! (Monitor aus- und wieder eingeschaltet)\" 🖥️",
-            "\"Mein Bildschirm ist ganz schwarz, woran liegt das?\" (Stromkabel liegt daneben) 🕶️",
-            "\"Können Sie das nicht einfach magisch reparieren, ohne dass ich etwas tun muss?\" 🧙‍♂️",
-            "\"Ich habe auf den Link in der komischen E-Mail geklickt, weil da stand, ich hätte ein iPhone gewonnen.\" 🎁",
-            "\"Mein Passwort? Das klebt doch als Post-it direkt am Monitor!\" 📝",
-            "\"Seit dem letzten Windows-Update ist die Kaffeemaschine kaputt!\" ☕",
-            "\"Können Sie mir das Internet schneller machen? Das lädt heute so langsam.\" 🐌",
-            "\"Die Datei ist einfach verschwunden! (Liegt im Papierkorb)\" 🗑️",
-            "\"Können Sie kurz vorbeikommen? Übers Telefon verstehe ich das nicht.\" 🏃‍♂️",
-            "\"Ich habe das Dokument gespeichert, aber ich weiß nicht wo.\" 📁",
-            "\"Mein Headset geht nicht, hören Sie mich?!\" 🎧",
-            "\"Können Sie mir mein Passwort verraten? Sie müssen das doch sehen können!\" 🔐",
-            "\"Ich kann mich nicht einloggen! (Feststelltaste ist dauerhaft an)\" 🔡",
-            "\"Der PC macht so ein komisches Geräusch, als würde er gleich abheben!\" 🛸",
-            "\"Ich habe doch gar nichts angeklickt, das Fenster ging von ganz alleine auf!\" 🪟",
-            "\"Ich gebe euch mal 5 Minuten eurer Zeit zurück.\" ⏱️",
-            "\"Ich sehe eine Hand oben – ist das noch eine alte Hand oder eine neue Frage?\" 🙋‍♂️",
-            "\"Könnt ihr mich alle gut hören?\" 🎙️",
-            "\"Ich schicke den Link dazu gleich mal in den Chat.\" 💬",
-            "\"Sorry für die Verspätung, der vorherige Termin hat etwas überzogen.\" 🏃💨"
+            "\"Gestern ging es aber noch!!\" ⏳",
+            "\"Da kam so eine Fehlermeldung, aber die habe ich einfach weggeklickt.\" 🖱️",
+            "\"Mein Computer ist heute so komisch langsam, das liegt sicher an eurem letzten Update!\" 🐌",
+            "\"Ich kann nicht drucken.\" 🖨️",
+            "\"Ja, natürlich habe ich den PC neu gestartet!\" 🔌",
+            "\"Mein Passwort ist zu 100 % richtig, das System spinnt einfach!\" 🔑",
+            "\"Das ist extrem dringend, ich kann seit drei Wochen nicht arbeiten!!\" 🚨",
+            "\"Ein Ticket erstellen? Geht das nicht einfach so auf dem kurzen Dienstweg?\" 🎫"
         }
         : new[] 
         {
-            "\"I didn't do anything, it just happened suddenly!\" 🤷‍♀️",
-            "\"But it worked yesterday!\" ⏳",
-            "\"I need a new password, the old one isn't working again.\" 🔑",
-            "\"Can you fix this quickly? It's an absolute emergency and I have to submit a document in 5 minutes!\" 🔥",
-            "\"The internet has been completely deleted!\" 🌐",
-            "\"I've already restarted the PC three times! (Turned the monitor off and on again)\" 🖥️",
-            "\"My screen is completely black, why is that?\" (Power cable lying next to it) 🕶️",
-            "\"Can't you just magically fix it without me having to do anything?\" 🧙‍♂️",
-            "\"I clicked the link in that weird email because it said I won an iPhone.\" 🎁",
-            "\"My password? It's on a Post-it right on my monitor!\" 📝",
-            "\"Ever since the last Windows update, the coffee machine is broken!\" ☕",
-            "\"Can you make the internet faster for me? It's loading so slowly today.\" 🐌",
-            "\"The file just disappeared! (It's in the recycle bin)\" 🗑️",
-            "\"Can you quickly drop by? I don't understand this over the phone.\" 🏃‍♂️",
-            "\"I saved the document, but I don't know where.\" 📁",
-            "\"My headset isn't working, can you hear me?!\" 🎧",
-            "\"Can you tell me my password? You must be able to see it!\" 🔐",
-            "\"I can't log in! (Caps Lock is permanently on)\" 🔡",
-            "\"The PC is making a weird noise, like it's about to take off!\" 🛸",
-            "\"I didn't click anything, the window opened all by itself!\" 🪟",
-            "\"I'll give you back 5 minutes of your time.\" ⏱️",
-            "\"I see a hand raised – is that a legacy hand or a new question?\" 🙋‍♂️",
-            "\"Can you all hear me well?\" 🎙️",
-            "\"I'll drop the link for that in the chat right now.\" 💬",
-            "\"Sorry I'm late, the previous meeting ran over.\" 🏃💨"
+            "\"It was working fine yesterday!\" ⏳",
+            "\"An error message popped up, but I just clicked it away.\" 🖱️",
+            "\"My computer is unusually slow today; it must be because of your latest update!\" 🐌",
+            "\"I'm unable to print.\" 🖨️",
+            "\"Yes, of course I rebooted the computer!\" 🔌",
+            "\"My password is 100% correct, the system is just acting up!\" 🔑",
+            "\"This is extremely urgent, I haven't been able to work for three weeks!!\" 🚨",
+            "\"Submit a ticket? Can't we just sort this out quickly off the record?\" 🎫"
         };
 }

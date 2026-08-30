@@ -1928,15 +1928,13 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
     public static bool IsDemoFixture(string host)
     {
         if (string.IsNullOrWhiteSpace(host)) return false;
-        if (IsLocalHost(host)) return false;
-
         string h = host.Trim();
         return h.Contains("PC-DELL-LATITUDE", StringComparison.OrdinalIgnoreCase) ||
                h.Contains("PC-LENOVO-THINKPAD", StringComparison.OrdinalIgnoreCase) ||
                h.EndsWith(".company.local", StringComparison.OrdinalIgnoreCase) ||
                h.EndsWith(".contoso.local", StringComparison.OrdinalIgnoreCase) ||
-               h.StartsWith("DEMO-", StringComparison.OrdinalIgnoreCase) ||
-               h.StartsWith("TEST-", StringComparison.OrdinalIgnoreCase);
+               h.Contains("DEMO", StringComparison.OrdinalIgnoreCase) ||
+               h.Contains("TEST", StringComparison.OrdinalIgnoreCase);
     }
 
     private static ManagementScope CreateManagementScope(string host, string namespaceName = @"root\cimv2")
@@ -1954,4 +1952,847 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
         scope.Connect();
         return scope;
     }
+
+    private static readonly ConcurrentDictionary<string, bool> _demoBitLockerSuspendedState = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<bool> TriggerGroupPolicyUpdateAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost)) return false;
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            await Task.Delay(800, cancellationToken);
+            return true;
+        }
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                if (IsLocalHost(cleanHost))
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "gpupdate.exe",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+                    psi.ArgumentList.Add("/force");
+                    psi.ArgumentList.Add("/nowait");
+
+                    using var proc = Process.Start(psi);
+                    return proc != null;
+                }
+                else
+                {
+                    var scope = CreateManagementScope(cleanHost, @"root\cimv2");
+                    using var processClass = new ManagementClass(scope, new ManagementPath("Win32_Process"), null);
+                    using var inParams = processClass.GetMethodParameters("Create");
+                    inParams["CommandLine"] = "gpupdate.exe /force /nowait";
+                    using var outParams = processClass.InvokeMethod("Create", inParams, null);
+                    if (outParams != null)
+                    {
+                        uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                        return returnVal == 0;
+                    }
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Remote GPUpdate failed on {cleanHost}: {ex.Message}", ex);
+            }
+        }, cancellationToken);
+    }
+
+    public async Task<ComputerBitLockerSnapshot> GetBitLockerStatusAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            return new ComputerBitLockerSnapshot
+            {
+                Hostname = string.Empty,
+                IsSuccess = false,
+                ErrorMessage = "Target hostname is empty."
+            };
+        }
+
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            await Task.Delay(100, cancellationToken);
+            bool isSusp = _demoBitLockerSuspendedState.TryGetValue(cleanHost, out bool s) && s;
+            return new ComputerBitLockerSnapshot
+            {
+                Hostname = cleanHost,
+                DriveLetter = "C:",
+                ProtectionStatus = (uint)(isSusp ? 0 : 1),
+                ConversionStatus = 1,
+                EncryptionMethod = 7, // XTS-AES 256
+                IsSuspended = isSusp,
+                IsSuccess = true,
+                Timestamp = DateTime.Now
+            };
+        }
+
+        var wmiTask = Task.Run(() => QueryBitLockerWmi(cleanHost), cancellationToken);
+        var delayTask = Task.Delay(RealMachineTimeout, cancellationToken);
+
+        var completedTask = await Task.WhenAny(wmiTask, delayTask);
+        if (completedTask == delayTask)
+        {
+            return new ComputerBitLockerSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = "Timeout (15s): Endpoint unreachable",
+                Timestamp = DateTime.Now
+            };
+        }
+
+        return await wmiTask;
+    }
+
+    private static ComputerBitLockerSnapshot QueryBitLockerWmi(string cleanHost)
+    {
+        try
+        {
+            var scope = CreateManagementScope(cleanHost, @"root\cimv2\Security\MicrosoftVolumeEncryption");
+            using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT DriveLetter, ProtectionStatus, ConversionStatus, EncryptionMethod FROM Win32_EncryptableVolume WHERE DriveLetter = 'C:'"));
+            using var collection = searcher.Get();
+
+            foreach (ManagementObject mo in collection)
+            {
+                using (mo)
+                {
+                    string driveLetter = mo["DriveLetter"]?.ToString() ?? "C:";
+                    uint protectionStatus = mo["ProtectionStatus"] != null ? Convert.ToUInt32(mo["ProtectionStatus"]) : 1;
+                    uint conversionStatus = mo["ConversionStatus"] != null ? Convert.ToUInt32(mo["ConversionStatus"]) : 1;
+                    uint encryptionMethod = mo["EncryptionMethod"] != null ? Convert.ToUInt32(mo["EncryptionMethod"]) : 7;
+
+                    return new ComputerBitLockerSnapshot
+                    {
+                        Hostname = cleanHost,
+                        DriveLetter = driveLetter,
+                        ProtectionStatus = protectionStatus,
+                        ConversionStatus = conversionStatus,
+                        EncryptionMethod = encryptionMethod,
+                        IsSuspended = protectionStatus == 0,
+                        IsSuccess = true,
+                        Timestamp = DateTime.Now
+                    };
+                }
+            }
+
+            return new ComputerBitLockerSnapshot
+            {
+                Hostname = cleanHost,
+                DriveLetter = "C:",
+                ProtectionStatus = 0,
+                ConversionStatus = 0,
+                EncryptionMethod = 0,
+                IsSuccess = true,
+                Timestamp = DateTime.Now
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ComputerBitLockerSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message,
+                Timestamp = DateTime.Now
+            };
+        }
+    }
+
+    public async Task<bool> SuspendBitLockerProtectionAsync(string targetHost, uint rebootCount = 1, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost)) return false;
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _demoBitLockerSuspendedState[cleanHost] = true;
+            await Task.Delay(300, cancellationToken);
+            return true;
+        }
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                var scope = CreateManagementScope(cleanHost, @"root\cimv2\Security\MicrosoftVolumeEncryption");
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM Win32_EncryptableVolume WHERE DriveLetter = 'C:'"));
+                using var collection = searcher.Get();
+
+                foreach (ManagementObject mo in collection)
+                {
+                    using (mo)
+                    {
+                        using var inParams = mo.GetMethodParameters("DisableKeyProtectors");
+                        inParams["DisableCount"] = rebootCount;
+                        using var outParams = mo.InvokeMethod("DisableKeyProtectors", inParams, null);
+                        if (outParams != null)
+                        {
+                            uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                            return returnVal == 0;
+                        }
+                    }
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to suspend BitLocker on {cleanHost}: {ex.Message}", ex);
+            }
+        }, cancellationToken);
+    }
+
+    public async Task<bool> ResumeBitLockerProtectionAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost)) return false;
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _demoBitLockerSuspendedState[cleanHost] = false;
+            await Task.Delay(300, cancellationToken);
+            return true;
+        }
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                var scope = CreateManagementScope(cleanHost, @"root\cimv2\Security\MicrosoftVolumeEncryption");
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM Win32_EncryptableVolume WHERE DriveLetter = 'C:'"));
+                using var collection = searcher.Get();
+
+                foreach (ManagementObject mo in collection)
+                {
+                    using (mo)
+                    {
+                        using var outParams = mo.InvokeMethod("EnableKeyProtectors", null, null);
+                        if (outParams != null)
+                        {
+                            uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                            return returnVal == 0;
+                        }
+                    }
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to resume BitLocker on {cleanHost}: {ex.Message}", ex);
+            }
+        }, cancellationToken);
+    }
+
+    // =========================================================================
+    // Feature 10: Remote Windows Services Inspector & Controller
+    // =========================================================================
+
+    private static readonly ConcurrentDictionary<string, string> _demoServiceStates = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, string> _demoServiceStartModes = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<ComputerServicesSnapshot> GetServicesSnapshotAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            return new ComputerServicesSnapshot
+            {
+                Hostname = string.Empty,
+                IsSuccess = false,
+                ErrorMessage = "Target hostname is empty."
+            };
+        }
+
+        string cleanHost = targetHost.Trim();
+
+        // Fast-path: demo fixtures return mock services immediately
+        if (IsDemoFixture(cleanHost))
+        {
+            return GetFallbackServicesSnapshot(cleanHost, "Simulated demo fixture");
+        }
+
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(RealMachineTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            var queryTask = Task.Run(() => QueryServicesWmi(cleanHost, linkedCts.Token), linkedCts.Token);
+            var completedTask = await Task.WhenAny(queryTask, Task.Delay(Timeout.Infinite, linkedCts.Token));
+
+            if (completedTask == queryTask)
+            {
+                var result = await queryTask;
+                if (!result.IsSuccess && IsDemoFixture(cleanHost))
+                {
+                    return GetFallbackServicesSnapshot(cleanHost, result.ErrorMessage ?? "WMI service query failed.");
+                }
+                return result;
+            }
+
+            throw new TimeoutException($"Services query timed out after 15 seconds on '{cleanHost}'.");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (IsDemoFixture(cleanHost))
+            {
+                return GetFallbackServicesSnapshot(cleanHost, "Connection timed out.");
+            }
+            return new ComputerServicesSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = "WMI service diagnostic query timed out."
+            };
+        }
+        catch (Exception ex)
+        {
+            if (IsDemoFixture(cleanHost))
+            {
+                return GetFallbackServicesSnapshot(cleanHost, ex.Message);
+            }
+            return new ComputerServicesSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    public async Task<bool> StartServiceAsync(string targetHost, string serviceName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost) || string.IsNullOrWhiteSpace(serviceName)) return false;
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _demoServiceStates[$"{cleanHost}:{serviceName}"] = "Running";
+            await Task.Delay(300, cancellationToken);
+            return true;
+        }
+
+        if (IsLocalHost(cleanHost) && !IsRunningAsAdministrator())
+        {
+            throw new InvalidOperationException(Helpers.Strings.S.ServiceLocalElevationRequired);
+        }
+
+        return await Task.Run(() =>
+        {
+            uint? wmiReturnVal = null;
+            string? wmiExceptionMsg = null;
+
+            // 1. WMI method invocation Win32_Service.StartService()
+            try
+            {
+                var scope = CreateManagementScope(cleanHost);
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM Win32_Service WHERE Name = '{serviceName.Replace("'", "''")}'"));
+                using var results = searcher.Get();
+                foreach (ManagementObject mo in results)
+                {
+                    using (mo)
+                    {
+                        using var outParams = mo.InvokeMethod("StartService", null, null);
+                        if (outParams != null)
+                        {
+                            uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                            wmiReturnVal = returnVal;
+                            // 0 = Success, 10 = Service Already Running
+                            if (returnVal == 0 || returnVal == 10) return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                wmiExceptionMsg = ex.Message;
+            }
+
+            // 2. Fallback via sc.exe
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "sc.exe",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                if (!IsLocalHost(cleanHost))
+                {
+                    psi.ArgumentList.Add($"\\\\{cleanHost}");
+                }
+                psi.ArgumentList.Add("start");
+                psi.ArgumentList.Add(serviceName);
+
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    string stderr = proc.StandardError.ReadToEnd();
+                    string stdout = proc.StandardOutput.ReadToEnd();
+                    proc.WaitForExit(8000);
+                    if (proc.ExitCode == 0) return true;
+
+                    if (stderr.Contains("FAILED 5") || stdout.Contains("FAILED 5") || stderr.Contains("Access is denied") || stdout.Contains("Access is denied"))
+                    {
+                        throw new InvalidOperationException(Helpers.Strings.S.ServiceAccessDenied);
+                    }
+                    if (stderr.Contains("FAILED 1056") || stdout.Contains("FAILED 1056"))
+                    {
+                        return true; // Already running
+                    }
+                    if (stderr.Contains("FAILED 1058") || stdout.Contains("FAILED 1058"))
+                    {
+                        throw new InvalidOperationException(Helpers.Strings.S.ServiceDisabled);
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch { }
+
+            if (wmiReturnVal.HasValue)
+            {
+                throw new InvalidOperationException(GetWmiServiceErrorMessage(wmiReturnVal.Value));
+            }
+
+            if (!string.IsNullOrWhiteSpace(wmiExceptionMsg))
+            {
+                throw new InvalidOperationException(wmiExceptionMsg);
+            }
+
+            return false;
+        }, cancellationToken);
+    }
+
+    public async Task<bool> StopServiceAsync(string targetHost, string serviceName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost) || string.IsNullOrWhiteSpace(serviceName)) return false;
+        if (ComputerServiceInfo.IsCritical(serviceName)) return false;
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _demoServiceStates[$"{cleanHost}:{serviceName}"] = "Stopped";
+            await Task.Delay(300, cancellationToken);
+            return true;
+        }
+
+        if (IsLocalHost(cleanHost) && !IsRunningAsAdministrator())
+        {
+            throw new InvalidOperationException(Helpers.Strings.S.ServiceLocalElevationRequired);
+        }
+
+        return await Task.Run(() =>
+        {
+            uint? wmiReturnVal = null;
+            string? wmiExceptionMsg = null;
+
+            // 1. WMI method invocation Win32_Service.StopService()
+            try
+            {
+                var scope = CreateManagementScope(cleanHost);
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM Win32_Service WHERE Name = '{serviceName.Replace("'", "''")}'"));
+                using var results = searcher.Get();
+                foreach (ManagementObject mo in results)
+                {
+                    using (mo)
+                    {
+                        using var outParams = mo.InvokeMethod("StopService", null, null);
+                        if (outParams != null)
+                        {
+                            uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                            wmiReturnVal = returnVal;
+                            // 0 = Success, 6 = Service Not Active (Already Stopped)
+                            if (returnVal == 0 || returnVal == 6) return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                wmiExceptionMsg = ex.Message;
+            }
+
+            // 2. Fallback via sc.exe
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "sc.exe",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                if (!IsLocalHost(cleanHost))
+                {
+                    psi.ArgumentList.Add($"\\\\{cleanHost}");
+                }
+                psi.ArgumentList.Add("stop");
+                psi.ArgumentList.Add(serviceName);
+
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    string stderr = proc.StandardError.ReadToEnd();
+                    string stdout = proc.StandardOutput.ReadToEnd();
+                    proc.WaitForExit(8000);
+                    if (proc.ExitCode == 0) return true;
+
+                    if (stderr.Contains("FAILED 5") || stdout.Contains("FAILED 5") || stderr.Contains("Access is denied") || stdout.Contains("Access is denied"))
+                    {
+                        throw new InvalidOperationException(Helpers.Strings.S.ServiceAccessDenied);
+                    }
+                    if (stderr.Contains("FAILED 1062") || stdout.Contains("FAILED 1062"))
+                    {
+                        return true; // Already stopped
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch { }
+
+            if (wmiReturnVal.HasValue)
+            {
+                throw new InvalidOperationException(GetWmiServiceErrorMessage(wmiReturnVal.Value));
+            }
+
+            if (!string.IsNullOrWhiteSpace(wmiExceptionMsg))
+            {
+                throw new InvalidOperationException(wmiExceptionMsg);
+            }
+
+            return false;
+        }, cancellationToken);
+    }
+
+    public async Task<bool> RestartServiceAsync(string targetHost, string serviceName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost) || string.IsNullOrWhiteSpace(serviceName)) return false;
+        if (ComputerServiceInfo.IsCritical(serviceName)) return false;
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _demoServiceStates[$"{cleanHost}:{serviceName}"] = "Stopped";
+            await Task.Delay(250, cancellationToken);
+            _demoServiceStates[$"{cleanHost}:{serviceName}"] = "Running";
+            await Task.Delay(250, cancellationToken);
+            return true;
+        }
+
+        // Stop first
+        await StopServiceAsync(cleanHost, serviceName, cancellationToken);
+
+        // Short delay for clean shutdown
+        await Task.Delay(1000, cancellationToken);
+
+        // Start service
+        return await StartServiceAsync(cleanHost, serviceName, cancellationToken);
+    }
+
+    public async Task<bool> SetServiceStartModeAsync(string targetHost, string serviceName, string startMode, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost) || string.IsNullOrWhiteSpace(serviceName) || string.IsNullOrWhiteSpace(startMode)) return false;
+        if (ComputerServiceInfo.IsCritical(serviceName)) return false;
+        string cleanHost = targetHost.Trim();
+
+        // Normalize start mode for WMI: "Automatic" -> "Auto", "Manual" -> "Manual", "Disabled" -> "Disabled"
+        string normalizedMode = string.Equals(startMode, "Auto", StringComparison.OrdinalIgnoreCase) || string.Equals(startMode, "Automatic", StringComparison.OrdinalIgnoreCase)
+            ? "Automatic"
+            : (string.Equals(startMode, "Disabled", StringComparison.OrdinalIgnoreCase) ? "Disabled" : "Manual");
+
+        string wmiMode = normalizedMode == "Automatic" ? "Auto" : (normalizedMode == "Disabled" ? "Disabled" : "Manual");
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _demoServiceStartModes[$"{cleanHost}:{serviceName}"] = wmiMode;
+            await Task.Delay(300, cancellationToken);
+            return true;
+        }
+
+        if (IsLocalHost(cleanHost) && !IsRunningAsAdministrator())
+        {
+            throw new InvalidOperationException(Helpers.Strings.S.ServiceLocalElevationRequired);
+        }
+
+        return await Task.Run(() =>
+        {
+            uint? wmiReturnVal = null;
+            string? wmiExceptionMsg = null;
+
+            // 1. WMI method invocation Win32_Service.ChangeStartMode(StartMode)
+            try
+            {
+                var scope = CreateManagementScope(cleanHost);
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM Win32_Service WHERE Name = '{serviceName.Replace("'", "''")}'"));
+                using var results = searcher.Get();
+                foreach (ManagementObject mo in results)
+                {
+                    using (mo)
+                    {
+                        var inParams = mo.GetMethodParameters("ChangeStartMode");
+                        inParams["StartMode"] = normalizedMode;
+                        using var outParams = mo.InvokeMethod("ChangeStartMode", inParams, null);
+                        if (outParams != null)
+                        {
+                            uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                            wmiReturnVal = returnVal;
+                            if (returnVal == 0) return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                wmiExceptionMsg = ex.Message;
+            }
+
+            // 2. Fallback via sc.exe config <service> start= <boot|system|auto|demand|disabled|delayed-auto>
+            try
+            {
+                string scStartType = wmiMode switch
+                {
+                    "Auto" => "auto",
+                    "Disabled" => "disabled",
+                    _ => "demand"
+                };
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "sc.exe",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                if (!IsLocalHost(cleanHost))
+                {
+                    psi.ArgumentList.Add($"\\\\{cleanHost}");
+                }
+                psi.ArgumentList.Add("config");
+                psi.ArgumentList.Add(serviceName);
+                psi.ArgumentList.Add($"start={scStartType}");
+
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    string stderr = proc.StandardError.ReadToEnd();
+                    string stdout = proc.StandardOutput.ReadToEnd();
+                    proc.WaitForExit(8000);
+                    if (proc.ExitCode == 0) return true;
+
+                    if (stderr.Contains("FAILED 5") || stdout.Contains("FAILED 5") || stderr.Contains("Access is denied") || stdout.Contains("Access is denied"))
+                    {
+                        throw new InvalidOperationException(Helpers.Strings.S.ServiceAccessDenied);
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch { }
+
+            if (wmiReturnVal.HasValue)
+            {
+                throw new InvalidOperationException(GetWmiServiceErrorMessage(wmiReturnVal.Value));
+            }
+
+            if (!string.IsNullOrWhiteSpace(wmiExceptionMsg))
+            {
+                throw new InvalidOperationException(wmiExceptionMsg);
+            }
+
+            return false;
+        }, cancellationToken);
+    }
+
+    private static bool IsRunningAsAdministrator()
+    {
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var principal = new System.Security.Principal.WindowsPrincipal(identity);
+            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GetWmiServiceErrorMessage(uint returnVal)
+    {
+        return returnVal switch
+        {
+            0 => string.Empty,
+            1 => Helpers.Strings.S.ServiceNotSupported,
+            2 => Helpers.Strings.S.ServiceAccessDenied,
+            3 => Helpers.Strings.S.ServiceDependentServicesRunning,
+            4 => Helpers.Strings.S.ServiceInvalidControl,
+            5 => Helpers.Strings.S.ServiceCannotAcceptControl,
+            6 => Helpers.Strings.S.ServiceAlreadyStopped,
+            7 => Helpers.Strings.S.ServiceRequestTimeout,
+            10 => Helpers.Strings.S.ServiceAlreadyRunning,
+            14 => Helpers.Strings.S.ServiceDisabled,
+            15 => Helpers.Strings.S.ServiceLogonFailed,
+            21 => Helpers.Strings.S.ServiceInvalidParameter,
+            _ => $"WMI Error ({returnVal})"
+        };
+    }
+
+    private static ComputerServicesSnapshot QueryServicesWmi(string cleanHost, CancellationToken cancellationToken)
+    {
+        var services = new List<ComputerServiceInfo>();
+        try
+        {
+            var scope = CreateManagementScope(cleanHost);
+            using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT Name, DisplayName, State, StartMode, StartName, AcceptStop, AcceptPause, PathName, Description, ProcessId FROM Win32_Service"));
+            using var results = searcher.Get();
+
+            foreach (ManagementObject mo in results)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+                using (mo)
+                {
+                    string name = mo["Name"]?.ToString() ?? string.Empty;
+                    string displayName = mo["DisplayName"]?.ToString() ?? name;
+                    string state = mo["State"]?.ToString() ?? "Stopped";
+                    string startMode = mo["StartMode"]?.ToString() ?? "Manual";
+                    string startName = mo["StartName"]?.ToString() ?? string.Empty;
+                    bool acceptStop = Convert.ToBoolean(mo["AcceptStop"] ?? false);
+                    bool acceptPause = Convert.ToBoolean(mo["AcceptPause"] ?? false);
+                    string pathName = mo["PathName"]?.ToString() ?? string.Empty;
+                    string description = mo["Description"]?.ToString() ?? string.Empty;
+                    uint processId = 0;
+                    if (mo["ProcessId"] != null)
+                    {
+                        try { processId = Convert.ToUInt32(mo["ProcessId"]); } catch { }
+                    }
+
+                    services.Add(new ComputerServiceInfo
+                    {
+                        Name = name,
+                        DisplayName = string.IsNullOrWhiteSpace(displayName) ? name : displayName,
+                        State = state,
+                        StartMode = startMode,
+                        StartName = startName,
+                        AcceptStop = acceptStop,
+                        AcceptPause = acceptPause,
+                        PathName = pathName,
+                        Description = description,
+                        ProcessId = processId
+                    });
+                }
+            }
+
+            var sorted = services.OrderBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            return new ComputerServicesSnapshot
+            {
+                Hostname = cleanHost,
+                Services = sorted,
+                IsSuccess = true,
+                Timestamp = DateTime.Now
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ComputerServicesSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    private static ComputerServicesSnapshot GetFallbackServicesSnapshot(string host, string? reason = null)
+    {
+        var baseServices = new List<ComputerServiceInfo>
+        {
+            new() { Name = "Spooler", DisplayName = "Print Spooler", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Manages all print jobs and handles load-balancing of multi-printer setups." },
+            new() { Name = "wuauserv", DisplayName = "Windows Update", State = "Running", StartMode = "Manual", StartName = "NT AUTHORITY\\NetworkService", Description = "Enables the detection, download, and installation of updates for Windows and other programs." },
+            new() { Name = "WinDefend", DisplayName = "Microsoft Defender Antivirus Service", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\LocalService", Description = "Helps protect users from malware and other potentially unwanted software." },
+            new() { Name = "W32Time", DisplayName = "Windows Time", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\LocalService", Description = "Maintains date and time synchronization on all clients and servers in the network." },
+            new() { Name = "LanmanServer", DisplayName = "Server", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Supports file, print, and named-pipe sharing over the network for this computer." },
+            new() { Name = "LanmanWorkstation", DisplayName = "Workstation", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\NetworkService", Description = "Creates and maintains client network connections to remote servers." },
+            new() { Name = "Netlogon", DisplayName = "Netlogon", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Maintains a secure channel between this computer and the domain controller for authenticating users and services." },
+            new() { Name = "RpcSs", DisplayName = "Remote Procedure Call (RPC)", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\NetworkService", Description = "The RPCSS service is the Service Control Manager for COM and DCOM servers." },
+            new() { Name = "EventLog", DisplayName = "Windows Event Log", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\LocalService", Description = "This service manages events and event logs." },
+            new() { Name = "PlugPlay", DisplayName = "Plug and Play", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Enables a computer to recognize and adapt to hardware changes with little or no user input." },
+            new() { Name = "Winmgmt", DisplayName = "Windows Management Instrumentation", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Provides a common interface and object model to access management information about operating system, devices, applications and services." },
+            new() { Name = "CryptSvc", DisplayName = "Cryptographic Services", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\NetworkService", Description = "Provides four management services: Catalog Database Service, Protected Root Service, Automatic Root Certificate Update Service, and Key Service." },
+            new() { Name = "Dhcp", DisplayName = "DHCP Client", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\LocalService", Description = "Registers and updates IP addresses and DNS records for this computer." },
+            new() { Name = "Dnscache", DisplayName = "DNS Client", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\NetworkService", Description = "The DNS Client service (dnscache) caches Domain Name System (DNS) names and registers the full computer name for this computer." },
+            new() { Name = "BITS", DisplayName = "Background Intelligent Transfer Service", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Transfers files in the background using idle network bandwidth." },
+            new() { Name = "BrokerInfrastructure", DisplayName = "Background Tasks Infrastructure Service", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Windows infrastructure service that controls which background tasks can run on the system." },
+            new() { Name = "DcomLaunch", DisplayName = "DCOM Server Process Launcher", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "The DCOMLAUNCH service launches COM and DCOM servers in response to object activation requests." },
+            new() { Name = "gpsvc", DisplayName = "Group Policy Client", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "The service is responsible for applying settings configured by administrators for the computer and users through the Group Policy component." },
+            new() { Name = "SysMain", DisplayName = "SysMain", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Maintains and improves system performance over time." },
+            new() { Name = "Themes", DisplayName = "Themes", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Provides user experience theme management." },
+            new() { Name = "AudioSrv", DisplayName = "Windows Audio", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\LocalService", Description = "Manages audio for Windows-based programs." },
+            new() { Name = "AudioEndpointBuilder", DisplayName = "Windows Audio Endpoint Builder", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\LocalService", Description = "Manages audio devices for the Windows Audio service." },
+            new() { Name = "WSearch", DisplayName = "Windows Search", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\SYSTEM", Description = "Provides content indexing, property caching, and search results for files, e-mail, and other content." },
+            new() { Name = "DiagTrack", DisplayName = "Connected User Experiences and Telemetry", State = "Running", StartMode = "Auto", StartName = "NT AUTHORITY\\SYSTEM", Description = "The Connected User Experiences and Telemetry service enables features that support in-application and connected user experiences." },
+            new() { Name = "WerSvc", DisplayName = "Windows Error Reporting Service", State = "Stopped", StartMode = "Manual", StartName = "LocalSystem", Description = "Allows errors to be reported when programs stop working or responding." },
+            new() { Name = "Schedule", DisplayName = "Task Scheduler", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "Enables a user to configure and schedule automated tasks on this computer." },
+            new() { Name = "RemoteRegistry", DisplayName = "Remote Registry", State = "Stopped", StartMode = "Disabled", StartName = "NT AUTHORITY\\LocalService", Description = "Enables remote users to modify registry settings on this computer." },
+            new() { Name = "AppIDSvc", DisplayName = "Application Identity", State = "Stopped", StartMode = "Manual", StartName = "NT AUTHORITY\\LocalService", Description = "Determines and verifies the identity of an application." },
+            new() { Name = "SNMP", DisplayName = "SNMP Service", State = "Stopped", StartMode = "Disabled", StartName = "LocalSystem", Description = "Includes SNMP agents that monitor the activity in network devices and report to the network console workstation." },
+            new() { Name = "vmicguestinterface", DisplayName = "Hyper-V Guest Service Interface", State = "Stopped", StartMode = "Manual", StartName = "LocalSystem", Description = "Provides an interface for the Hyper-V host to interact with specific services running inside the virtual machine." },
+            new() { Name = "vmicheartbeat", DisplayName = "Hyper-V Heartbeat Service", State = "Stopped", StartMode = "Manual", StartName = "LocalSystem", Description = "Monitors the state of this virtual machine by reporting a heartbeat at regular intervals." },
+            new() { Name = "Fax", DisplayName = "Fax", State = "Stopped", StartMode = "Disabled", StartName = "NT AUTHORITY\\NetworkService", Description = "Enables you to send and receive faxes, utilizing fax resources available on this computer or on the network." },
+            new() { Name = "RemoteAccess", DisplayName = "Routing and Remote Access", State = "Stopped", StartMode = "Disabled", StartName = "LocalSystem", Description = "Offers routing services to businesses in local area and wide area network environments." },
+            new() { Name = "TapiSrv", DisplayName = "Telephony", State = "Stopped", StartMode = "Manual", StartName = "NT AUTHORITY\\NetworkService", Description = "Provides Telephony API (TAPI) support for programs that control telephony devices on the local computer." },
+            new() { Name = "WbioSrvc", DisplayName = "Windows Biometric Service", State = "Running", StartMode = "Auto", StartName = "LocalSystem", Description = "The Windows biometric service gives client applications the ability to capture, compare, manipulate, and store biometric data." }
+        };
+
+        // Apply any demo overrides
+        var finalServices = new List<ComputerServiceInfo>();
+        foreach (var svc in baseServices)
+        {
+            string key = $"{host}:{svc.Name}";
+            string state = svc.State;
+            string startMode = svc.StartMode;
+
+            if (_demoServiceStates.TryGetValue(key, out var overrideState))
+            {
+                state = overrideState;
+            }
+            if (_demoServiceStartModes.TryGetValue(key, out var overrideMode))
+            {
+                startMode = overrideMode;
+            }
+
+            finalServices.Add(svc with { State = state, StartMode = startMode });
+        }
+
+        var sorted = finalServices.OrderBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        return new ComputerServicesSnapshot
+        {
+            Hostname = host,
+            Services = sorted,
+            IsSuccess = true,
+            Timestamp = DateTime.Now
+        };
+    }
+
 }

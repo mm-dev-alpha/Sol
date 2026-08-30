@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 
 namespace Sol.Services;
@@ -12,6 +12,11 @@ public class SettingsService : ISettingsService
 
     public string AdDomain { get; set; } = string.Empty;
     public string AppLanguage { get; set; } = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("de", StringComparison.OrdinalIgnoreCase) ? "de" : "en";
+
+    public bool IsJiraEnabled { get; set; } = false;
+    public string JiraDeploymentMode { get; set; } = "DataCenter";
+    public string JiraBaseUrl { get; set; } = string.Empty;
+    public string JiraCloudEmail { get; set; } = string.Empty;
 
     public SettingsService()
     {
@@ -36,6 +41,15 @@ public class SettingsService : ISettingsService
                 AdDomain = adDomain.GetString() ?? string.Empty;
             if (root.TryGetProperty("AppLanguage", out var appLang))
                 AppLanguage = appLang.GetString() ?? "en";
+
+            if (root.TryGetProperty("IsJiraEnabled", out var jiraEnabled))
+                IsJiraEnabled = jiraEnabled.GetBoolean();
+            if (root.TryGetProperty("JiraDeploymentMode", out var jiraMode))
+                JiraDeploymentMode = jiraMode.GetString() ?? "DataCenter";
+            if (root.TryGetProperty("JiraBaseUrl", out var jiraUrl))
+                JiraBaseUrl = jiraUrl.GetString() ?? string.Empty;
+            if (root.TryGetProperty("JiraCloudEmail", out var jiraEmail))
+                JiraCloudEmail = jiraEmail.GetString() ?? string.Empty;
         }
         catch { /* Settings load failure is non-fatal */ }
     }
@@ -47,7 +61,11 @@ public class SettingsService : ISettingsService
             var obj = new Dictionary<string, object>
             {
                 ["AdDomain"] = AdDomain ?? "",
-                ["AppLanguage"] = AppLanguage ?? "en"
+                ["AppLanguage"] = AppLanguage ?? "en",
+                ["IsJiraEnabled"] = IsJiraEnabled,
+                ["JiraDeploymentMode"] = JiraDeploymentMode ?? "DataCenter",
+                ["JiraBaseUrl"] = JiraBaseUrl ?? "",
+                ["JiraCloudEmail"] = JiraCloudEmail ?? ""
             };
             var json = JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_settingsPath, json, Encoding.UTF8);

@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore src/Sol/Sol.csproj
+
+      - name: Run Unit Tests
+        run: dotnet test src/Sol.Tests/Sol.Tests.csproj -c Release --verbosity normal
+
+      - name: Build Sol (Release)
+        run: dotnet build src/Sol/Sol.csproj -c Release --no-restore

@@ -75,12 +75,33 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(TotalProcessesCountBadge))]
     public partial ComputerProcessSnapshot? ProcessSnapshot { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBitLockerSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasBitLockerError))]
+    [NotifyPropertyChangedFor(nameof(IsBitLockerProtectionActive))]
+    [NotifyPropertyChangedFor(nameof(IsBitLockerProtectionSuspended))]
+    public partial ComputerBitLockerSnapshot? BitLockerSnapshot { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasServicesSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasServicesError))]
+    [NotifyPropertyChangedFor(nameof(TotalServicesCountBadge))]
+    [NotifyPropertyChangedFor(nameof(RunningServicesCountBadge))]
+    [NotifyPropertyChangedFor(nameof(StoppedServicesCountBadge))]
+    public partial ComputerServicesSnapshot? ServicesSnapshot { get; set; }
+
     [ObservableProperty] public partial bool IsHardwareLoading { get; set; }
     [ObservableProperty] public partial bool IsUptimeLoading { get; set; }
     [ObservableProperty] public partial bool IsDiskLoading { get; set; }
     [ObservableProperty] public partial bool IsBatteryLoading { get; set; }
     [ObservableProperty] public partial bool IsSessionsLoading { get; set; }
     [ObservableProperty] public partial bool IsProcessesLoading { get; set; }
+    [ObservableProperty] public partial bool IsBitLockerLoading { get; set; }
+    [ObservableProperty] public partial bool IsServicesLoading { get; set; }
+    [ObservableProperty] public partial string ServiceFilterQuery { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ServiceStatusFilter { get; set; } = "All";
+    [ObservableProperty] public partial string ServiceSortColumn { get; set; } = "DisplayName";
+    [ObservableProperty] public partial bool ServiceSortAscending { get; set; } = true;
     [ObservableProperty] public partial string ProcessFilterQuery { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProcessSortOption { get; set; } = "Memory";
     [ObservableProperty] public partial string ProcessSortColumn { get; set; } = "Memory";
@@ -130,10 +151,21 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 
     public bool HasProcessSnapshot => ProcessSnapshot != null && ProcessSnapshot.IsSuccess;
     public bool HasProcessError => ProcessSnapshot != null && !ProcessSnapshot.IsSuccess;
+
+    public bool HasServicesSnapshot => ServicesSnapshot != null && ServicesSnapshot.IsSuccess;
+    public bool HasServicesError => ServicesSnapshot != null && !ServicesSnapshot.IsSuccess;
+    public string TotalServicesCountBadge => ServicesSnapshot != null ? Strings.TotalServicesCountBadge(ServicesSnapshot.TotalServiceCount) : Strings.TotalServicesCountBadge(0);
+    public string RunningServicesCountBadge => ServicesSnapshot != null ? Strings.RunningServicesCountBadge(ServicesSnapshot.RunningCount) : Strings.RunningServicesCountBadge(0);
+    public string StoppedServicesCountBadge => ServicesSnapshot != null ? Strings.StoppedServicesCountBadge(ServicesSnapshot.StoppedCount) : Strings.StoppedServicesCountBadge(0);
     public int TotalProcessCount => ProcessSnapshot?.Processes?.Count ?? 0;
     public string TotalProcessesCountBadge => Strings.TotalProcessesCountBadge(TotalProcessCount);
 
-    public bool IsDiagnosticsLoading => IsHardwareLoading || IsUptimeLoading || IsDiskLoading || IsBatteryLoading || IsSessionsLoading;
+    public bool HasBitLockerSnapshot => BitLockerSnapshot != null && BitLockerSnapshot.IsSuccess;
+    public bool HasBitLockerError => BitLockerSnapshot != null && !BitLockerSnapshot.IsSuccess;
+    public bool IsBitLockerProtectionActive => BitLockerSnapshot?.IsProtectionActive == true;
+    public bool IsBitLockerProtectionSuspended => BitLockerSnapshot?.IsProtectionSuspended == true;
+
+    public bool IsDiagnosticsLoading => IsHardwareLoading || IsUptimeLoading || IsDiskLoading || IsBatteryLoading || IsSessionsLoading || IsBitLockerLoading;
 
     public string GroupCountBadge => CurrentComputer?.Groups?.Count.ToString() ?? "0";
     public bool HasNoFilteredGroups => FilteredGroups.Count == 0;
@@ -146,6 +178,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public ObservableCollection<ComputerDiskDriveInfo> Drives { get; } = new();
     public ObservableCollection<ComputerSessionInfo> Sessions { get; } = new();
     public ObservableCollection<ComputerProcessInfo> FilteredProcesses { get; } = new();
+    public ObservableCollection<ComputerServiceInfo> FilteredServices { get; } = new();
 
     public ComputerWorkspaceViewModel(
         IActiveDirectoryService adService, 
@@ -164,18 +197,37 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         CloseProcessManagerRequested?.Invoke();
     }
 
+    public event Action? CloseServicesInspectorRequested;
+
+    public void RequestCloseServicesInspector()
+    {
+        CloseServicesInspectorRequested?.Invoke();
+    }
+
     [RelayCommand]
     public void ResetToHeroState()
     {
         RequestCloseProcessManager();
+        RequestCloseServicesInspector();
         _diagnosticCts?.Cancel();
+        _diagnosticCts?.Dispose();
         _diagnosticCts = null;
         HardwareSnapshot = null;
         IsHardwareLoading = false;
+        UptimeSnapshot = null;
+        IsUptimeLoading = false;
+        DiskSnapshot = null;
+        IsDiskLoading = false;
+        BatterySnapshot = null;
+        IsBatteryLoading = false;
         SessionSnapshot = null;
         IsSessionsLoading = false;
         ProcessSnapshot = null;
         IsProcessesLoading = false;
+        ServicesSnapshot = null;
+        IsServicesLoading = false;
+        BitLockerSnapshot = null;
+        IsBitLockerLoading = false;
 
         CurrentComputer = null;
         SearchResults.Clear();
@@ -184,6 +236,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         BitLockerKeys.Clear();
         Sessions.Clear();
         FilteredProcesses.Clear();
+        FilteredServices.Clear();
         CenterSearchQuery = string.Empty;
         GroupFilterQuery = string.Empty;
         NewGroupName = string.Empty;
@@ -436,41 +489,169 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     {
         if (CurrentComputer == null) return;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Name: {CurrentComputer.Name}");
-        sb.AppendLine($"SamAccountName: {CurrentComputer.SamAccountName}");
-        sb.AppendLine($"DNS Host Name: {CurrentComputer.DnsHostName}");
-        sb.AppendLine($"Operating System: {CurrentComputer.OperatingSystem} {CurrentComputer.OperatingSystemVersion}");
-        sb.AppendLine($"OU Path: {CurrentComputer.OuPath}");
-        sb.AppendLine($"Status: {CurrentComputer.AccountStatus}");
-        sb.AppendLine($"Managed By: {CurrentComputer.ManagedBy}");
-        sb.AppendLine($"Location: {CurrentComputer.Location}");
-        sb.AppendLine($"Password Last Set: {FormattedPasswordLastSet}");
-        sb.AppendLine($"Last Logon: {FormattedLastLogon}");
-        sb.AppendLine($"Groups: {string.Join(", ", CurrentComputer.Groups)}");
-        if (CurrentComputer.BitLockerKeys.Count > 0)
-        {
-            sb.AppendLine("BitLocker Keys:");
-            foreach (var key in CurrentComputer.BitLockerKeys)
-            {
-                sb.AppendLine($"  - ID: {key.KeyId} | Password: {key.RecoveryPassword} | Created: {key.FormattedCreated}");
-            }
-        }
+        sb.AppendLine("================================================================================");
+        sb.AppendLine($"COMPUTER PROFILE & DIAGNOSTICS: {CurrentComputer.Name} ({CurrentComputer.DnsHostName})");
+        sb.AppendLine("================================================================================");
+        sb.AppendLine();
 
+        // 1. Identity & Active Directory
+        sb.AppendLine("[ ACTIVE DIRECTORY & NETWORK IDENTITY ]");
+        sb.AppendLine($"  Computer Name:       {CurrentComputer.Name}");
+        sb.AppendLine($"  SAM Account Name:    {CurrentComputer.SamAccountName}");
+        sb.AppendLine($"  DNS Host Name:       {CurrentComputer.DnsHostName}");
+        if (!string.IsNullOrWhiteSpace(CurrentComputer.IPv4Address))
+            sb.AppendLine($"  IPv4 Address:        {CurrentComputer.IPv4Address}");
+        sb.AppendLine($"  Operating System:    {CurrentComputer.OperatingSystem} {CurrentComputer.OperatingSystemVersion}".Trim());
+        sb.AppendLine($"  Account Status:      {CurrentComputer.AccountStatus} (Enabled: {CurrentComputer.IsEnabled})");
+        if (!string.IsNullOrWhiteSpace(CurrentComputer.Sid))
+            sb.AppendLine($"  Security ID (SID):   {CurrentComputer.Sid}");
+        sb.AppendLine($"  OU Path:             {CurrentComputer.OuPath}");
+        if (!string.IsNullOrWhiteSpace(CurrentComputer.Description))
+            sb.AppendLine($"  Description:         {CurrentComputer.Description}");
+        if (!string.IsNullOrWhiteSpace(CurrentComputer.ManagedBy))
+            sb.AppendLine($"  Managed By:          {CurrentComputer.ManagedBy}");
+        if (!string.IsNullOrWhiteSpace(CurrentComputer.Location))
+            sb.AppendLine($"  Location:            {CurrentComputer.Location}");
+        sb.AppendLine($"  Password Last Set:   {FormattedPasswordLastSet}");
+        sb.AppendLine($"  Last Logon:          {FormattedLastLogon}");
+        sb.AppendLine($"  Created:             {FormattedCreated}");
+        sb.AppendLine($"  Modified:            {FormattedModified}");
+        sb.AppendLine();
+
+        // 2. Hardware & BIOS Diagnostics
+        sb.AppendLine("[ HARDWARE & BIOS DIAGNOSTICS ]");
         if (HardwareSnapshot != null && HardwareSnapshot.IsSuccess)
         {
-            sb.AppendLine("Hardware Diagnostics:");
-            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.Manufacturer) || !string.IsNullOrWhiteSpace(HardwareSnapshot.Model))
-                sb.AppendLine($"  - Model: {HardwareSnapshot.Manufacturer} {HardwareSnapshot.Model}".Trim());
-            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.SerialNumber))
-                sb.AppendLine($"  - Serial / Service Tag: {HardwareSnapshot.SerialNumber}");
-            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.BiosVersion))
-                sb.AppendLine($"  - BIOS: {HardwareSnapshot.BiosVersion} ({HardwareSnapshot.BiosReleaseDate})");
-            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.BuildNumber))
-                sb.AppendLine($"  - OS Build: {HardwareSnapshot.FormattedBuild}");
-            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.CpuName))
-                sb.AppendLine($"  - CPU: {HardwareSnapshot.CpuName}");
-            if (!string.IsNullOrWhiteSpace(HardwareSnapshot.TotalMemoryFormatted))
-                sb.AppendLine($"  - Memory: {HardwareSnapshot.TotalMemoryFormatted}");
+            sb.AppendLine($"  Manufacturer & Model:{HardwareSnapshot.Manufacturer} {HardwareSnapshot.Model}".Trim());
+            sb.AppendLine($"  Serial / Service Tag:{HardwareSnapshot.SerialNumber}");
+            sb.AppendLine($"  BIOS Version & Date: {HardwareSnapshot.BiosVersion} ({HardwareSnapshot.BiosReleaseDate})");
+            sb.AppendLine($"  OS Build:            {HardwareSnapshot.FormattedBuild}");
+            sb.AppendLine($"  Processor (CPU):     {HardwareSnapshot.CpuName}");
+            sb.AppendLine($"  Total Memory (RAM):  {HardwareSnapshot.TotalMemoryFormatted}");
+            if (HasWarrantyLink)
+                sb.AppendLine($"  Warranty Check Link: {WarrantyUrl}");
+        }
+        else if (HardwareSnapshot != null && !HardwareSnapshot.IsSuccess)
+        {
+            sb.AppendLine($"  Diagnostics Status:  Error ({HardwareSnapshot.ErrorMessage})");
+        }
+        else
+        {
+            sb.AppendLine("  Diagnostics Status:  Not queried or unreachable");
+        }
+        sb.AppendLine();
+
+        // 3. System Uptime & Reboot State
+        sb.AppendLine("[ SYSTEM UPTIME & REBOOT STATUS ]");
+        if (UptimeSnapshot != null && UptimeSnapshot.IsSuccess)
+        {
+            sb.AppendLine($"  System Uptime:       {UptimeSnapshot.FormattedUptime}");
+            sb.AppendLine($"  Last Boot Time:      {UptimeSnapshot.FormattedLastBoot}");
+            sb.AppendLine($"  Reboot Required:     {UptimeSnapshot.RebootStatusText}");
+            if (UptimeSnapshot.PendingRebootReasons.Count > 0)
+                sb.AppendLine($"  Reboot Reasons:      {UptimeSnapshot.FormattedRebootReasons}");
+        }
+        else if (UptimeSnapshot != null && !UptimeSnapshot.IsSuccess)
+        {
+            sb.AppendLine($"  Uptime Status:       Error ({UptimeSnapshot.ErrorMessage})");
+        }
+        else
+        {
+            sb.AppendLine("  Uptime Status:       Not queried or unreachable");
+        }
+        sb.AppendLine();
+
+        // 4. Local Storage & Logical Drives
+        sb.AppendLine("[ STORAGE & LOGICAL DISK DRIVES ]");
+        if (DiskSnapshot != null && DiskSnapshot.IsSuccess && DiskSnapshot.Drives.Count > 0)
+        {
+            foreach (var drive in DiskSnapshot.Drives)
+            {
+                sb.AppendLine($"  - {drive.CopyDetailsText}");
+            }
+        }
+        else if (DiskSnapshot != null && !DiskSnapshot.IsSuccess)
+        {
+            sb.AppendLine($"  Storage Status:      Error ({DiskSnapshot.ErrorMessage})");
+        }
+        else
+        {
+            sb.AppendLine("  Storage Status:      Not queried or no local fixed drives reported");
+        }
+        sb.AppendLine();
+
+        // 5. Battery & Power Diagnostics (Laptops)
+        if (BatterySnapshot != null && BatterySnapshot.IsSuccess && BatterySnapshot.HasBattery)
+        {
+            sb.AppendLine("[ BATTERY & POWER DIAGNOSTICS ]");
+            sb.AppendLine($"  Battery Health:      {BatterySnapshot.HealthStatusDisplay} ({Strings.S.BatteryWearNotice}: {BatterySnapshot.WearPercentage:F1}%)");
+            sb.AppendLine($"  Charge Remaining:    {BatterySnapshot.EstimatedChargeRemainingPercent}% ({BatterySnapshot.BatteryStatusText})");
+            sb.AppendLine($"  Full / Design Cap.:  {BatterySnapshot.FormattedFullChargeCapacity} / {BatterySnapshot.FormattedDesignCapacity}");
+            sb.AppendLine($"  Cycle Count:         {BatterySnapshot.FormattedCycleCount}");
+            sb.AppendLine($"  Estimated Runtime:   {BatterySnapshot.FormattedEstimatedRunTime}");
+            if (!string.IsNullOrWhiteSpace(BatterySnapshot.Chemistry))
+                sb.AppendLine($"  Chemistry:           {BatterySnapshot.Chemistry}");
+            sb.AppendLine();
+        }
+
+        // 6. Active Logon Sessions
+        sb.AppendLine("[ ACTIVE & DISCONNECTED LOGON SESSIONS ]");
+        if (SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count > 0)
+        {
+            foreach (var session in SessionSnapshot.Sessions)
+            {
+                sb.AppendLine($"  - Session ID {session.SessionId}: {session.CopyDetailsText}");
+            }
+        }
+        else if (SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count == 0)
+        {
+            sb.AppendLine("  (No active logon sessions currently active)");
+        }
+        else if (SessionSnapshot != null && !SessionSnapshot.IsSuccess)
+        {
+            sb.AppendLine($"  Sessions Status:     Error ({SessionSnapshot.ErrorMessage})");
+        }
+        else
+        {
+            sb.AppendLine("  Sessions Status:     Not queried or unreachable");
+        }
+        sb.AppendLine();
+
+        // 7. BitLocker Drive Encryption & Recovery Keys
+        sb.AppendLine("[ BITLOCKER ENCRYPTION & RECOVERY KEYS ]");
+        if (BitLockerSnapshot != null && BitLockerSnapshot.IsSuccess)
+        {
+            sb.AppendLine($"  Drive Letter:        {BitLockerSnapshot.DriveLetter}");
+            sb.AppendLine($"  Protection Status:   {(BitLockerSnapshot.IsProtectionActive ? "Active / Protected" : (BitLockerSnapshot.IsProtectionSuspended ? "Suspended" : "Disabled"))}");
+            sb.AppendLine($"  Conversion Status:   {BitLockerSnapshot.FormattedConversionStatus}");
+            sb.AppendLine($"  Encryption Method:   {BitLockerSnapshot.FormattedEncryptionMethod}");
+        }
+        if (CurrentComputer.BitLockerKeys.Count > 0)
+        {
+            sb.AppendLine($"  AD Recovery Keys ({CurrentComputer.BitLockerKeys.Count}):");
+            foreach (var key in CurrentComputer.BitLockerKeys)
+            {
+                sb.AppendLine($"    - ID: {key.KeyId} | Password: {key.RecoveryPassword} | Created: {key.FormattedCreated}");
+            }
+        }
+        else if (BitLockerSnapshot == null || !BitLockerSnapshot.IsSuccess)
+        {
+            sb.AppendLine("  (No BitLocker recovery keys stored in Active Directory)");
+        }
+        sb.AppendLine();
+
+        // 8. Security Groups
+        sb.AppendLine($"[ GROUP MEMBERSHIPS ({CurrentComputer.Groups.Count}) ]");
+        if (CurrentComputer.Groups.Count > 0)
+        {
+            foreach (var group in CurrentComputer.Groups)
+            {
+                sb.AppendLine($"  - {group}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("  (No groups assigned)");
         }
 
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
@@ -738,6 +919,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public async Task FetchDiagnosticsAsync(AdComputer computer)
     {
         _diagnosticCts?.Cancel();
+        _diagnosticCts?.Dispose();
         _diagnosticCts = new System.Threading.CancellationTokenSource();
         var token = _diagnosticCts.Token;
 
@@ -749,11 +931,13 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         IsDiskLoading = true;
         IsBatteryLoading = true;
         IsSessionsLoading = true;
+        IsBitLockerLoading = true;
         HardwareSnapshot = null;
         UptimeSnapshot = null;
         DiskSnapshot = null;
         BatterySnapshot = null;
         SessionSnapshot = null;
+        BitLockerSnapshot = null;
         Drives.Clear();
         Sessions.Clear();
         NotifyHardwarePropertiesChanged();
@@ -761,6 +945,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         NotifyDiskPropertiesChanged();
         NotifyBatteryPropertiesChanged();
         NotifySessionPropertiesChanged();
+        NotifyBitLockerPropertiesChanged();
 
         try
         {
@@ -769,8 +954,9 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             var diskTask = _diagnosticService.GetDiskSnapshotAsync(targetHost, token);
             var batteryTask = _diagnosticService.GetBatterySnapshotAsync(targetHost, token);
             var sessionTask = _diagnosticService.GetSessionSnapshotAsync(targetHost, token);
+            var bitLockerTask = _diagnosticService.GetBitLockerStatusAsync(targetHost, token);
 
-            await Task.WhenAll(hwTask, uptimeTask, diskTask, batteryTask, sessionTask);
+            await Task.WhenAll(hwTask, uptimeTask, diskTask, batteryTask, sessionTask, bitLockerTask);
 
             if (!token.IsCancellationRequested)
             {
@@ -779,6 +965,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
                 DiskSnapshot = await diskTask;
                 BatterySnapshot = await batteryTask;
                 SessionSnapshot = await sessionTask;
+                BitLockerSnapshot = await bitLockerTask;
                 RefreshDrivesCollection();
                 RefreshSessionsCollection();
             }
@@ -821,23 +1008,28 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
                     IsSuccess = false,
                     ErrorMessage = ex.Message
                 };
+                BitLockerSnapshot ??= new ComputerBitLockerSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
             }
         }
         finally
         {
-            if (!token.IsCancellationRequested)
-            {
-                IsHardwareLoading = false;
-                IsUptimeLoading = false;
-                IsDiskLoading = false;
-                IsBatteryLoading = false;
-                IsSessionsLoading = false;
-                NotifyHardwarePropertiesChanged();
-                NotifyUptimePropertiesChanged();
-                NotifyDiskPropertiesChanged();
-                NotifyBatteryPropertiesChanged();
-                NotifySessionPropertiesChanged();
-            }
+            IsHardwareLoading = false;
+            IsUptimeLoading = false;
+            IsDiskLoading = false;
+            IsBatteryLoading = false;
+            IsSessionsLoading = false;
+            IsBitLockerLoading = false;
+            NotifyHardwarePropertiesChanged();
+            NotifyUptimePropertiesChanged();
+            NotifyDiskPropertiesChanged();
+            NotifyBatteryPropertiesChanged();
+            NotifySessionPropertiesChanged();
+            NotifyBitLockerPropertiesChanged();
         }
     }
 
@@ -889,6 +1081,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public void CloseWorkspace()
     {
         RequestCloseProcessManager();
+        RequestCloseServicesInspector();
         CurrentComputer = null;
         SearchResults.Clear();
         FilteredGroups.Clear();
@@ -902,6 +1095,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         Drives.Clear();
         Sessions.Clear();
         FilteredProcesses.Clear();
+        FilteredServices.Clear();
         CenterSearchQuery = string.Empty;
         NotifyPropertiesChanged();
     }
@@ -981,6 +1175,368 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSessionError));
         OnPropertyChanged(nameof(HasNoActiveSessions));
         OnPropertyChanged(nameof(ActiveSessionsCountBadge));
+    }
+
+    public void NotifyBitLockerPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(BitLockerSnapshot));
+        OnPropertyChanged(nameof(IsBitLockerLoading));
+        OnPropertyChanged(nameof(IsDiagnosticsLoading));
+        OnPropertyChanged(nameof(HasBitLockerSnapshot));
+        OnPropertyChanged(nameof(HasBitLockerError));
+        OnPropertyChanged(nameof(IsBitLockerProtectionActive));
+        OnPropertyChanged(nameof(IsBitLockerProtectionSuspended));
+    }
+
+    [RelayCommand]
+    public async Task RefreshBitLockerStatusAsync()
+    {
+        if (CurrentComputer == null) return;
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        IsBitLockerLoading = true;
+        NotifyBitLockerPropertiesChanged();
+        try
+        {
+            BitLockerSnapshot = await _diagnosticService.GetBitLockerStatusAsync(targetHost);
+        }
+        catch (Exception ex)
+        {
+            BitLockerSnapshot = new ComputerBitLockerSnapshot
+            {
+                Hostname = targetHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+        finally
+        {
+            IsBitLockerLoading = false;
+            NotifyBitLockerPropertiesChanged();
+        }
+    }
+
+    [RelayCommand]
+    public async Task TriggerRemoteGpupdateAsync()
+    {
+        if (CurrentComputer == null) return;
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        ShowInfo(Strings.RemoteGpupdateInitiated(targetHost));
+        try
+        {
+            bool success = await _diagnosticService.TriggerGroupPolicyUpdateAsync(targetHost);
+            if (!success)
+            {
+                ShowError(Strings.RemoteGpupdateFailed(targetHost, "Command returned non-zero code."));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.RemoteGpupdateFailed(targetHost, ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public async Task SuspendBitLockerProtectionAsync(uint rebootCount = 1)
+    {
+        if (CurrentComputer == null) return;
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        IsBitLockerLoading = true;
+        NotifyBitLockerPropertiesChanged();
+        try
+        {
+            bool success = await _diagnosticService.SuspendBitLockerProtectionAsync(targetHost, rebootCount);
+            if (success)
+            {
+                ShowInfo(Strings.BitLockerSuspendedSuccess(targetHost));
+                BitLockerSnapshot = await _diagnosticService.GetBitLockerStatusAsync(targetHost);
+            }
+            else
+            {
+                ShowError(Strings.BitLockerActionFailed(targetHost, "Failed to suspend protection."));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.BitLockerActionFailed(targetHost, ex.Message));
+        }
+        finally
+        {
+            IsBitLockerLoading = false;
+            NotifyBitLockerPropertiesChanged();
+        }
+    }
+
+    [RelayCommand]
+    public async Task ResumeBitLockerProtectionAsync()
+    {
+        if (CurrentComputer == null) return;
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        IsBitLockerLoading = true;
+        NotifyBitLockerPropertiesChanged();
+        try
+        {
+            bool success = await _diagnosticService.ResumeBitLockerProtectionAsync(targetHost);
+            if (success)
+            {
+                ShowInfo(Strings.BitLockerResumedSuccess(targetHost));
+                BitLockerSnapshot = await _diagnosticService.GetBitLockerStatusAsync(targetHost);
+            }
+            else
+            {
+                ShowError(Strings.BitLockerActionFailed(targetHost, "Failed to resume protection."));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.BitLockerActionFailed(targetHost, ex.Message));
+        }
+        finally
+        {
+            IsBitLockerLoading = false;
+            NotifyBitLockerPropertiesChanged();
+        }
+    }
+
+
+    // =========================================================================
+    // Windows Services Inspector Commands
+    // =========================================================================
+
+    [RelayCommand]
+    public async Task RefreshServicesAsync()
+    {
+        if (CurrentComputer == null) return;
+        IsServicesLoading = true;
+
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            IsServicesLoading = false;
+            return;
+        }
+
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+            ServicesSnapshot = await _diagnosticService.GetServicesSnapshotAsync(targetHost, cts.Token);
+            ApplyServiceFilterAndSort();
+        }
+        catch (Exception ex)
+        {
+            ServicesSnapshot = new ComputerServicesSnapshot
+            {
+                Hostname = targetHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+            FilteredServices.Clear();
+        }
+        finally
+        {
+            IsServicesLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task StartServiceAsync(ComputerServiceInfo? service)
+    {
+        if (CurrentComputer == null || service == null) return;
+        try
+        {
+            string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+            bool success = await _diagnosticService.StartServiceAsync(targetHost, service.Name);
+            if (success)
+            {
+                ShowInfo(Strings.ServiceStartedSuccess(service.DisplayName));
+                await RefreshServicesAsync();
+            }
+            else
+            {
+                ShowError(Strings.ServiceActionFailed(Strings.S.StartServiceBtn, service.DisplayName));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.ServiceActionFailed(Strings.S.StartServiceBtn, ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public async Task StopServiceAsync(ComputerServiceInfo? service)
+    {
+        if (CurrentComputer == null || service == null) return;
+        if (service.IsCriticalService)
+        {
+            ShowError(Strings.S.CriticalServiceProtected);
+            return;
+        }
+
+        try
+        {
+            string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+            bool success = await _diagnosticService.StopServiceAsync(targetHost, service.Name);
+            if (success)
+            {
+                ShowInfo(Strings.ServiceStoppedSuccess(service.DisplayName));
+                await RefreshServicesAsync();
+            }
+            else
+            {
+                ShowError(Strings.ServiceActionFailed(Strings.S.StopServiceBtn, service.DisplayName));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.ServiceActionFailed(Strings.S.StopServiceBtn, ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public async Task RestartServiceAsync(ComputerServiceInfo? service)
+    {
+        if (CurrentComputer == null || service == null) return;
+        if (service.IsCriticalService)
+        {
+            ShowError(Strings.S.CriticalServiceProtected);
+            return;
+        }
+
+        try
+        {
+            string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+            bool success = await _diagnosticService.RestartServiceAsync(targetHost, service.Name);
+            if (success)
+            {
+                ShowInfo(Strings.ServiceRestartedSuccess(service.DisplayName));
+                await RefreshServicesAsync();
+            }
+            else
+            {
+                ShowError(Strings.ServiceActionFailed(Strings.S.RestartServiceBtn, service.DisplayName));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.ServiceActionFailed(Strings.S.RestartServiceBtn, ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public async Task ChangeServiceStartModeAsync((ComputerServiceInfo service, string startMode) tuple)
+    {
+        if (CurrentComputer == null || tuple.service == null || string.IsNullOrWhiteSpace(tuple.startMode)) return;
+        if (tuple.service.IsCriticalService)
+        {
+            ShowError(Strings.S.CriticalServiceProtected);
+            return;
+        }
+
+        try
+        {
+            string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+            bool success = await _diagnosticService.SetServiceStartModeAsync(targetHost, tuple.service.Name, tuple.startMode);
+            if (success)
+            {
+                ShowInfo(Strings.ServiceStartModeChangedSuccess(tuple.service.DisplayName, tuple.startMode));
+                await RefreshServicesAsync();
+            }
+            else
+            {
+                ShowError(Strings.ServiceActionFailed(Strings.S.ConfirmChangeStartupTypeTitle, tuple.service.DisplayName));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.ServiceActionFailed(Strings.S.ConfirmChangeStartupTypeTitle, ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public void FilterServices(string? query)
+    {
+        ServiceFilterQuery = query ?? string.Empty;
+        ApplyServiceFilterAndSort();
+    }
+
+    [RelayCommand]
+    public void SetServiceStatusFilter(string? status)
+    {
+        ServiceStatusFilter = status ?? "All";
+        ApplyServiceFilterAndSort();
+    }
+
+    [RelayCommand]
+    public void ToggleServiceSort(string? column)
+    {
+        if (string.IsNullOrWhiteSpace(column)) return;
+
+        if (string.Equals(ServiceSortColumn, column, StringComparison.OrdinalIgnoreCase))
+        {
+            ServiceSortAscending = !ServiceSortAscending;
+        }
+        else
+        {
+            ServiceSortColumn = column;
+            ServiceSortAscending = true;
+        }
+
+        ApplyServiceFilterAndSort();
+    }
+
+    public void ApplyServiceFilterAndSort()
+    {
+        if (ServicesSnapshot == null || !ServicesSnapshot.IsSuccess)
+        {
+            FilteredServices.Clear();
+            return;
+        }
+
+        FilteredServices.Clear();
+        IEnumerable<ComputerServiceInfo> query = ServicesSnapshot.Services;
+
+        // 1. Status Filter Tab
+        if (string.Equals(ServiceStatusFilter, "Running", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(s => s.IsRunning);
+        }
+        else if (string.Equals(ServiceStatusFilter, "Stopped", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(s => s.IsStopped);
+        }
+
+        // 2. Text Search Filter
+        if (!string.IsNullOrWhiteSpace(ServiceFilterQuery))
+        {
+            string q = ServiceFilterQuery.Trim();
+            query = query.Where(s =>
+                s.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                s.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                s.StartName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                s.StartMode.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // 3. Sorting
+        query = ServiceSortColumn switch
+        {
+            "Name" => ServiceSortAscending ? query.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(s => s.Name, StringComparer.OrdinalIgnoreCase),
+            "Status" => ServiceSortAscending ? query.OrderBy(s => s.State, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(s => s.State, StringComparer.OrdinalIgnoreCase),
+            "StartMode" => ServiceSortAscending ? query.OrderBy(s => s.StartMode, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(s => s.StartMode, StringComparer.OrdinalIgnoreCase),
+            "StartName" => ServiceSortAscending ? query.OrderBy(s => s.StartName, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(s => s.StartName, StringComparer.OrdinalIgnoreCase),
+            _ => ServiceSortAscending ? query.OrderBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(s => s.DisplayName, StringComparer.OrdinalIgnoreCase)
+        };
+
+        foreach (var svc in query)
+        {
+            FilteredServices.Add(svc);
+        }
     }
 
     public void ShowInfo(string message)

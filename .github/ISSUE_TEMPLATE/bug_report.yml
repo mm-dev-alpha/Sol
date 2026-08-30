@@ -1,0 +1,68 @@
+name: 🐛 Bug Report
+description: Report a reproducible bug or unexpected behavior in Sol.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide as much detail as possible to help us reproduce and resolve the problem.
+  - type: input
+    id: version
+    attributes:
+      label: Sol Version / Commit
+      placeholder: e.g. v1.0.0 or commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 11 24H2
+        - Windows 11 23H2 / 22H2
+        - Windows 10 (1809 or newer)
+        - Windows Server 2025
+        - Windows Server 2022
+        - Windows Server 2019
+        - Other (specify in description)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Active Directory Environment
+      placeholder: e.g. Windows Server 2022 Forest Functional Level, RSAT domain-joined workstation
+    validations:
+      required: false
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Open User Workspace
+        2. Search for user '...'
+        3. Click on '...'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs or Error Output
+      description: Paste any error messages or logs from `%LocalAppData%\Sol\Logs\` if available.
+      render: text

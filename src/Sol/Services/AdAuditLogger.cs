@@ -73,6 +73,20 @@ public static class AdAuditLogger
             lock (_syncLock)
             {
                 Directory.CreateDirectory(LogDirectory);
+                
+                // Roll log if exceeds 5MB
+                try
+                {
+                    var fileInfo = new FileInfo(LogFilePath);
+                    if (fileInfo.Exists && fileInfo.Length > 5 * 1024 * 1024)
+                    {
+                        string oldLogPath = Path.Combine(LogDirectory, "ad_audit.old.log");
+                        if (File.Exists(oldLogPath)) File.Delete(oldLogPath);
+                        File.Move(LogFilePath, oldLogPath);
+                    }
+                }
+                catch { }
+
                 File.AppendAllText(LogFilePath, jsonLine + Environment.NewLine);
             }
         });

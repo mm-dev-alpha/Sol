@@ -18,28 +18,50 @@ public partial class UserWorkspaceViewModel : ObservableObject
 {
     private readonly IActiveDirectoryService _adService;
     private readonly IGreetingService _greetingService;
+    private readonly ISettingsService _settings;
+    private readonly INavigationService _navigationService;
 
     public GlobalSearchViewModel Search { get; }
 
-    public UserWorkspaceViewModel(IActiveDirectoryService adService, GlobalSearchViewModel search, IGreetingService greetingService)
+    [ObservableProperty]
+    public partial bool IsJiraEnabled { get; set; }
+
+    public UserWorkspaceViewModel(
+        IActiveDirectoryService adService, 
+        GlobalSearchViewModel search, 
+        IGreetingService greetingService,
+        ISettingsService settings,
+        INavigationService navigationService)
     {
         _adService = adService;
         Search = search;
         _greetingService = greetingService;
-        
+        _settings = settings;
+        _navigationService = navigationService;
+
+        IsJiraEnabled = _settings.IsJiraEnabled;
+
+        WeakReferenceMessenger.Default.Register<UserWorkspaceViewModel, JiraSettingsChangedMessage>(this, static (r, m) =>
+        {
+            App.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+            {
+                r.IsJiraEnabled = m.IsEnabled;
+            });
+        });
+
         StartupGreeting = _greetingService.GetStartupGreeting();
 
-        WeakReferenceMessenger.Default.Register<UserSearchSelectedMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<UserWorkspaceViewModel, UserSearchSelectedMessage>(this, static (r, m) =>
         {
             App.MainWindow?.DispatcherQueue.TryEnqueue(async () =>
             {
                 try
                 {
-                    await LoadUserAsync(m.Value);
+                    await r.LoadUserAsync(m.Value);
                 }
                 catch (Exception ex)
                 {
-                    ShowError(ex.Message);
+                    r.ShowError(ex.Message);
                 }
             });
         });
@@ -414,6 +436,15 @@ public partial class UserWorkspaceViewModel : ObservableObject
         catch (Exception ex) { ShowError(ex.Message); }
     }
 
+    [RelayCommand]
+    private void NavigateToJira()
+    {
+        if (CurrentUser != null)
+        {
+            _navigationService.NavigateTo("JiraWorkspacePage", CurrentUser);
+        }
+    }
+
     // --- PROFILE EDITING ---
 
     [RelayCommand]
@@ -693,16 +724,103 @@ public partial class UserWorkspaceViewModel : ObservableObject
     {
         if (CurrentUser == null) return;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Name: {CurrentUser.DisplayName}");
-        sb.AppendLine($"SamAccountName: {CurrentUser.SamAccountName}");
-        sb.AppendLine($"UPN: {CurrentUser.Upn}");
-        sb.AppendLine($"Email: {CurrentUser.Email}");
-        sb.AppendLine($"Title: {CurrentUser.Title}");
-        sb.AppendLine($"Department: {CurrentUser.Department}");
-        sb.AppendLine($"Office: {CurrentUser.Office}");
-        sb.AppendLine($"Phone: {CurrentUser.OfficePhone}");
-        sb.AppendLine($"Status: {CurrentUser.AccountStatus}");
-        sb.AppendLine($"Groups: {string.Join(", ", CurrentUser.Groups)}");
+        sb.AppendLine("================================================================================");
+        sb.AppendLine($"ACTIVE DIRECTORY USER PROFILE: {CurrentUser.DisplayName} ({CurrentUser.SamAccountName})");
+        sb.AppendLine("================================================================================");
+        sb.AppendLine();
+
+        // 1. Identity & Directory
+        sb.AppendLine("[ IDENTITY & DIRECTORY ]");
+        sb.AppendLine($"  Display Name:        {CurrentUser.DisplayName}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.GivenName))
+            sb.AppendLine($"  First Name:          {CurrentUser.GivenName}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.Surname))
+            sb.AppendLine($"  Last Name:           {CurrentUser.Surname}");
+        sb.AppendLine($"  SAM Account Name:    {CurrentUser.SamAccountName}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.Upn))
+            sb.AppendLine($"  User Principal Name: {CurrentUser.Upn}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.Email))
+            sb.AppendLine($"  Email Address:       {CurrentUser.Email}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.EmployeeId))
+            sb.AppendLine($"  Employee ID:         {CurrentUser.EmployeeId}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.Sid))
+            sb.AppendLine($"  Security ID (SID):   {CurrentUser.Sid}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.OuPath))
+            sb.AppendLine($"  OU Path:             {CurrentUser.OuPath}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.Description))
+            sb.AppendLine($"  Description:         {CurrentUser.Description}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.WebPage))
+            sb.AppendLine($"  Web Page:            {CurrentUser.WebPage}");
+        sb.AppendLine();
+
+        // 2. Organization
+        sb.AppendLine("[ ORGANIZATION ]");
+        sb.AppendLine($"  Job Title:           {(!string.IsNullOrWhiteSpace(CurrentUser.Title) ? CurrentUser.Title : "—")}");
+        sb.AppendLine($"  Department:          {(!string.IsNullOrWhiteSpace(CurrentUser.Department) ? CurrentUser.Department : "—")}");
+        sb.AppendLine($"  Office:              {(!string.IsNullOrWhiteSpace(CurrentUser.Office) ? CurrentUser.Office : "—")}");
+        sb.AppendLine($"  Manager:             {(!string.IsNullOrWhiteSpace(CurrentUser.Manager) ? CurrentUser.Manager : "—")}");
+        if (CurrentUser.DirectReports != null && CurrentUser.DirectReports.Count > 0)
+        {
+            sb.AppendLine($"  Direct Reports ({CurrentUser.DirectReports.Count}):");
+            foreach (var report in CurrentUser.DirectReports)
+            {
+                sb.AppendLine($"    - {report}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("  Direct Reports:      None");
+        }
+        sb.AppendLine();
+
+        // 3. Contact Details
+        sb.AppendLine("[ CONTACT INFORMATION ]");
+        sb.AppendLine($"  Office Phone:        {(!string.IsNullOrWhiteSpace(CurrentUser.OfficePhone) ? CurrentUser.OfficePhone : "—")}");
+        sb.AppendLine($"  Mobile Phone:        {(!string.IsNullOrWhiteSpace(CurrentUser.MobilePhone) ? CurrentUser.MobilePhone : "—")}");
+        if (!string.IsNullOrWhiteSpace(CurrentUser.StreetAddress) || !string.IsNullOrWhiteSpace(CurrentUser.City) || !string.IsNullOrWhiteSpace(CurrentUser.PostalCode) || !string.IsNullOrWhiteSpace(CurrentUser.State))
+        {
+            sb.AppendLine($"  Street Address:      {(!string.IsNullOrWhiteSpace(CurrentUser.StreetAddress) ? CurrentUser.StreetAddress : "—")}");
+            sb.AppendLine($"  City:                {(!string.IsNullOrWhiteSpace(CurrentUser.City) ? CurrentUser.City : "—")}");
+            sb.AppendLine($"  Postal Code:         {(!string.IsNullOrWhiteSpace(CurrentUser.PostalCode) ? CurrentUser.PostalCode : "—")}");
+            sb.AppendLine($"  State / Province:    {(!string.IsNullOrWhiteSpace(CurrentUser.State) ? CurrentUser.State : "—")}");
+        }
+        sb.AppendLine();
+
+        // 4. Account & Security Status
+        sb.AppendLine("[ ACCOUNT & SECURITY STATUS ]");
+        sb.AppendLine($"  Account Status:      {CurrentUser.AccountStatus}");
+        sb.AppendLine($"  Locked Out:          {(CurrentUser.IsLockedOut ? Strings.S.Yes : Strings.S.No)}");
+        sb.AppendLine($"  Account Expires:     {(CurrentUser.AccountExpires.HasValue ? CurrentUser.AccountExpires.Value.ToString("g") : (!string.IsNullOrWhiteSpace(CurrentUser.AccountExpiresStatus) ? CurrentUser.AccountExpiresStatus : Strings.S.Never))}");
+        sb.AppendLine($"  Password Last Set:   {FormattedPasswordLastSet}");
+        sb.AppendLine($"  Password Expiry:     {(!string.IsNullOrWhiteSpace(CurrentUser.PasswordExpiryStatus) ? CurrentUser.PasswordExpiryStatus : (CurrentUser.PasswordExpiry.HasValue ? CurrentUser.PasswordExpiry.Value.ToString("g") : Strings.S.Never))}");
+        sb.AppendLine($"  Password Never Exp.: {(CurrentUser.PasswordNeverExpires ? Strings.S.Yes : Strings.S.No)}");
+        sb.AppendLine($"  Bad Password Count:  {CurrentUser.BadPasswordCount}");
+        if (CurrentUser.BadPasswordTime.HasValue && CurrentUser.BadPasswordTime.Value != DateTime.MinValue)
+            sb.AppendLine($"  Last Bad Password:   {CurrentUser.BadPasswordTime.Value:g}");
+        sb.AppendLine();
+
+        // 5. Activity & Object Metadata
+        sb.AppendLine("[ ACTIVITY & OBJECT METADATA ]");
+        sb.AppendLine($"  Last Logon:          {FormattedLastLogon}");
+        if (CurrentUser.LastLogonTimestamp.HasValue)
+            sb.AppendLine($"  Last Logon Timestamp:{CurrentUser.LastLogonTimestamp.Value:g}");
+        sb.AppendLine($"  Created:             {FormattedCreated}");
+        sb.AppendLine($"  Modified:            {FormattedModified}");
+        sb.AppendLine();
+
+        // 6. Security Groups
+        sb.AppendLine($"[ GROUP MEMBERSHIPS ({CurrentUser.Groups.Count}) ]");
+        if (CurrentUser.Groups.Count > 0)
+        {
+            foreach (var group in CurrentUser.Groups)
+            {
+                sb.AppendLine($"  - {group}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("  (No groups assigned)");
+        }
         
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(sb.ToString());

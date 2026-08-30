@@ -23,9 +23,9 @@
                     <controls:SettingsCard.HeaderIcon>
                         <SymbolIcon Symbol="Character"/>
                     </controls:SettingsCard.HeaderIcon>
-                    <ComboBox SelectedValue="{x:Bind ViewModel.AppLanguage, Mode=TwoWay}" SelectedValuePath="Tag" Width="160">
-                        <ComboBoxItem Content="English" Tag="en"/>
-                        <ComboBoxItem Content="Deutsch" Tag="de"/>
+                    <ComboBox SelectedIndex="{x:Bind ViewModel.AppLanguageIndex, Mode=TwoWay}" Width="160">
+                        <ComboBoxItem Content="English"/>
+                        <ComboBoxItem Content="Deutsch"/>
                     </ComboBox>
                 </controls:SettingsCard>
             </StackPanel>
@@ -42,14 +42,88 @@
                 </controls:SettingsCard>
             </StackPanel>
 
+            <!-- JIRA Integration Section -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind S.JiraSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <controls:SettingsExpander Header="{x:Bind S.JiraIntegrationHeader}"
+                                           Description="{x:Bind S.JiraIntegrationDesc}"
+                                           IsExpanded="{x:Bind ViewModel.IsJiraEnabled, Mode=TwoWay}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <BitmapIcon UriSource="ms-appx:///Assets/JiraLogo.png" ShowAsMonochrome="False"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsJiraEnabled, Mode=TwoWay}"/>
+
+                    <controls:SettingsExpander.Items>
+                        <!-- Deployment Model -->
+                        <controls:SettingsCard Header="{x:Bind S.JiraDeploymentModeLabel}">
+                            <ComboBox SelectedIndex="{x:Bind ViewModel.JiraDeploymentModeIndex, Mode=TwoWay}" Width="260">
+                                <ComboBoxItem Content="{x:Bind S.JiraDataCenterOption}"/>
+                                <ComboBoxItem Content="{x:Bind S.JiraCloudOption}"/>
+                            </ComboBox>
+                        </controls:SettingsCard>
+
+                        <!-- Base URL -->
+                        <controls:SettingsCard Header="{x:Bind S.JiraBaseUrlLabel}">
+                            <TextBox PlaceholderText="https://jira.company.com" Text="{x:Bind ViewModel.JiraBaseUrl, Mode=TwoWay}" Width="320"/>
+                        </controls:SettingsCard>
+
+                        <!-- Cloud Email (Cloud only) -->
+                        <controls:SettingsCard Header="{x:Bind S.JiraCloudEmailLabel}"
+                                               Visibility="{x:Bind ViewModel.IsJiraCloud, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBox PlaceholderText="user@company.com" Text="{x:Bind ViewModel.JiraCloudEmail, Mode=TwoWay}" Width="320"/>
+                        </controls:SettingsCard>
+
+                        <!-- PAT (Data Center only) -->
+                        <controls:SettingsCard Header="{x:Bind S.JiraPatLabel}"
+                                               Description="{x:Bind S.JiraPatPlaceholder}"
+                                               Visibility="{x:Bind ViewModel.IsJiraDataCenter, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <PasswordBox x:Name="JiraPatBox" 
+                                         Loaded="JiraSecretBox_Loaded"
+                                         PasswordChanged="JiraSecretBox_PasswordChanged" 
+                                         Width="320"/>
+                        </controls:SettingsCard>
+
+                        <!-- API Token (Cloud only) -->
+                        <controls:SettingsCard Header="{x:Bind S.JiraApiTokenLabel}"
+                                               Description="{x:Bind S.JiraApiTokenPlaceholder}"
+                                               Visibility="{x:Bind ViewModel.IsJiraCloud, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <PasswordBox x:Name="JiraApiTokenBox" 
+                                         Loaded="JiraSecretBox_Loaded"
+                                         PasswordChanged="JiraSecretBox_PasswordChanged" 
+                                         Width="320"/>
+                        </controls:SettingsCard>
+
+                        <!-- Test Connection Action -->
+                        <controls:SettingsCard Header="{x:Bind S.TestJiraConnectionBtn}">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <ProgressRing IsActive="{x:Bind ViewModel.IsTestingJira, Mode=OneWay}" 
+                                              Width="16" Height="16" 
+                                              Visibility="{x:Bind ViewModel.IsTestingJira, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <Button Content="{x:Bind S.TestJiraConnectionBtn}" 
+                                        Command="{x:Bind ViewModel.TestJiraConnectionCommand}" 
+                                        IsEnabled="{x:Bind ViewModel.IsTestingJira, Mode=OneWay, Converter={StaticResource InvertedBoolConverter}}"
+                                        Style="{ThemeResource DefaultButtonStyle}"/>
+                            </StackPanel>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+            </StackPanel>
+
             <!-- About Section -->
             <StackPanel Spacing="12">
                 <TextBlock Text="{x:Bind S.AboutSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 
-                <controls:SettingsCard Header="Markus Mezger" Description="{x:Bind S.DeveloperLabel}">
+                <controls:SettingsCard Description="{x:Bind S.DeveloperLabel}">
                     <controls:SettingsCard.HeaderIcon>
                         <SymbolIcon Symbol="Contact"/>
                     </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.Header>
+                        <HyperlinkButton Content="{x:Bind S.GitHubProfileLabel}" 
+                                         NavigateUri="https://github.com/mm-dev-alpha" 
+                                         Padding="0" 
+                                         VerticalAlignment="Center"/>
+                    </controls:SettingsCard.Header>
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                         <TextBlock Text="Sol" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
                         <TextBlock Text="|" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

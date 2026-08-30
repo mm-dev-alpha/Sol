@@ -19,6 +19,7 @@ public class NavigationService : INavigationService
         RegisterPage("HomePage", typeof(HomePage));
         RegisterPage("UserWorkspacePage", typeof(UserWorkspacePage));
         RegisterPage("ComputerWorkspacePage", typeof(ComputerWorkspacePage));
+        RegisterPage("JiraWorkspacePage", typeof(JiraWorkspacePage));
         RegisterPage("SettingsPage", typeof(SettingsPage));
     }
 
