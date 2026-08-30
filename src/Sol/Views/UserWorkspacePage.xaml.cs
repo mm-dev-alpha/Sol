@@ -52,7 +52,14 @@ public sealed partial class UserWorkspacePage : Page
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            await ViewModel.SearchCenterCommand.ExecuteAsync(sender.Text);
+            try
+            {
+                await ViewModel.SearchCenterCommand.ExecuteAsync(sender.Text);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -60,19 +67,33 @@ public sealed partial class UserWorkspacePage : Page
     {
         if (args.SelectedItem is Sol.Models.AdUser chosenUser)
         {
-            await ViewModel.LoadUserAsync(chosenUser.SamAccountName);
+            try
+            {
+                await ViewModel.LoadUserAsync(chosenUser.SamAccountName);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
     private async void CenterSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
-        if (args.ChosenSuggestion is Sol.Models.AdUser chosenUser)
+        try
         {
-            await ViewModel.LoadUserAsync(chosenUser.SamAccountName);
+            if (args.ChosenSuggestion is Sol.Models.AdUser chosenUser)
+            {
+                await ViewModel.LoadUserAsync(chosenUser.SamAccountName);
+            }
+            else if (!string.IsNullOrWhiteSpace(args.QueryText))
+            {
+                await ViewModel.LoadUserAsync(args.QueryText);
+            }
         }
-        else if (!string.IsNullOrWhiteSpace(args.QueryText))
+        catch (Exception ex)
         {
-            await ViewModel.LoadUserAsync(args.QueryText);
+            ViewModel.ShowError(ex.Message);
         }
     }
 
@@ -80,7 +101,14 @@ public sealed partial class UserWorkspacePage : Page
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            await ViewModel.SearchGroupsCommand.ExecuteAsync(sender.Text);
+            try
+            {
+                await ViewModel.SearchGroupsCommand.ExecuteAsync(sender.Text);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -96,9 +124,16 @@ public sealed partial class UserWorkspacePage : Page
     {
         if (!string.IsNullOrWhiteSpace(args.QueryText))
         {
-            ViewModel.NewGroupName = args.QueryText;
-            await ViewModel.AddToGroupCommand.ExecuteAsync(null);
-            AddGroupFlyout?.Hide();
+            try
+            {
+                ViewModel.NewGroupName = args.QueryText;
+                await ViewModel.AddToGroupCommand.ExecuteAsync(null);
+                AddGroupFlyout?.Hide();
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -106,16 +141,101 @@ public sealed partial class UserWorkspacePage : Page
     {
         if (!string.IsNullOrWhiteSpace(ViewModel.NewGroupName))
         {
-            await ViewModel.AddToGroupCommand.ExecuteAsync(null);
-            AddGroupFlyout?.Hide();
+            try
+            {
+                await ViewModel.AddToGroupCommand.ExecuteAsync(null);
+                AddGroupFlyout?.Hide();
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
     private async void RemoveGroup_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string groupName)
+        if (sender is Button btn && btn.Tag is string groupName && !string.IsNullOrWhiteSpace(groupName))
         {
-            await ViewModel.RemoveFromGroupCommand.ExecuteAsync(groupName);
+            try
+            {
+                string userName = ViewModel.CurrentUser?.DisplayName ?? (ViewModel.CurrentUser?.SamAccountName ?? string.Empty);
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = this.XamlRoot,
+                    Title = S.ConfirmRemoveFromGroupTitle,
+                    Content = Strings.ConfirmRemoveUserFromGroupPrompt(userName, groupName),
+                    PrimaryButtonText = S.ConfirmBtn,
+                    CloseButtonText = S.CancelBtn,
+                    DefaultButton = ContentDialogButton.Close
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    await ViewModel.RemoveFromGroupCommand.ExecuteAsync(groupName);
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
+        }
+    }
+
+    private async void DisableAccount_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentUser == null) return;
+        try
+        {
+            string userName = ViewModel.CurrentUser.DisplayName;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmDisableAccountTitle,
+                Content = Strings.ConfirmDisableUserAccountPrompt(userName),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.DisableAccountCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
+    }
+
+    private async void SaveProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentUser == null) return;
+        try
+        {
+            string userName = ViewModel.CurrentUser.DisplayName;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmSaveProfileTitle,
+                Content = Strings.ConfirmSaveProfilePrompt(userName),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Primary
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.SaveProfileCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
         }
     }
 
@@ -129,7 +249,14 @@ public sealed partial class UserWorkspacePage : Page
 
         if (!string.IsNullOrWhiteSpace(target))
         {
-            await ViewModel.NavigateToUserCommand.ExecuteAsync(target);
+            try
+            {
+                await ViewModel.NavigateToUserCommand.ExecuteAsync(target);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -138,7 +265,14 @@ public sealed partial class UserWorkspacePage : Page
         var manager = ViewModel.CurrentUser?.Manager;
         if (!string.IsNullOrWhiteSpace(manager))
         {
-            await ViewModel.NavigateToUserCommand.ExecuteAsync(manager);
+            try
+            {
+                await ViewModel.NavigateToUserCommand.ExecuteAsync(manager);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -146,28 +280,60 @@ public sealed partial class UserWorkspacePage : Page
     {
         if (sender is ListView listView && listView.SelectedItem is Sol.Models.AdUser selectedUser)
         {
-            listView.SelectedItem = null;
-            await ViewModel.LoadUserAsync(selectedUser.SamAccountName);
+            try
+            {
+                listView.SelectedItem = null;
+                await ViewModel.LoadUserAsync(selectedUser.SamAccountName);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
     private async void ForcePasswordChange_Click(object sender, RoutedEventArgs e)
     {
-        await ViewModel.ForcePasswordChangeCommand.ExecuteAsync(null);
+        if (ViewModel.CurrentUser == null) return;
+        try
+        {
+            string userName = ViewModel.CurrentUser.DisplayName;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmForcePasswordChangeTitle,
+                Content = Strings.ConfirmForcePasswordChangePrompt(userName),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.ForcePasswordChangeCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
     }
 
     private async void ResetPassword_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.CurrentUser == null) return;
 
-        var dialog = new ContentDialog
+        try
         {
-            XamlRoot = this.XamlRoot,
-            Title = Strings.ResetPasswordDialogTitle(ViewModel.CurrentUser.DisplayName),
-            PrimaryButtonText = S.ResetPasswordBtn,
-            CloseButtonText = S.CancelBtn,
-            DefaultButton = ContentDialogButton.Primary
-        };
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = Strings.ResetPasswordDialogTitle(ViewModel.CurrentUser.DisplayName),
+                PrimaryButtonText = S.ResetPasswordBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Primary
+            };
 
         var stack = new StackPanel { Spacing = 14 };
 
@@ -239,18 +405,23 @@ public sealed partial class UserWorkspacePage : Page
 
         dialog.Content = stack;
 
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
-        {
-            var newPwd = passwordBox.Password;
-            if (!string.IsNullOrWhiteSpace(newPwd))
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
             {
-                await ViewModel.ResetPasswordWithPolicyCommand.ExecuteAsync(Tuple.Create(
-                    newPwd,
-                    mustChangeCheck.IsChecked ?? true,
-                    unlockCheck.IsChecked ?? false
-                ));
+                var newPwd = passwordBox.Password;
+                if (!string.IsNullOrWhiteSpace(newPwd))
+                {
+                    await ViewModel.ResetPasswordWithPolicyCommand.ExecuteAsync(Tuple.Create(
+                        newPwd,
+                        mustChangeCheck.IsChecked ?? true,
+                        unlockCheck.IsChecked ?? false
+                    ));
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
         }
     }
 
@@ -260,71 +431,78 @@ public sealed partial class UserWorkspacePage : Page
                    ?? (sender as FrameworkElement)?.DataContext as Sol.Models.AdAttributeItem;
         if (item != null)
         {
-            if (!ActiveDirectoryService.IsAttributeEditable(item.Key))
+            try
             {
-                var nonEditableDialog = new ContentDialog
+                if (!ActiveDirectoryService.IsAttributeEditable(item.Key))
+                {
+                    var nonEditableDialog = new ContentDialog
+                    {
+                        XamlRoot = this.XamlRoot,
+                        Title = S.AttributeEditorTitle,
+                        Content = S.NonEditableAttributeTooltip,
+                        CloseButtonText = S.CloseBtn,
+                        DefaultButton = ContentDialogButton.Close
+                    };
+                    await nonEditableDialog.ShowAsync();
+                    return;
+                }
+
+                var dialog = new ContentDialog
                 {
                     XamlRoot = this.XamlRoot,
-                    Title = S.AttributeEditorTitle,
-                    Content = S.NonEditableAttributeTooltip,
-                    CloseButtonText = S.CloseBtn,
-                    DefaultButton = ContentDialogButton.Close
+                    Title = S.ConfirmAttributeChangeTitle,
+                    PrimaryButtonText = S.SaveBtn,
+                    CloseButtonText = S.CancelBtn,
+                    DefaultButton = ContentDialogButton.Primary
                 };
-                await nonEditableDialog.ShowAsync();
-                return;
+
+                var stack = new StackPanel { Spacing = 12 };
+                stack.Children.Add(new TextBlock 
+                { 
+                    Text = Strings.AttributeLabel(item.Key), 
+                    Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] 
+                });
+                stack.Children.Add(new TextBlock 
+                { 
+                    Text = $"{S.OldValueLabel} {item.Value}", 
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] 
+                });
+                
+                var input = new TextBox 
+                { 
+                    Text = item.Value, 
+                    PlaceholderText = S.NewValueLabel, 
+                    Header = S.NewValueLabel,
+                    MinWidth = 360
+                };
+                stack.Children.Add(input);
+
+                var note = new TextBlock 
+                { 
+                    Text = S.AuditLogNotice, 
+                    Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+                };
+                stack.Children.Add(note);
+
+                dialog.Content = stack;
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    try
+                    {
+                        await ViewModel.CommitAttributeEditCommand.ExecuteAsync(Tuple.Create(item.Key, input.Text));
+                    }
+                    catch
+                    {
+                        // Error message handled in ViewModel & InfoBar
+                    }
+                }
             }
-
-            var dialog = new ContentDialog
+            catch (Exception ex)
             {
-                XamlRoot = this.XamlRoot,
-                Title = S.ConfirmAttributeChangeTitle,
-                PrimaryButtonText = S.SaveBtn,
-                CloseButtonText = S.CancelBtn,
-                DefaultButton = ContentDialogButton.Primary
-            };
-
-            var stack = new StackPanel { Spacing = 12 };
-            stack.Children.Add(new TextBlock 
-            { 
-                Text = Strings.AttributeLabel(item.Key), 
-                Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] 
-            });
-            stack.Children.Add(new TextBlock 
-            { 
-                Text = $"{S.OldValueLabel} {item.Value}", 
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] 
-            });
-            
-            var input = new TextBox 
-            { 
-                Text = item.Value, 
-                PlaceholderText = S.NewValueLabel, 
-                Header = S.NewValueLabel,
-                MinWidth = 360
-            };
-            stack.Children.Add(input);
-
-            var note = new TextBlock 
-            { 
-                Text = S.AuditLogNotice, 
-                Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-            };
-            stack.Children.Add(note);
-
-            dialog.Content = stack;
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                try
-                {
-                    await ViewModel.CommitAttributeEditCommand.ExecuteAsync(Tuple.Create(item.Key, input.Text));
-                }
-                catch
-                {
-                    // Error message handled in ViewModel & InfoBar
-                }
+                ViewModel.ShowError(ex.Message);
             }
         }
     }

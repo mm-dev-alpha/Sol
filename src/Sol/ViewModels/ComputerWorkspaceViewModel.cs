@@ -54,9 +54,37 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(DrivesCountBadge))]
     public partial ComputerDiskSnapshot? DiskSnapshot { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBatterySnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasBatteryError))]
+    [NotifyPropertyChangedFor(nameof(IsDesktopOrNoBattery))]
+    [NotifyPropertyChangedFor(nameof(BatterySectionVisibility))]
+    public partial ComputerBatterySnapshot? BatterySnapshot { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSessionSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasSessionError))]
+    [NotifyPropertyChangedFor(nameof(HasNoActiveSessions))]
+    [NotifyPropertyChangedFor(nameof(ActiveSessionsCountBadge))]
+    public partial ComputerSessionSnapshot? SessionSnapshot { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProcessSnapshot))]
+    [NotifyPropertyChangedFor(nameof(HasProcessError))]
+    [NotifyPropertyChangedFor(nameof(TotalProcessCount))]
+    [NotifyPropertyChangedFor(nameof(TotalProcessesCountBadge))]
+    public partial ComputerProcessSnapshot? ProcessSnapshot { get; set; }
+
     [ObservableProperty] public partial bool IsHardwareLoading { get; set; }
     [ObservableProperty] public partial bool IsUptimeLoading { get; set; }
     [ObservableProperty] public partial bool IsDiskLoading { get; set; }
+    [ObservableProperty] public partial bool IsBatteryLoading { get; set; }
+    [ObservableProperty] public partial bool IsSessionsLoading { get; set; }
+    [ObservableProperty] public partial bool IsProcessesLoading { get; set; }
+    [ObservableProperty] public partial string ProcessFilterQuery { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ProcessSortOption { get; set; } = "Memory";
+    [ObservableProperty] public partial string ProcessSortColumn { get; set; } = "Memory";
+    [ObservableProperty] public partial bool ProcessSortAscending { get; set; } = false;
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string StatusMessage { get; set; } = string.Empty;
     [ObservableProperty] public partial string GroupFilterQuery { get; set; } = string.Empty;
@@ -90,7 +118,22 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public bool HasNoDrivesFound => DiskSnapshot != null && DiskSnapshot.IsSuccess && DiskSnapshot.Drives.Count == 0;
     public string DrivesCountBadge => DiskSnapshot?.Drives?.Count.ToString() ?? "0";
 
-    public bool IsDiagnosticsLoading => IsHardwareLoading || IsUptimeLoading || IsDiskLoading;
+    public bool HasBatterySnapshot => BatterySnapshot != null && BatterySnapshot.IsSuccess && BatterySnapshot.HasBattery;
+    public bool HasBatteryError => BatterySnapshot != null && !BatterySnapshot.IsSuccess;
+    public bool IsDesktopOrNoBattery => BatterySnapshot != null && BatterySnapshot.IsSuccess && !BatterySnapshot.HasBattery;
+    public Visibility BatterySectionVisibility => (HasBatterySnapshot || IsBatteryLoading || HasBatteryError) ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool HasSessionSnapshot => SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count > 0;
+    public bool HasSessionError => SessionSnapshot != null && !SessionSnapshot.IsSuccess;
+    public bool HasNoActiveSessions => SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count == 0;
+    public string ActiveSessionsCountBadge => SessionSnapshot?.Sessions?.Count.ToString() ?? "0";
+
+    public bool HasProcessSnapshot => ProcessSnapshot != null && ProcessSnapshot.IsSuccess;
+    public bool HasProcessError => ProcessSnapshot != null && !ProcessSnapshot.IsSuccess;
+    public int TotalProcessCount => ProcessSnapshot?.Processes?.Count ?? 0;
+    public string TotalProcessesCountBadge => Strings.TotalProcessesCountBadge(TotalProcessCount);
+
+    public bool IsDiagnosticsLoading => IsHardwareLoading || IsUptimeLoading || IsDiskLoading || IsBatteryLoading || IsSessionsLoading;
 
     public string GroupCountBadge => CurrentComputer?.Groups?.Count.ToString() ?? "0";
     public bool HasNoFilteredGroups => FilteredGroups.Count == 0;
@@ -101,6 +144,8 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public ObservableCollection<string> GroupSearchSuggestions { get; } = new();
     public ObservableCollection<BitLockerKeyInfo> BitLockerKeys { get; } = new();
     public ObservableCollection<ComputerDiskDriveInfo> Drives { get; } = new();
+    public ObservableCollection<ComputerSessionInfo> Sessions { get; } = new();
+    public ObservableCollection<ComputerProcessInfo> FilteredProcesses { get; } = new();
 
     public ComputerWorkspaceViewModel(
         IActiveDirectoryService adService, 
@@ -112,20 +157,33 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         _diagnosticService = diagnosticService;
     }
 
+    public event Action? CloseProcessManagerRequested;
+
+    public void RequestCloseProcessManager()
+    {
+        CloseProcessManagerRequested?.Invoke();
+    }
+
     [RelayCommand]
     public void ResetToHeroState()
     {
+        RequestCloseProcessManager();
         _diagnosticCts?.Cancel();
-        _diagnosticCts?.Dispose();
         _diagnosticCts = null;
         HardwareSnapshot = null;
         IsHardwareLoading = false;
+        SessionSnapshot = null;
+        IsSessionsLoading = false;
+        ProcessSnapshot = null;
+        IsProcessesLoading = false;
 
         CurrentComputer = null;
         SearchResults.Clear();
         CenterSuggestions.Clear();
         FilteredGroups.Clear();
         BitLockerKeys.Clear();
+        Sessions.Clear();
+        FilteredProcesses.Clear();
         CenterSearchQuery = string.Empty;
         GroupFilterQuery = string.Empty;
         NewGroupName = string.Empty;
@@ -192,6 +250,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadComputerAsync(AdComputer computer)
     {
+        RequestCloseProcessManager();
         IsLoading = true;
         SearchResults.Clear();
         try
@@ -428,6 +487,100 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task RefreshBatterySnapshotAsync()
+    {
+        if (CurrentComputer == null) return;
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        IsBatteryLoading = true;
+        NotifyBatteryPropertiesChanged();
+
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+            BatterySnapshot = await _diagnosticService.GetBatterySnapshotAsync(targetHost, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            BatterySnapshot = new ComputerBatterySnapshot
+            {
+                Hostname = targetHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+        finally
+        {
+            IsBatteryLoading = false;
+            NotifyBatteryPropertiesChanged();
+        }
+    }
+
+    [RelayCommand]
+    public async Task RefreshSessionsSnapshotAsync()
+    {
+        if (CurrentComputer == null) return;
+        IsSessionsLoading = true;
+        NotifySessionPropertiesChanged();
+
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            IsSessionsLoading = false;
+            NotifySessionPropertiesChanged();
+            return;
+        }
+
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+            SessionSnapshot = await _diagnosticService.GetSessionSnapshotAsync(targetHost, cts.Token);
+            RefreshSessionsCollection();
+        }
+        catch (Exception ex)
+        {
+            SessionSnapshot = new ComputerSessionSnapshot
+            {
+                Hostname = targetHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+        finally
+        {
+            IsSessionsLoading = false;
+            NotifySessionPropertiesChanged();
+        }
+    }
+
+    [RelayCommand]
+    public async Task DisconnectSessionAsync(ComputerSessionInfo? session)
+    {
+        if (CurrentComputer == null || session == null || !session.SessionId.HasValue) return;
+        try
+        {
+            string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+            await _diagnosticService.DisconnectSessionAsync(targetHost, session.SessionId.Value);
+            ShowInfo(Strings.DisconnectSuccess(session.EffectiveDisplayName));
+            await RefreshSessionsSnapshotAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.DisconnectFailed(session.EffectiveDisplayName, ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public async Task NavigateToSessionUserAsync(string? samAccountName)
+    {
+        if (string.IsNullOrWhiteSpace(samAccountName)) return;
+        var userVm = App.GetService<UserWorkspaceViewModel>();
+        await userVm.LoadUserAsync(samAccountName);
+        _navigationService.NavigateTo("UserWorkspacePage");
+    }
+
+    [RelayCommand]
     public async Task OpenVendorWarrantyAsync()
     {
         if (string.IsNullOrWhiteSpace(WarrantyUrl)) return;
@@ -441,12 +594,150 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public async Task RefreshProcessesAsync()
+    {
+        if (CurrentComputer == null) return;
+        IsProcessesLoading = true;
+
+        string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            IsProcessesLoading = false;
+            return;
+        }
+
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+            ProcessSnapshot = await _diagnosticService.GetProcessesSnapshotAsync(targetHost, cts.Token);
+            ApplyProcessFilterAndSort();
+        }
+        catch (Exception ex)
+        {
+            ProcessSnapshot = new ComputerProcessSnapshot
+            {
+                Hostname = targetHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+            FilteredProcesses.Clear();
+        }
+        finally
+        {
+            IsProcessesLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task TerminateProcessAsync(ComputerProcessInfo? process)
+    {
+        if (CurrentComputer == null || process == null) return;
+        if (!process.CanTerminate)
+        {
+            ShowError(Strings.S.CriticalProcessCannotBeTerminated);
+            return;
+        }
+
+        try
+        {
+            string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
+            bool success = await _diagnosticService.TerminateProcessAsync(targetHost, process.ProcessId);
+            if (success)
+            {
+                ShowInfo(Strings.ProcessTerminatedSuccess(process.Name));
+                await RefreshProcessesAsync();
+            }
+            else
+            {
+                ShowError(Strings.TerminateProcessFailedNamed(process.Name, process.ProcessId));
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.TerminateProcessFailed(ex.Message));
+        }
+    }
+
+    [RelayCommand]
+    public void FilterProcesses(string? query)
+    {
+        ProcessFilterQuery = query ?? string.Empty;
+        ApplyProcessFilterAndSort();
+    }
+
+    [RelayCommand]
+    public void SortProcesses(string? sortOption)
+    {
+        if (!string.IsNullOrWhiteSpace(sortOption))
+        {
+            ProcessSortOption = sortOption;
+            ProcessSortColumn = sortOption;
+            ApplyProcessFilterAndSort();
+        }
+    }
+
+    [RelayCommand]
+    public void ToggleProcessSort(string? column)
+    {
+        if (string.IsNullOrWhiteSpace(column)) return;
+
+        if (string.Equals(ProcessSortColumn, column, StringComparison.OrdinalIgnoreCase))
+        {
+            ProcessSortAscending = !ProcessSortAscending;
+        }
+        else
+        {
+            ProcessSortColumn = column;
+            ProcessSortOption = column;
+            // Numbers / metrics default to descending (high to low), text/ID default to ascending
+            ProcessSortAscending = column switch
+            {
+                "Name" or "User" or "PID" => true,
+                _ => false
+            };
+        }
+
+        ApplyProcessFilterAndSort();
+    }
+
+    public void ApplyProcessFilterAndSort()
+    {
+        FilteredProcesses.Clear();
+        if (ProcessSnapshot?.Processes == null) return;
+
+        IEnumerable<ComputerProcessInfo> query = ProcessSnapshot.Processes;
+
+        if (!string.IsNullOrWhiteSpace(ProcessFilterQuery))
+        {
+            string q = ProcessFilterQuery.Trim();
+            query = query.Where(p =>
+                p.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                p.ProcessId.ToString().Contains(q) ||
+                p.DisplayOwner.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = ProcessSortColumn switch
+        {
+            "PID" => ProcessSortAscending ? query.OrderBy(p => p.ProcessId) : query.OrderByDescending(p => p.ProcessId),
+            "Name" => ProcessSortAscending ? query.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(p => p.Name, StringComparer.OrdinalIgnoreCase),
+            "User" => ProcessSortAscending ? query.OrderBy(p => p.DisplayOwner, StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(p => p.DisplayOwner, StringComparer.OrdinalIgnoreCase),
+            "CPU" => ProcessSortAscending ? query.OrderBy(p => p.CpuUsagePercent) : query.OrderByDescending(p => p.CpuUsagePercent),
+            "Network" => ProcessSortAscending ? query.OrderBy(p => p.NetworkMbps) : query.OrderByDescending(p => p.NetworkMbps),
+            _ => ProcessSortAscending ? query.OrderBy(p => p.WorkingSetBytes) : query.OrderByDescending(p => p.WorkingSetBytes)
+        };
+
+        foreach (var proc in query)
+        {
+            FilteredProcesses.Add(proc);
+        }
+    }
+
     public async Task FetchHardwareSnapshotAsync(AdComputer computer) => await FetchDiagnosticsAsync(computer);
 
     public async Task FetchDiagnosticsAsync(AdComputer computer)
     {
         _diagnosticCts?.Cancel();
-        _diagnosticCts?.Dispose();
         _diagnosticCts = new System.Threading.CancellationTokenSource();
         var token = _diagnosticCts.Token;
 
@@ -456,28 +747,40 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         IsHardwareLoading = true;
         IsUptimeLoading = true;
         IsDiskLoading = true;
+        IsBatteryLoading = true;
+        IsSessionsLoading = true;
         HardwareSnapshot = null;
         UptimeSnapshot = null;
         DiskSnapshot = null;
+        BatterySnapshot = null;
+        SessionSnapshot = null;
         Drives.Clear();
+        Sessions.Clear();
         NotifyHardwarePropertiesChanged();
         NotifyUptimePropertiesChanged();
         NotifyDiskPropertiesChanged();
+        NotifyBatteryPropertiesChanged();
+        NotifySessionPropertiesChanged();
 
         try
         {
             var hwTask = _diagnosticService.GetHardwareSnapshotAsync(targetHost, token);
             var uptimeTask = _diagnosticService.GetUptimeSnapshotAsync(targetHost, token);
             var diskTask = _diagnosticService.GetDiskSnapshotAsync(targetHost, token);
+            var batteryTask = _diagnosticService.GetBatterySnapshotAsync(targetHost, token);
+            var sessionTask = _diagnosticService.GetSessionSnapshotAsync(targetHost, token);
 
-            await Task.WhenAll(hwTask, uptimeTask, diskTask);
+            await Task.WhenAll(hwTask, uptimeTask, diskTask, batteryTask, sessionTask);
 
             if (!token.IsCancellationRequested)
             {
                 HardwareSnapshot = await hwTask;
                 UptimeSnapshot = await uptimeTask;
                 DiskSnapshot = await diskTask;
+                BatterySnapshot = await batteryTask;
+                SessionSnapshot = await sessionTask;
                 RefreshDrivesCollection();
+                RefreshSessionsCollection();
             }
         }
         catch (OperationCanceledException)
@@ -506,6 +809,18 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
                     IsSuccess = false,
                     ErrorMessage = ex.Message
                 };
+                BatterySnapshot ??= new ComputerBatterySnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                SessionSnapshot ??= new ComputerSessionSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
             }
         }
         finally
@@ -515,9 +830,13 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
                 IsHardwareLoading = false;
                 IsUptimeLoading = false;
                 IsDiskLoading = false;
+                IsBatteryLoading = false;
+                IsSessionsLoading = false;
                 NotifyHardwarePropertiesChanged();
                 NotifyUptimePropertiesChanged();
                 NotifyDiskPropertiesChanged();
+                NotifyBatteryPropertiesChanged();
+                NotifySessionPropertiesChanged();
             }
         }
     }
@@ -530,6 +849,18 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             foreach (var drive in DiskSnapshot.Drives)
             {
                 Drives.Add(drive);
+            }
+        }
+    }
+
+    private void RefreshSessionsCollection()
+    {
+        Sessions.Clear();
+        if (SessionSnapshot?.Sessions != null)
+        {
+            foreach (var session in SessionSnapshot.Sessions)
+            {
+                Sessions.Add(session);
             }
         }
     }
@@ -557,6 +888,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [RelayCommand]
     public void CloseWorkspace()
     {
+        RequestCloseProcessManager();
         CurrentComputer = null;
         SearchResults.Clear();
         FilteredGroups.Clear();
@@ -564,7 +896,12 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         HardwareSnapshot = null;
         UptimeSnapshot = null;
         DiskSnapshot = null;
+        BatterySnapshot = null;
+        SessionSnapshot = null;
+        ProcessSnapshot = null;
         Drives.Clear();
+        Sessions.Clear();
+        FilteredProcesses.Clear();
         CenterSearchQuery = string.Empty;
         NotifyPropertiesChanged();
     }
@@ -589,6 +926,8 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         NotifyHardwarePropertiesChanged();
         NotifyUptimePropertiesChanged();
         NotifyDiskPropertiesChanged();
+        NotifyBatteryPropertiesChanged();
+        NotifySessionPropertiesChanged();
     }
 
     public void NotifyHardwarePropertiesChanged()
@@ -622,12 +961,34 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(DrivesCountBadge));
     }
 
-    private void ShowInfo(string message)
+    public void NotifyBatteryPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(BatterySnapshot));
+        OnPropertyChanged(nameof(IsBatteryLoading));
+        OnPropertyChanged(nameof(IsDiagnosticsLoading));
+        OnPropertyChanged(nameof(HasBatterySnapshot));
+        OnPropertyChanged(nameof(HasBatteryError));
+        OnPropertyChanged(nameof(IsDesktopOrNoBattery));
+        OnPropertyChanged(nameof(BatterySectionVisibility));
+    }
+
+    public void NotifySessionPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(SessionSnapshot));
+        OnPropertyChanged(nameof(IsSessionsLoading));
+        OnPropertyChanged(nameof(IsDiagnosticsLoading));
+        OnPropertyChanged(nameof(HasSessionSnapshot));
+        OnPropertyChanged(nameof(HasSessionError));
+        OnPropertyChanged(nameof(HasNoActiveSessions));
+        OnPropertyChanged(nameof(ActiveSessionsCountBadge));
+    }
+
+    public void ShowInfo(string message)
     {
         WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Informational));
     }
 
-    private void ShowError(string message)
+    public void ShowError(string message)
     {
         WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Error));
     }

@@ -11,15 +11,15 @@ public class AccountStatusToColorConverter : IValueConverter
     {
         if (value is string status)
         {
-            if (status.Equals("Locked out", StringComparison.OrdinalIgnoreCase))
+            if (status.Equals("Locked out", StringComparison.OrdinalIgnoreCase) || status.Equals("Gesperrt", StringComparison.OrdinalIgnoreCase))
             {
                 return new SolidColorBrush(Colors.Red);
             }
-            if (status.Equals("Disabled", StringComparison.OrdinalIgnoreCase))
+            if (status.Equals("Disabled", StringComparison.OrdinalIgnoreCase) || status.Equals("Deaktiviert", StringComparison.OrdinalIgnoreCase))
             {
                 return new SolidColorBrush(Colors.Orange);
             }
-            if (status.Equals("Enabled", StringComparison.OrdinalIgnoreCase))
+            if (status.Equals("Enabled", StringComparison.OrdinalIgnoreCase) || status.Equals("Aktiviert", StringComparison.OrdinalIgnoreCase) || status.Equals("Active", StringComparison.OrdinalIgnoreCase) || status.Equals("Aktiv", StringComparison.OrdinalIgnoreCase))
             {
                 return new SolidColorBrush(Colors.Green);
             }

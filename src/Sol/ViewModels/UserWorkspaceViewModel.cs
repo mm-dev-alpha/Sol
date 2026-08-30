@@ -29,11 +29,18 @@ public partial class UserWorkspaceViewModel : ObservableObject
         
         StartupGreeting = _greetingService.GetStartupGreeting();
 
-        WeakReferenceMessenger.Default.Register<UserSearchSelectedMessage>(this, async (r, m) =>
+        WeakReferenceMessenger.Default.Register<UserSearchSelectedMessage>(this, (r, m) =>
         {
             App.MainWindow?.DispatcherQueue.TryEnqueue(async () =>
             {
-                await LoadUserAsync(m.Value);
+                try
+                {
+                    await LoadUserAsync(m.Value);
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex.Message);
+                }
             });
         });
     }
@@ -373,22 +380,25 @@ public partial class UserWorkspaceViewModel : ObservableObject
         const string specials = "!@#$%^&*-_+=";
         const string allChars = uppers + lowers + digits + specials;
 
-        var bytes = new byte[16];
-        System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
-
         var chars = new char[16];
-        chars[0] = uppers[bytes[0] % uppers.Length];
-        chars[1] = lowers[bytes[1] % lowers.Length];
-        chars[2] = digits[bytes[2] % digits.Length];
-        chars[3] = specials[bytes[3] % specials.Length];
+        chars[0] = uppers[System.Security.Cryptography.RandomNumberGenerator.GetInt32(uppers.Length)];
+        chars[1] = lowers[System.Security.Cryptography.RandomNumberGenerator.GetInt32(lowers.Length)];
+        chars[2] = digits[System.Security.Cryptography.RandomNumberGenerator.GetInt32(digits.Length)];
+        chars[3] = specials[System.Security.Cryptography.RandomNumberGenerator.GetInt32(specials.Length)];
 
         for (int i = 4; i < 16; i++)
         {
-            chars[i] = allChars[bytes[i] % allChars.Length];
+            chars[i] = allChars[System.Security.Cryptography.RandomNumberGenerator.GetInt32(allChars.Length)];
         }
 
-        var random = new Random();
-        return new string(chars.OrderBy(_ => random.Next()).ToArray());
+        // Cryptographically secure in-place Fisher-Yates shuffle
+        for (int i = chars.Length - 1; i > 0; i--)
+        {
+            int j = System.Security.Cryptography.RandomNumberGenerator.GetInt32(i + 1);
+            (chars[i], chars[j]) = (chars[j], chars[i]);
+        }
+
+        return new string(chars);
     }
 
     [RelayCommand]
@@ -637,7 +647,6 @@ public partial class UserWorkspaceViewModel : ObservableObject
         {
             AttributeEditorErrorMessage = ex.Message;
             ShowError(Strings.AttributeUpdateFailed(args.Item1, ex.Message));
-            throw;
         }
         finally
         {
@@ -722,12 +731,12 @@ public partial class UserWorkspaceViewModel : ObservableObject
         NotifyPropertiesChanged();
     }
 
-    private void ShowInfo(string message)
+    public void ShowInfo(string message)
     {
         WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Informational));
     }
 
-    private void ShowError(string message)
+    public void ShowError(string message)
     {
         WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Error));
     }

@@ -29,7 +29,14 @@ public partial class App : Application
         this.UnhandledException += (s, e) =>
         {
             e.Handled = true;
-            System.IO.File.WriteAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "crash.log"), e.Exception.ToString() + "\nMessage: " + e.Message);
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string logDir = System.IO.Path.Combine(localAppData, "Sol");
+                System.IO.Directory.CreateDirectory(logDir);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(logDir, "crash.log"), e.Exception?.ToString() + "\nMessage: " + e.Message);
+            }
+            catch { }
         };
         
         Host = Microsoft.Extensions.Hosting.Host.

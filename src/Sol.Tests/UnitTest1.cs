@@ -13,7 +13,8 @@ public class UserWorkspaceEnhancementsTests
     [Fact]
     public void GenerateSecurePassword_GeneratesValidComplexPassword()
     {
-        for (int i = 0; i < 20; i++)
+        var passwords = new HashSet<string>();
+        for (int i = 0; i < 100; i++)
         {
             var pwd = UserWorkspaceViewModel.GenerateSecurePassword();
             
@@ -23,7 +24,33 @@ public class UserWorkspaceEnhancementsTests
             Assert.Contains(pwd, c => char.IsLower(c));
             Assert.Contains(pwd, c => char.IsDigit(c));
             Assert.Contains(pwd, c => "!@#$%^&*-_+=".Contains(c));
+
+            // Verify high uniqueness / entropy
+            Assert.DoesNotContain(pwd, passwords);
+            passwords.Add(pwd);
         }
+    }
+
+    [Fact]
+    public void ComputerProcessInfo_ProtectsCriticalSystemProcesses()
+    {
+        // System and PID <= 4
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(0, "System Idle Process"));
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(4, "System"));
+
+        // Critical OS processes
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(500, "smss.exe"));
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(600, "csrss.exe"));
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(700, "lsass.exe"));
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(800, "winlogon.exe"));
+
+        // svchost.exe protected even if owner is null (remote query fallback) or SYSTEM
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(1234, "svchost.exe", null));
+        Assert.True(ComputerProcessInfo.IsCriticalProcess(1234, "svchost.exe", "NT AUTHORITY\\SYSTEM"));
+
+        // Standard user app should be terminable
+        Assert.False(ComputerProcessInfo.IsCriticalProcess(5555, "notepad.exe", "DOMAIN\\User"));
+        Assert.False(ComputerProcessInfo.IsCriticalProcess(6666, "chrome.exe", "DOMAIN\\User"));
     }
 
     [Fact]

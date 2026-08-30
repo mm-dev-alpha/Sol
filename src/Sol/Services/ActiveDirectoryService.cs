@@ -57,17 +57,27 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 SetPropertiesToLoad(searcher);
                 searcher.SizeLimit = 25;
                 
-                var matches = searcher.FindAll();
-                
-                if (matches.Count == 0)
+                using (var matches = searcher.FindAll())
                 {
-                    searcher.Filter = $"(&(objectCategory=person)(objectClass=user)(displayName=*{escapedQuery}*))";
-                    matches = searcher.FindAll();
-                }
-
-                foreach (SearchResult match in matches)
-                {
-                    results.Add(MapToUserModel(match));
+                    if (matches != null && matches.Count > 0)
+                    {
+                        foreach (SearchResult match in matches)
+                        {
+                            results.Add(MapToUserModel(match));
+                        }
+                    }
+                    else
+                    {
+                        searcher.Filter = $"(&(objectCategory=person)(objectClass=user)(displayName=*{escapedQuery}*))";
+                        using var fallbackMatches = searcher.FindAll();
+                        if (fallbackMatches != null)
+                        {
+                            foreach (SearchResult match in fallbackMatches)
+                            {
+                                results.Add(MapToUserModel(match));
+                            }
+                        }
+                    }
                 }
             }
             catch
@@ -283,12 +293,15 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 searcher.PropertiesToLoad.Add("sAMAccountName");
                 searcher.SizeLimit = 15;
 
-                var matches = searcher.FindAll();
-                foreach (SearchResult match in matches)
+                using var matches = searcher.FindAll();
+                if (matches != null)
                 {
-                    if (match.Properties.Contains("sAMAccountName") && match.Properties["sAMAccountName"].Count > 0)
+                    foreach (SearchResult match in matches)
                     {
-                        results.Add(match.Properties["sAMAccountName"][0]?.ToString() ?? "");
+                        if (match.Properties.Contains("sAMAccountName") && match.Properties["sAMAccountName"].Count > 0)
+                        {
+                            results.Add(match.Properties["sAMAccountName"][0]?.ToString() ?? "");
+                        }
                     }
                 }
 
@@ -317,7 +330,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         await Task.Run(() =>
         {
             using var context = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(context, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             if (user != null)
             {
                 user.UnlockAccount();
@@ -332,7 +345,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         await Task.Run(() =>
         {
             using var context = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(context, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             if (user != null)
             {
                 user.Enabled = enable;
@@ -347,7 +360,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         await Task.Run(() =>
         {
             using var context = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(context, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             if (user != null)
             {
                 user.SetPassword(newPassword);
@@ -366,7 +379,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         await Task.Run(() =>
         {
             using var context = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(context, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             if (user != null)
             {
                 user.ExpirePasswordNow();
@@ -381,7 +394,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         await Task.Run(() =>
         {
             using var context = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(context, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             using var group = GroupPrincipal.FindByIdentity(context, groupName);
             if (user != null && group != null)
             {
@@ -400,7 +413,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         await Task.Run(() =>
         {
             using var context = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(context, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             using var group = GroupPrincipal.FindByIdentity(context, groupName);
             if (user != null && group != null)
             {
@@ -429,10 +442,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 ldapPath = $"LDAP://{rootDse.Properties["defaultNamingContext"].Value}";
             }
 
+            var escapedSam = LdapFilterHelper.Escape(samAccountName);
             using var searchRoot = new DirectoryEntry(ldapPath);
             using var searcher = new DirectorySearcher(searchRoot)
             {
-                Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={samAccountName}))"
+                Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={escapedSam}))"
             };
             
             var result = searcher.FindOne();
@@ -442,6 +456,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
             foreach (var kvp in updates)
             {
+                if (!IsProfileAttributeEditable(kvp.Key))
+                {
+                    throw new InvalidOperationException($"Attribute '{kvp.Key}' is not permitted for modification via profile update.");
+                }
+
                 if (string.IsNullOrWhiteSpace(kvp.Value))
                 {
                     if (entry.Properties.Contains(kvp.Key))
@@ -463,9 +482,10 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     targetSam = newManager.Substring(start, end - start);
                 }
 
+                var escapedTargetSam = LdapFilterHelper.Escape(targetSam);
                 using var mgrSearcher = new DirectorySearcher(searchRoot)
                 {
-                    Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={targetSam}))"
+                    Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={escapedTargetSam}))"
                 };
                 mgrSearcher.PropertiesToLoad.Add("distinguishedName");
                 var mgrResult = mgrSearcher.FindOne();
@@ -495,7 +515,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         {
             var results = new List<KeyValuePair<string, string>>();
             using var ctx = GetPrincipalContext();
-            using var user = UserPrincipal.FindByIdentity(ctx, samAccountName);
+            using var user = UserPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, samAccountName);
             if (user == null) throw new Exception("User not found.");
 
             var entry = (DirectoryEntry)user.GetUnderlyingObject();
@@ -532,7 +552,15 @@ public class ActiveDirectoryService : IActiveDirectoryService
         "mobile", "streetAddress", "l", "st", "postalCode", "description", "wWWHomePage"
     };
 
+    public static readonly HashSet<string> SafeProfileAttributes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "title", "department", "physicalDeliveryOfficeName", "telephoneNumber", 
+        "mobile", "streetAddress", "l", "st", "postalCode", "description", "wWWHomePage",
+        "givenName", "sn", "mail", "displayName"
+    };
+
     public static bool IsAttributeEditable(string attributeName) => SafeEditableAttributes.Contains(attributeName);
+    public static bool IsProfileAttributeEditable(string attributeName) => SafeProfileAttributes.Contains(attributeName);
 
     public async Task UpdateRawAttributeAsync(string samAccountName, string attributeName, string newValue)
     {
@@ -547,7 +575,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             await Task.Run(() =>
             {
                 using var ctx = GetPrincipalContext();
-                using var user = UserPrincipal.FindByIdentity(ctx, samAccountName);
+                using var user = UserPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, samAccountName);
                 if (user == null) throw new Exception("User not found.");
 
                 var entry = (DirectoryEntry)user.GetUnderlyingObject();
@@ -609,16 +637,27 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 SetComputerPropertiesToLoad(searcher);
                 searcher.SizeLimit = 25;
 
-                var matches = searcher.FindAll();
-                if (matches.Count == 0 && escapedQuery.Length >= 2)
+                using (var matches = searcher.FindAll())
                 {
-                    searcher.Filter = $"(&(objectCategory=computer)(|(name=*{escapedQuery}*)(dNSHostName=*{escapedQuery}*)(description=*{escapedQuery}*)))";
-                    matches = searcher.FindAll();
-                }
-
-                foreach (SearchResult match in matches)
-                {
-                    results.Add(MapToComputerModel(match));
+                    if (matches != null && matches.Count > 0)
+                    {
+                        foreach (SearchResult match in matches)
+                        {
+                            results.Add(MapToComputerModel(match));
+                        }
+                    }
+                    else if (escapedQuery.Length >= 2)
+                    {
+                        searcher.Filter = $"(&(objectCategory=computer)(|(name=*{escapedQuery}*)(dNSHostName=*{escapedQuery}*)(description=*{escapedQuery}*)))";
+                        using var fallbackMatches = searcher.FindAll();
+                        if (fallbackMatches != null)
+                        {
+                            foreach (SearchResult match in fallbackMatches)
+                            {
+                                results.Add(MapToComputerModel(match));
+                            }
+                        }
+                    }
                 }
             }
             catch
@@ -689,19 +728,22 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 fveSearcher.PropertiesToLoad.Add("whenCreated");
                 fveSearcher.PropertiesToLoad.Add("name");
 
-                var fveResults = fveSearcher.FindAll();
-                foreach (SearchResult fve in fveResults)
+                using var fveResults = fveSearcher.FindAll();
+                if (fveResults != null)
                 {
-                    string rPwd = fve.Properties.Contains("msFVE-RecoveryPassword") ? (string)fve.Properties["msFVE-RecoveryPassword"][0] : "";
-                    string idName = fve.Properties.Contains("name") ? (string)fve.Properties["name"][0] : "";
-                    DateTime created = fve.Properties.Contains("whenCreated") ? (DateTime)fve.Properties["whenCreated"][0] : DateTime.MinValue;
-
-                    bitLockerKeys.Add(new BitLockerKeyInfo
+                    foreach (SearchResult fve in fveResults)
                     {
-                        KeyId = idName,
-                        RecoveryPassword = rPwd,
-                        Created = created
-                    });
+                        string rPwd = fve.Properties.Contains("msFVE-RecoveryPassword") ? (string)fve.Properties["msFVE-RecoveryPassword"][0] : "";
+                        string idName = fve.Properties.Contains("name") ? (string)fve.Properties["name"][0] : "";
+                        DateTime created = fve.Properties.Contains("whenCreated") ? (DateTime)fve.Properties["whenCreated"][0] : DateTime.MinValue;
+
+                        bitLockerKeys.Add(new BitLockerKeyInfo
+                        {
+                            KeyId = idName,
+                            RecoveryPassword = rPwd,
+                            Created = created
+                        });
+                    }
                 }
             }
         }

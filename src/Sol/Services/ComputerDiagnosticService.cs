@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Management;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Sol.Models;
+using Sol.Helpers;
 
 namespace Sol.Services;
 
@@ -127,6 +131,44 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
         return await wmiTask;
     }
 
+    public async Task<ComputerBatterySnapshot> GetBatterySnapshotAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            return new ComputerBatterySnapshot
+            {
+                Hostname = string.Empty,
+                IsSuccess = false,
+                ErrorMessage = "Target hostname is empty."
+            };
+        }
+
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            await Task.Delay(100, cancellationToken);
+            return GetFallbackBatterySnapshot(cleanHost, string.Empty);
+        }
+
+        var wmiTask = Task.Run(() => QueryBatteryWmi(cleanHost, cancellationToken), cancellationToken);
+        var delayTask = Task.Delay(RealMachineTimeout, cancellationToken);
+
+        var completedTask = await Task.WhenAny(wmiTask, delayTask);
+        if (completedTask == delayTask)
+        {
+            return new ComputerBatterySnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = "Timeout (15s): Endpoint unreachable",
+                QueriedAt = DateTime.Now
+            };
+        }
+
+        return await wmiTask;
+    }
+
     private static ComputerUptimeSnapshot QueryUptimeWmi(string cleanHost, CancellationToken cancellationToken)
     {
         try
@@ -142,12 +184,15 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             {
                 foreach (ManagementObject obj in results)
                 {
-                    var rawBoot = obj["LastBootUpTime"]?.ToString();
-                    if (!string.IsNullOrWhiteSpace(rawBoot))
+                    using (obj)
                     {
-                        lastBootTime = ParseCimDateTime(rawBoot);
+                        var rawBoot = obj["LastBootUpTime"]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(rawBoot))
+                        {
+                            lastBootTime = ParseCimDateTime(rawBoot);
+                        }
+                        break;
                     }
-                    break;
                 }
             }
 
@@ -200,14 +245,17 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             {
                 foreach (ManagementObject obj in results)
                 {
-                    manufacturer = obj["Manufacturer"]?.ToString()?.Trim() ?? string.Empty;
-                    model = obj["Model"]?.ToString()?.Trim() ?? string.Empty;
-                    if (obj["TotalPhysicalMemory"] != null && ulong.TryParse(obj["TotalPhysicalMemory"].ToString(), out ulong bytes))
+                    using (obj)
                     {
-                        double gb = bytes / (1024.0 * 1024.0 * 1024.0);
-                        totalMemory = $"{gb:F1} GB";
+                        manufacturer = obj["Manufacturer"]?.ToString()?.Trim() ?? string.Empty;
+                        model = obj["Model"]?.ToString()?.Trim() ?? string.Empty;
+                        if (obj["TotalPhysicalMemory"] != null && ulong.TryParse(obj["TotalPhysicalMemory"].ToString(), out ulong bytes))
+                        {
+                            double gb = bytes / (1024.0 * 1024.0 * 1024.0);
+                            totalMemory = $"{gb:F1} GB";
+                        }
+                        break;
                     }
-                    break;
                 }
             }
 
@@ -220,15 +268,18 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             {
                 foreach (ManagementObject obj in results)
                 {
-                    serialNumber = obj["SerialNumber"]?.ToString()?.Trim() ?? string.Empty;
-                    biosVersion = obj["SMBIOSBIOSVersion"]?.ToString()?.Trim() ?? string.Empty;
-                    
-                    var rawDate = obj["ReleaseDate"]?.ToString()?.Trim();
-                    if (!string.IsNullOrWhiteSpace(rawDate))
+                    using (obj)
                     {
-                        biosReleaseDate = FormatCimDateTime(rawDate);
+                        serialNumber = obj["SerialNumber"]?.ToString()?.Trim() ?? string.Empty;
+                        biosVersion = obj["SMBIOSBIOSVersion"]?.ToString()?.Trim() ?? string.Empty;
+                        
+                        var rawDate = obj["ReleaseDate"]?.ToString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(rawDate))
+                        {
+                            biosReleaseDate = FormatCimDateTime(rawDate);
+                        }
+                        break;
                     }
-                    break;
                 }
             }
 
@@ -241,10 +292,13 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             {
                 foreach (ManagementObject obj in results)
                 {
-                    osCaption = obj["Caption"]?.ToString()?.Trim() ?? string.Empty;
-                    osVersion = obj["Version"]?.ToString()?.Trim() ?? string.Empty;
-                    buildNumber = obj["BuildNumber"]?.ToString()?.Trim() ?? string.Empty;
-                    break;
+                    using (obj)
+                    {
+                        osCaption = obj["Caption"]?.ToString()?.Trim() ?? string.Empty;
+                        osVersion = obj["Version"]?.ToString()?.Trim() ?? string.Empty;
+                        buildNumber = obj["BuildNumber"]?.ToString()?.Trim() ?? string.Empty;
+                        break;
+                    }
                 }
             }
 
@@ -254,8 +308,11 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             {
                 foreach (ManagementObject obj in results)
                 {
-                    cpuName = obj["Name"]?.ToString()?.Trim() ?? string.Empty;
-                    break;
+                    using (obj)
+                    {
+                        cpuName = obj["Name"]?.ToString()?.Trim() ?? string.Empty;
+                        break;
+                    }
                 }
             }
 
@@ -309,23 +366,26 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
                 using var diskResults = diskSearcher.Get();
                 foreach (ManagementObject disk in diskResults)
                 {
-                    var status = disk["Status"]?.ToString()?.Trim() ?? "OK";
-                    var model = disk["Model"]?.ToString()?.Trim() ?? string.Empty;
-                    string mType = "SSD";
-                    if (model.Contains("NVMe", StringComparison.OrdinalIgnoreCase) || 
-                        model.Contains("SSD", StringComparison.OrdinalIgnoreCase) ||
-                        model.Contains("T705", StringComparison.OrdinalIgnoreCase) ||
-                        model.Contains("980", StringComparison.OrdinalIgnoreCase) ||
-                        model.Contains("990", StringComparison.OrdinalIgnoreCase) ||
-                        model.Contains("970", StringComparison.OrdinalIgnoreCase))
+                    using (disk)
                     {
-                        mType = "NVMe SSD";
+                        var status = disk["Status"]?.ToString()?.Trim() ?? "OK";
+                        var model = disk["Model"]?.ToString()?.Trim() ?? string.Empty;
+                        string mType = "SSD";
+                        if (model.Contains("NVMe", StringComparison.OrdinalIgnoreCase) || 
+                            model.Contains("SSD", StringComparison.OrdinalIgnoreCase) ||
+                            model.Contains("T705", StringComparison.OrdinalIgnoreCase) ||
+                            model.Contains("980", StringComparison.OrdinalIgnoreCase) ||
+                            model.Contains("990", StringComparison.OrdinalIgnoreCase) ||
+                            model.Contains("970", StringComparison.OrdinalIgnoreCase))
+                        {
+                            mType = "NVMe SSD";
+                        }
+                        else if (model.Contains("HDD", StringComparison.OrdinalIgnoreCase) || model.Contains("Hard Disk", StringComparison.OrdinalIgnoreCase))
+                        {
+                            mType = "HDD";
+                        }
+                        physicalDisks.Add((model, mType, status));
                     }
-                    else if (model.Contains("HDD", StringComparison.OrdinalIgnoreCase) || model.Contains("Hard Disk", StringComparison.OrdinalIgnoreCase))
-                    {
-                        mType = "HDD";
-                    }
-                    physicalDisks.Add((model, mType, status));
                 }
             }
             catch { }
@@ -338,14 +398,17 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
                 using var pResults = pSearcher.Get();
                 foreach (ManagementObject pDisk in pResults)
                 {
-                    var bus = pDisk["BusType"]?.ToString()?.Trim() ?? string.Empty;
-                    var hStatus = pDisk["HealthStatus"]?.ToString()?.Trim();
-                    string health = (hStatus == "0" || hStatus == "Healthy") ? "OK" : (hStatus == "1" ? "Warning" : (hStatus == "2" ? "Pred Fail" : "OK"));
-                    string media = (bus == "17" || bus.Equals("NVMe", StringComparison.OrdinalIgnoreCase)) ? "NVMe SSD" : "SSD";
-                    var name = pDisk["FriendlyName"]?.ToString()?.Trim() ?? string.Empty;
-                    if (!string.IsNullOrWhiteSpace(name))
+                    using (pDisk)
                     {
-                        physicalDisks.Add((name, media, health));
+                        var bus = pDisk["BusType"]?.ToString()?.Trim() ?? string.Empty;
+                        var hStatus = pDisk["HealthStatus"]?.ToString()?.Trim();
+                        string health = (hStatus == "0" || hStatus == "Healthy") ? "OK" : (hStatus == "1" ? "Warning" : (hStatus == "2" ? "Pred Fail" : "OK"));
+                        string media = (bus == "17" || bus.Equals("NVMe", StringComparison.OrdinalIgnoreCase)) ? "NVMe SSD" : "SSD";
+                        var name = pDisk["FriendlyName"]?.ToString()?.Trim() ?? string.Empty;
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            physicalDisks.Add((name, media, health));
+                        }
                     }
                 }
             }
@@ -360,22 +423,24 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             {
                 foreach (ManagementObject obj in results)
                 {
-                    string deviceId = obj["DeviceID"]?.ToString()?.Trim() ?? string.Empty;
-                    string volumeName = obj["VolumeName"]?.ToString()?.Trim() ?? string.Empty;
-                    string fileSystem = obj["FileSystem"]?.ToString()?.Trim() ?? "NTFS";
-
-                    ulong totalBytes = 0;
-                    ulong freeBytes = 0;
-
-                    if (obj["Size"] != null && ulong.TryParse(obj["Size"].ToString(), out ulong size))
+                    using (obj)
                     {
-                        totalBytes = size;
-                    }
+                        string deviceId = obj["DeviceID"]?.ToString()?.Trim() ?? string.Empty;
+                        string volumeName = obj["VolumeName"]?.ToString()?.Trim() ?? string.Empty;
+                        string fileSystem = obj["FileSystem"]?.ToString()?.Trim() ?? "NTFS";
 
-                    if (obj["FreeSpace"] != null && ulong.TryParse(obj["FreeSpace"].ToString(), out ulong free))
-                    {
-                        freeBytes = free;
-                    }
+                        ulong totalBytes = 0;
+                        ulong freeBytes = 0;
+
+                        if (obj["Size"] != null && ulong.TryParse(obj["Size"].ToString(), out ulong size))
+                        {
+                            totalBytes = size;
+                        }
+
+                        if (obj["FreeSpace"] != null && ulong.TryParse(obj["FreeSpace"].ToString(), out ulong free))
+                        {
+                            freeBytes = free;
+                        }
 
                     if (totalBytes > 0)
                     {
@@ -404,6 +469,7 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
                         });
                     }
                 }
+            }
             }
 
             return new ComputerDiskSnapshot
@@ -601,38 +667,46 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             using var regClass = new ManagementClass(defaultScope, new ManagementPath("StdRegProv"), null);
 
             // 1. CBS Check via WMI EnumKey
-            var inParams = regClass.GetMethodParameters("EnumKey");
-            inParams["hDefKey"] = 0x80000002; // HKLM
-            inParams["sSubKeyName"] = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing";
-            var outParams = regClass.InvokeMethod("EnumKey", inParams, null);
-            if ((uint)outParams["ReturnValue"] == 0)
+            using (var inParams = regClass.GetMethodParameters("EnumKey"))
             {
-                if (outParams["sNames"] is string[] subkeys && subkeys.Contains("RebootPending", StringComparer.OrdinalIgnoreCase))
+                inParams["hDefKey"] = 0x80000002; // HKLM
+                inParams["sSubKeyName"] = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing";
+                using var outParams = regClass.InvokeMethod("EnumKey", inParams, null);
+                if (outParams != null && (uint)outParams["ReturnValue"] == 0)
                 {
-                    reasons.Add("Component-Based Servicing (CBS)");
+                    if (outParams["sNames"] is string[] subkeys && subkeys.Contains("RebootPending", StringComparer.OrdinalIgnoreCase))
+                    {
+                        reasons.Add("Component-Based Servicing (CBS)");
+                    }
                 }
             }
 
             // 2. Windows Update Check via WMI EnumKey
-            inParams["sSubKeyName"] = @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update";
-            outParams = regClass.InvokeMethod("EnumKey", inParams, null);
-            if ((uint)outParams["ReturnValue"] == 0)
+            using (var inParams = regClass.GetMethodParameters("EnumKey"))
             {
-                if (outParams["sNames"] is string[] wuSubkeys && wuSubkeys.Contains("RebootRequired", StringComparer.OrdinalIgnoreCase))
+                inParams["hDefKey"] = 0x80000002;
+                inParams["sSubKeyName"] = @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update";
+                using var outParams = regClass.InvokeMethod("EnumKey", inParams, null);
+                if (outParams != null && (uint)outParams["ReturnValue"] == 0)
                 {
-                    reasons.Add("Windows Update");
+                    if (outParams["sNames"] is string[] wuSubkeys && wuSubkeys.Contains("RebootRequired", StringComparer.OrdinalIgnoreCase))
+                    {
+                        reasons.Add("Windows Update");
+                    }
                 }
             }
 
             // 3. PendingFileRenameOperations via WMI GetMultiStringValue
-            var multiParams = regClass.GetMethodParameters("GetMultiStringValue");
-            multiParams["hDefKey"] = 0x80000002;
-            multiParams["sSubKeyName"] = @"SYSTEM\CurrentControlSet\Control\Session Manager";
-            multiParams["sValueName"] = "PendingFileRenameOperations";
-            var multiOut = regClass.InvokeMethod("GetMultiStringValue", multiParams, null);
-            if ((uint)multiOut["ReturnValue"] == 0 && multiOut["sValue"] is string[] renameList && renameList.Length > 0 && renameList.Any(s => !string.IsNullOrWhiteSpace(s)))
+            using (var multiParams = regClass.GetMethodParameters("GetMultiStringValue"))
             {
-                reasons.Add("Pending File Rename Operations");
+                multiParams["hDefKey"] = 0x80000002;
+                multiParams["sSubKeyName"] = @"SYSTEM\CurrentControlSet\Control\Session Manager";
+                multiParams["sValueName"] = "PendingFileRenameOperations";
+                using var multiOut = regClass.InvokeMethod("GetMultiStringValue", multiParams, null);
+                if (multiOut != null && (uint)multiOut["ReturnValue"] == 0 && multiOut["sValue"] is string[] renameList && renameList.Length > 0 && renameList.Any(s => !string.IsNullOrWhiteSpace(s)))
+                {
+                    reasons.Add("Pending File Rename Operations");
+                }
             }
 
             return (true, reasons.Distinct().ToList());
@@ -800,6 +874,979 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
         }
 
         return new ComputerDiskSnapshot
+        {
+            Hostname = cleanHost,
+            IsSuccess = false,
+            ErrorMessage = originalError,
+            QueriedAt = DateTime.Now
+        };
+    }
+
+    private static ComputerBatterySnapshot QueryBatteryWmi(string cleanHost, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var scope = CreateManagementScope(cleanHost);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            bool foundBattery = false;
+            string deviceName = string.Empty;
+            string chemistry = string.Empty;
+            uint designCapacity = 0;
+            uint fullChargeCapacity = 0;
+            uint chargeRemaining = 0;
+            ushort batteryStatus = 0;
+            uint estimatedRunTimeMinutes = 0;
+
+            using (var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT DeviceID, Name, Chemistry, DesignCapacity, FullChargeCapacity, EstimatedChargeRemaining, BatteryStatus, EstimatedRunTime FROM Win32_Battery")))
+            using (var results = searcher.Get())
+            {
+                foreach (ManagementObject obj in results)
+                {
+                    using (obj)
+                    {
+                        foundBattery = true;
+                        deviceName = obj["Name"]?.ToString()?.Trim() ?? obj["DeviceID"]?.ToString()?.Trim() ?? "Battery";
+                        
+                        var chemCode = obj["Chemistry"]?.ToString();
+                        chemistry = chemCode switch
+                        {
+                            "1" => "Other",
+                            "2" => "Unknown",
+                            "3" => "Lead Acid",
+                            "4" => "Nickel Cadmium (NiCd)",
+                            "5" => "Nickel Metal Hydride (NiMH)",
+                            "6" => "Lithium-Ion (Li-Ion)",
+                            "7" => "Zinc Air",
+                            "8" => "Lithium Polymer (Li-Poly)",
+                            _ => !string.IsNullOrWhiteSpace(chemCode) ? chemCode : "Lithium-Ion"
+                        };
+
+                        if (obj["DesignCapacity"] != null && uint.TryParse(obj["DesignCapacity"].ToString(), out uint dCap))
+                        {
+                            designCapacity = dCap;
+                        }
+
+                        if (obj["FullChargeCapacity"] != null && uint.TryParse(obj["FullChargeCapacity"].ToString(), out uint fCap))
+                        {
+                            fullChargeCapacity = fCap;
+                        }
+
+                        if (obj["EstimatedChargeRemaining"] != null && uint.TryParse(obj["EstimatedChargeRemaining"].ToString(), out uint rem))
+                        {
+                            chargeRemaining = rem;
+                        }
+
+                        if (obj["BatteryStatus"] != null && ushort.TryParse(obj["BatteryStatus"].ToString(), out ushort bStat))
+                        {
+                            batteryStatus = bStat;
+                        }
+
+                        if (obj["EstimatedRunTime"] != null && uint.TryParse(obj["EstimatedRunTime"].ToString(), out uint runTime))
+                        {
+                            if (runTime > 0 && runTime < 100000)
+                            {
+                                estimatedRunTimeMinutes = runTime;
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            if (!foundBattery)
+            {
+                return new ComputerBatterySnapshot
+                {
+                    Hostname = cleanHost,
+                    HasBattery = false,
+                    IsSuccess = true,
+                    QueriedAt = DateTime.Now
+                };
+            }
+
+            int? cycleCount = null;
+
+            // Try to enrich with root\wmi BatteryStaticData / BatteryFullChargedCapacity
+            try
+            {
+                var wmiScope = CreateManagementScope(cleanHost, @"root\wmi");
+                using var staticSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT DesignedCapacity, CycleCount FROM BatteryStaticData"));
+                using var staticResults = staticSearcher.Get();
+                foreach (ManagementObject sObj in staticResults)
+                {
+                    using (sObj)
+                    {
+                        if (designCapacity == 0 && sObj["DesignedCapacity"] != null && uint.TryParse(sObj["DesignedCapacity"].ToString(), out uint dCap))
+                        {
+                            designCapacity = dCap;
+                        }
+
+                        if (sObj["CycleCount"] != null && int.TryParse(sObj["CycleCount"].ToString(), out int cycles) && cycles > 0)
+                        {
+                            cycleCount = cycles;
+                        }
+                        break;
+                    }
+                }
+
+                if (fullChargeCapacity == 0)
+                {
+                    using var fullSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT FullChargedCapacity FROM BatteryFullChargedCapacity"));
+                    using var fullResults = fullSearcher.Get();
+                    foreach (ManagementObject fObj in fullResults)
+                    {
+                        using (fObj)
+                        {
+                            if (fObj["FullChargedCapacity"] != null && uint.TryParse(fObj["FullChargedCapacity"].ToString(), out uint fCap))
+                            {
+                                fullChargeCapacity = fCap;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            if (designCapacity > 0 && fullChargeCapacity == 0)
+            {
+                fullChargeCapacity = designCapacity;
+            }
+
+            bool isCharging = batteryStatus == 6 || batteryStatus == 7 || batteryStatus == 8 || batteryStatus == 9;
+            bool isAcConnected = isCharging || batteryStatus == 2 || batteryStatus == 3;
+
+            string statusText = batteryStatus switch
+            {
+                1 => Strings.S.BatteryStatusDischarging,
+                2 => Strings.S.BatteryStatusCharging,
+                3 => Strings.S.BatteryStatusFull,
+                4 or 5 => Strings.S.BatteryStatusDischarging,
+                6 or 7 or 8 or 9 => Strings.S.BatteryStatusCharging,
+                11 => Strings.S.BatteryStatusDischarging,
+                _ => isCharging ? Strings.S.BatteryStatusCharging : (isAcConnected ? Strings.S.BatteryStatusFull : Strings.S.BatteryStatusDischarging)
+            };
+
+            TimeSpan? runtime = estimatedRunTimeMinutes > 0 ? TimeSpan.FromMinutes(estimatedRunTimeMinutes) : null;
+
+            return new ComputerBatterySnapshot
+            {
+                Hostname = cleanHost,
+                HasBattery = true,
+                DeviceName = deviceName,
+                Chemistry = chemistry,
+                DesignCapacityMWh = designCapacity,
+                FullChargeCapacityMWh = fullChargeCapacity,
+                EstimatedChargeRemainingPercent = chargeRemaining,
+                BatteryStatusText = statusText,
+                IsCharging = isCharging,
+                IsAcConnected = isAcConnected,
+                CycleCount = cycleCount,
+                EstimatedRunTime = runtime,
+                IsSuccess = true,
+                QueriedAt = DateTime.Now
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ComputerBatterySnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message,
+                QueriedAt = DateTime.Now
+            };
+        }
+    }
+
+    private static ComputerBatterySnapshot GetFallbackBatterySnapshot(string cleanHost, string originalError)
+    {
+        if (IsDemoFixture(cleanHost))
+        {
+            if (cleanHost.Contains("DELL", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ComputerBatterySnapshot
+                {
+                    Hostname = cleanHost,
+                    HasBattery = true,
+                    DeviceName = "Dell Primary Battery (ExpressCharge)",
+                    Chemistry = "Lithium-Ion (Li-Ion)",
+                    DesignCapacityMWh = 54000,
+                    FullChargeCapacityMWh = 48060, // 89.0% health (Fehlerfrei)
+                    EstimatedChargeRemainingPercent = 92,
+                    BatteryStatusText = Strings.S.BatteryStatusDischarging,
+                    IsCharging = false,
+                    IsAcConnected = false,
+                    CycleCount = 184,
+                    EstimatedRunTime = TimeSpan.FromHours(4).Add(TimeSpan.FromMinutes(15)),
+                    IsSuccess = true,
+                    QueriedAt = DateTime.Now
+                };
+            }
+
+            if (cleanHost.Contains("LENOVO", StringComparison.OrdinalIgnoreCase) || cleanHost.Contains("THINKPAD", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ComputerBatterySnapshot
+                {
+                    Hostname = cleanHost,
+                    HasBattery = true,
+                    DeviceName = "Lenovo Li-Polymer 57Wh Battery",
+                    Chemistry = "Lithium-Polymer (Li-Poly)",
+                    DesignCapacityMWh = 57000,
+                    FullChargeCapacityMWh = 41040, // 72.0% health (Abnutzung - Warning)
+                    EstimatedChargeRemainingPercent = 45,
+                    BatteryStatusText = Strings.S.BatteryStatusCharging,
+                    IsCharging = true,
+                    IsAcConnected = true,
+                    CycleCount = 412,
+                    EstimatedRunTime = TimeSpan.FromHours(1).Add(TimeSpan.FromMinutes(40)),
+                    IsSuccess = true,
+                    QueriedAt = DateTime.Now
+                };
+            }
+
+            // Other demo fixtures (Desktop/Server/VM)
+            return new ComputerBatterySnapshot
+            {
+                Hostname = cleanHost,
+                HasBattery = false,
+                IsSuccess = true,
+                QueriedAt = DateTime.Now
+            };
+        }
+
+        return new ComputerBatterySnapshot
+        {
+            Hostname = cleanHost,
+            IsSuccess = false,
+            ErrorMessage = originalError,
+            QueriedAt = DateTime.Now
+        };
+    }
+
+    private static readonly ConcurrentDictionary<string, byte> _disconnectedDemoSessions = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<ComputerSessionSnapshot> GetSessionSnapshotAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            return new ComputerSessionSnapshot
+            {
+                Hostname = string.Empty,
+                IsSuccess = false,
+                ErrorMessage = "Target hostname is empty.",
+                QueriedAt = DateTime.Now
+            };
+        }
+
+        string cleanHost = targetHost.Trim();
+
+        // Fast-path: demo fixtures return mock sessions immediately
+        if (IsDemoFixture(cleanHost))
+        {
+            return GetFallbackSessionSnapshot(cleanHost, "Simulated demo fixture");
+        }
+
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(RealMachineTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            var queryTask = Task.Run(() => QuerySessionsWmi(cleanHost), linkedCts.Token);
+            var completedTask = await Task.WhenAny(queryTask, Task.Delay(Timeout.Infinite, linkedCts.Token));
+
+            if (completedTask == queryTask)
+            {
+                return await queryTask;
+            }
+
+            throw new TimeoutException($"Session query timed out after 15 seconds on '{cleanHost}'.");
+        }
+        catch (Exception ex)
+        {
+            return GetFallbackSessionSnapshot(cleanHost, ex.Message);
+        }
+    }
+
+    public async Task DisconnectSessionAsync(string targetHost, uint sessionId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost)) return;
+
+        string cleanHost = targetHost.Trim();
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _disconnectedDemoSessions.TryAdd($"{cleanHost}:{sessionId}", 0);
+            await Task.Delay(300, cancellationToken);
+            return;
+        }
+
+        await Task.Run(() =>
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "logoff.exe",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                psi.ArgumentList.Add(sessionId.ToString());
+                psi.ArgumentList.Add($"/server:{cleanHost}");
+
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    proc.WaitForExit(8000);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Logoff failed for session {sessionId} on {cleanHost}: {ex.Message}", ex);
+            }
+        }, cancellationToken);
+    }
+
+    private static readonly ConcurrentDictionary<string, byte> _terminatedDemoProcesses = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<ComputerProcessSnapshot> GetProcessesSnapshotAsync(string targetHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            return new ComputerProcessSnapshot
+            {
+                Hostname = string.Empty,
+                IsSuccess = false,
+                ErrorMessage = "Target hostname is empty."
+            };
+        }
+
+        string cleanHost = targetHost.Trim();
+
+        // Fast-path: demo fixtures return mock processes immediately
+        if (IsDemoFixture(cleanHost))
+        {
+            return GetFallbackProcessSnapshot(cleanHost, "Simulated demo fixture");
+        }
+
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(RealMachineTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            var queryTask = Task.Run(() => QueryProcessesWmi(cleanHost, linkedCts.Token), linkedCts.Token);
+            var completedTask = await Task.WhenAny(queryTask, Task.Delay(Timeout.Infinite, linkedCts.Token));
+
+            if (completedTask == queryTask)
+            {
+                var result = await queryTask;
+                if (!result.IsSuccess && IsDemoFixture(cleanHost))
+                {
+                    return GetFallbackProcessSnapshot(cleanHost, result.ErrorMessage ?? "WMI query failed.");
+                }
+                return result;
+            }
+
+            throw new TimeoutException($"Process query timed out after 15 seconds on '{cleanHost}'.");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (IsDemoFixture(cleanHost))
+            {
+                return GetFallbackProcessSnapshot(cleanHost, "Connection timed out.");
+            }
+            return new ComputerProcessSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = "WMI process diagnostic query timed out."
+            };
+        }
+        catch (Exception ex)
+        {
+            if (IsDemoFixture(cleanHost))
+            {
+                return GetFallbackProcessSnapshot(cleanHost, ex.Message);
+            }
+            return new ComputerProcessSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    public async Task<bool> TerminateProcessAsync(string targetHost, uint processId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetHost)) return false;
+        string cleanHost = targetHost.Trim();
+
+        // Guard against terminating PID 0-4 (System / Idle)
+        if (processId <= 4) return false;
+
+        if (IsDemoFixture(cleanHost))
+        {
+            _terminatedDemoProcesses.TryAdd($"{cleanHost}:{processId}", 0);
+            await Task.Delay(200, cancellationToken);
+            return true;
+        }
+
+        return await Task.Run(() =>
+        {
+            // 1. Direct native execution for local machine with process-tree termination
+            if (IsLocalHost(cleanHost))
+            {
+                try
+                {
+                    var proc = Process.GetProcessById((int)processId);
+                    if (ComputerProcessInfo.IsCriticalProcess(processId, proc.ProcessName))
+                    {
+                        return false;
+                    }
+                    proc.Kill(entireProcessTree: true);
+                    proc.WaitForExit(3000);
+                    return true;
+                }
+                catch (ArgumentException)
+                {
+                    // Process has already terminated or does not exist
+                    return true;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Process has exited
+                    return true;
+                }
+                catch
+                {
+                    // Fall through to taskkill fallback
+                }
+            }
+
+            // 2. Remote WMI Win32_Process.Terminate invocation
+            try
+            {
+                var scope = CreateManagementScope(cleanHost);
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT Name, ProcessId FROM Win32_Process WHERE ProcessId = {processId}"));
+                using var results = searcher.Get();
+                foreach (ManagementObject mo in results)
+                {
+                    using (mo)
+                    {
+                        string procName = mo["Name"]?.ToString() ?? string.Empty;
+                        if (ComputerProcessInfo.IsCriticalProcess(processId, procName))
+                        {
+                            return false;
+                        }
+
+                        var inParams = mo.GetMethodParameters("Terminate");
+                        inParams["Reason"] = (uint)0;
+                        var outParams = mo.InvokeMethod("Terminate", inParams, null);
+                        if (outParams != null)
+                        {
+                            uint returnVal = Convert.ToUInt32(outParams["ReturnValue"] ?? 1);
+                            if (returnVal == 0) return true;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Fallback to taskkill.exe with force (/F) and process-tree (/T) termination
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "taskkill.exe",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                if (!IsLocalHost(cleanHost))
+                {
+                    psi.ArgumentList.Add("/S");
+                    psi.ArgumentList.Add(cleanHost);
+                }
+                psi.ArgumentList.Add("/PID");
+                psi.ArgumentList.Add(processId.ToString());
+                psi.ArgumentList.Add("/F");
+                psi.ArgumentList.Add("/T");
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    string stdout = proc.StandardOutput.ReadToEnd();
+                    string stderr = proc.StandardError.ReadToEnd();
+                    proc.WaitForExit(5000);
+
+                    if (proc.ExitCode == 0) return true;
+
+                    // If taskkill reports process not found, it has already exited
+                    if (stderr.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+                        stderr.Contains("nicht gefunden", StringComparison.OrdinalIgnoreCase) ||
+                        stdout.Contains("SUCCESS", StringComparison.OrdinalIgnoreCase) ||
+                        stdout.Contains("ERFOLGREICH", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            // 4. Local verification check
+            if (IsLocalHost(cleanHost))
+            {
+                try
+                {
+                    _ = Process.GetProcessById((int)processId);
+                }
+                catch (ArgumentException)
+                {
+                    // Process verified dead
+                    return true;
+                }
+            }
+
+            return false;
+        }, cancellationToken);
+    }
+
+    private static ComputerProcessSnapshot QueryProcessesWmi(string cleanHost, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var wmiScope = CreateManagementScope(cleanHost, @"root\cimv2");
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var perfMetrics = new Dictionary<uint, (double Cpu, double Net)>();
+            try
+            {
+                using var perfSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT IDProcess, PercentProcessorTime, IODataBytesPersec FROM Win32_PerfFormattedData_PerfProc_Process"));
+                using var perfResults = perfSearcher.Get();
+                foreach (ManagementObject perf in perfResults)
+                {
+                    using (perf)
+                    {
+                        uint id = Convert.ToUInt32(perf["IDProcess"] ?? 0);
+                        double cpu = Convert.ToDouble(perf["PercentProcessorTime"] ?? 0);
+                        ulong ioBytes = Convert.ToUInt64(perf["IODataBytesPersec"] ?? 0);
+                        double mbps = (ioBytes * 8.0) / (1024.0 * 1024.0);
+                        perfMetrics[id] = (cpu, mbps);
+                    }
+                }
+            }
+            catch { }
+
+            var processes = new List<ComputerProcessInfo>();
+
+            using (var searcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT ProcessId, Name, ExecutablePath, WorkingSetSize, CreationDate FROM Win32_Process")))
+            using (var results = searcher.Get())
+            {
+                foreach (ManagementObject obj in results)
+                {
+                    using (obj)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        uint pid = Convert.ToUInt32(obj["ProcessId"] ?? 0);
+                        string name = obj["Name"]?.ToString()?.Trim() ?? string.Empty;
+                        string execPath = obj["ExecutablePath"]?.ToString()?.Trim() ?? string.Empty;
+                        ulong workingSet = Convert.ToUInt64(obj["WorkingSetSize"] ?? 0);
+                        string? rawCreation = obj["CreationDate"]?.ToString();
+                        DateTime? creationDate = ParseCimDateTime(rawCreation);
+
+                        double cpuVal = 0.0;
+                        double netVal = 0.0;
+                        if (perfMetrics.TryGetValue(pid, out var metrics))
+                        {
+                            cpuVal = metrics.Cpu;
+                            netVal = metrics.Net;
+                        }
+
+                        string owner = string.Empty;
+                        try
+                        {
+                            var outParams = obj.InvokeMethod("GetOwner", null, null) as ManagementBaseObject;
+                            if (outParams != null)
+                            {
+                                string user = outParams["User"]?.ToString() ?? string.Empty;
+                                string domain = outParams["Domain"]?.ToString() ?? string.Empty;
+                                if (!string.IsNullOrWhiteSpace(user))
+                                {
+                                    owner = !string.IsNullOrWhiteSpace(domain) ? $"{domain}\\{user}" : user;
+                                }
+                            }
+                        }
+                        catch { }
+
+                        processes.Add(new ComputerProcessInfo
+                        {
+                            ProcessId = pid,
+                            Name = name,
+                            ExecutablePath = execPath,
+                            WorkingSetBytes = workingSet,
+                            CpuUsagePercent = cpuVal,
+                            NetworkMbps = netVal,
+                            Owner = owner,
+                            CreationDate = creationDate
+                        });
+                    }
+                }
+            }
+
+            return new ComputerProcessSnapshot
+            {
+                Hostname = cleanHost,
+                Processes = processes.OrderByDescending(p => p.WorkingSetBytes).ToList(),
+                IsSuccess = true,
+                Timestamp = DateTime.Now
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ComputerProcessSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message,
+                Timestamp = DateTime.Now
+            };
+        }
+    }
+
+    private static ComputerProcessSnapshot GetFallbackProcessSnapshot(string cleanHost, string originalError)
+    {
+        if (IsDemoFixture(cleanHost))
+        {
+            var list = new List<ComputerProcessInfo>();
+
+            void AddProc(uint pid, string name, string path, ulong memoryMb, string owner, DateTime creation, double cpu = 0.0, double net = 0.0)
+            {
+                if (_terminatedDemoProcesses.ContainsKey($"{cleanHost}:{pid}")) return;
+                list.Add(new ComputerProcessInfo
+                {
+                    ProcessId = pid,
+                    Name = name,
+                    ExecutablePath = path,
+                    WorkingSetBytes = memoryMb * 1024UL * 1024UL,
+                    CpuUsagePercent = cpu,
+                    NetworkMbps = net,
+                    Owner = owner,
+                    CreationDate = creation
+                });
+            }
+
+            var now = DateTime.Now;
+
+            // System processes
+            AddProc(0, "System Idle Process", "", 0, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 82.5, net: 0.0);
+            AddProc(4, "System", "", 120, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.8, net: 0.1);
+            AddProc(412, "smss.exe", @"C:\Windows\System32\smss.exe", 8, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.0, net: 0.0);
+            AddProc(620, "csrss.exe", @"C:\Windows\System32\csrss.exe", 18, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.2, net: 0.0);
+            AddProc(704, "wininit.exe", @"C:\Windows\System32\wininit.exe", 12, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.0, net: 0.0);
+            AddProc(812, "services.exe", @"C:\Windows\System32\services.exe", 32, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.3, net: 0.0);
+            AddProc(844, "lsass.exe", @"C:\Windows\System32\lsass.exe", 46, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.5, net: 0.1);
+            AddProc(980, "dwm.exe", @"C:\Windows\System32\dwm.exe", 145, "Window Manager\\DWM-1", now.AddHours(-8), cpu: 1.8, net: 0.0);
+            AddProc(1120, "svchost.exe", @"C:\Windows\System32\svchost.exe", 85, "NT AUTHORITY\\SYSTEM", now.AddDays(-2), cpu: 0.6, net: 0.2);
+            AddProc(1450, "svchost.exe", @"C:\Windows\System32\svchost.exe", 62, "NT AUTHORITY\\LOCAL SERVICE", now.AddDays(-2), cpu: 0.1, net: 0.0);
+
+            // Interactive User applications
+            string userOwner = cleanHost.Contains("LENOVO", StringComparison.OrdinalIgnoreCase) ? "CORP\\e.schmidt" : "CORP\\m.mustermann";
+
+            AddProc(4812, "explorer.exe", @"C:\Windows\explorer.exe", 260, userOwner, now.AddHours(-6), cpu: 0.9, net: 0.0);
+            AddProc(6120, "chrome.exe", @"C:\Program Files\Google\Chrome\Application\chrome.exe", 1420, userOwner, now.AddHours(-4), cpu: 4.8, net: 2.3);
+            AddProc(7240, "msedge.exe", @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", 890, userOwner, now.AddHours(-3), cpu: 2.4, net: 0.8);
+            AddProc(8912, "OUTLOOK.EXE", @"C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE", 740, userOwner, now.AddHours(-5), cpu: 0.5, net: 0.2);
+            AddProc(9420, "ms-teams.exe", @"C:\Program Files\WindowsApps\MSTeams\ms-teams.exe", 680, userOwner, now.AddHours(-5), cpu: 2.1, net: 0.6);
+            AddProc(10240, "Code.exe", @"C:\Users\AppData\Local\Programs\Microsoft VS Code\Code.exe", 540, userOwner, now.AddHours(-2), cpu: 1.6, net: 0.0);
+            AddProc(11350, "OneDrive.exe", @"C:\Program Files\Microsoft OneDrive\OneDrive.exe", 110, userOwner, now.AddHours(-6), cpu: 0.1, net: 0.4);
+            AddProc(12480, "RuntimeBroker.exe", @"C:\Windows\System32\RuntimeBroker.exe", 45, userOwner, now.AddHours(-4), cpu: 0.0, net: 0.0);
+            AddProc(13890, "powershell.exe", @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", 130, userOwner, now.AddMinutes(-45), cpu: 0.3, net: 0.0);
+
+            return new ComputerProcessSnapshot
+            {
+                Hostname = cleanHost,
+                Processes = list.OrderByDescending(p => p.WorkingSetBytes).ToList(),
+                IsSuccess = true,
+                Timestamp = now
+            };
+        }
+
+        return new ComputerProcessSnapshot
+        {
+            Hostname = cleanHost,
+            IsSuccess = false,
+            ErrorMessage = originalError,
+            Timestamp = DateTime.Now
+        };
+    }
+
+    private static ComputerSessionSnapshot QuerySessionsWmi(string cleanHost)
+    {
+        try
+        {
+            var wmiScope = CreateManagementScope(cleanHost, @"root\cimv2");
+            var sessions = new List<ComputerSessionInfo>();
+            var seenUsers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Step 1: Query Win32_LogonSession
+            var logonSessions = new Dictionary<string, (uint LogonType, DateTime? StartTime, uint SessionId)>();
+            try
+            {
+                using var logonSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT LogonId, LogonType, StartTime FROM Win32_LogonSession WHERE LogonType = 2 OR LogonType = 10 OR LogonType = 11"));
+                using var logonResults = logonSearcher.Get();
+                foreach (ManagementObject obj in logonResults)
+                {
+                    using (obj)
+                    {
+                        string logonId = obj["LogonId"]?.ToString() ?? string.Empty;
+                        uint logonType = obj["LogonType"] != null && uint.TryParse(obj["LogonType"].ToString(), out uint lt) ? lt : 2;
+                        DateTime? startTime = null;
+                        if (obj["StartTime"] != null)
+                        {
+                            try
+                            {
+                                startTime = ManagementDateTimeConverter.ToDateTime(obj["StartTime"].ToString());
+                            }
+                            catch { }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(logonId))
+                        {
+                            uint sessId = 1;
+                            if (uint.TryParse(logonId, out uint parsedId))
+                            {
+                                sessId = parsedId;
+                            }
+                            logonSessions[logonId] = (logonType, startTime, sessId);
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Step 2: Associate LoggedOnUser with LogonSession
+            try
+            {
+                using var loggedSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT Antecedent, Dependent FROM Win32_LoggedOnUser"));
+                using var loggedResults = loggedSearcher.Get();
+                foreach (ManagementObject obj in loggedResults)
+                {
+                    using (obj)
+                    {
+                        string antecedent = obj["Antecedent"]?.ToString() ?? string.Empty;
+                        string dependent = obj["Dependent"]?.ToString() ?? string.Empty;
+
+                        string logonId = string.Empty;
+                        var matchLogon = Regex.Match(antecedent, @"LogonId=""?(\d+)""?", RegexOptions.IgnoreCase);
+                        if (matchLogon.Success)
+                        {
+                            logonId = matchLogon.Groups[1].Value;
+                        }
+
+                        if (!logonSessions.TryGetValue(logonId, out var sessionMeta))
+                        {
+                            continue;
+                        }
+
+                        string domain = string.Empty;
+                        string name = string.Empty;
+
+                        var matchDomain = Regex.Match(dependent, @"Domain=""([^""]+)""", RegexOptions.IgnoreCase);
+                        if (matchDomain.Success) domain = matchDomain.Groups[1].Value;
+
+                        var matchName = Regex.Match(dependent, @"Name=""([^""]+)""", RegexOptions.IgnoreCase);
+                        if (matchName.Success) name = matchName.Groups[1].Value;
+
+                        if (string.IsNullOrWhiteSpace(name)) continue;
+
+                        if (name.Equals("SYSTEM", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("LOCAL SERVICE", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("NETWORK SERVICE", StringComparison.OrdinalIgnoreCase) ||
+                            name.StartsWith("DWM-", StringComparison.OrdinalIgnoreCase) ||
+                            name.StartsWith("UMFD-", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("ANONYMOUS LOGON", StringComparison.OrdinalIgnoreCase) ||
+                            name.StartsWith("Font Driver Host", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        string fullKey = $"{domain}\\{name}";
+                        if (seenUsers.Contains(fullKey)) continue;
+                        seenUsers.Add(fullKey);
+
+                        var sessType = sessionMeta.LogonType == 10
+                            ? ComputerSessionType.RemoteDesktop
+                            : ComputerSessionType.Console;
+
+                        sessions.Add(new ComputerSessionInfo
+                        {
+                            SessionId = sessionMeta.SessionId,
+                            Username = name,
+                            Domain = domain,
+                            SamAccountName = name,
+                            DisplayName = name,
+                            SessionType = sessType,
+                            LogonTime = sessionMeta.StartTime,
+                            IsActive = true
+                        });
+                    }
+                }
+            }
+            catch { }
+
+            // Step 3: Fallback query via explorer.exe process owners
+            if (sessions.Count == 0)
+            {
+                try
+                {
+                    using var procSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT ProcessId, Name FROM Win32_Process WHERE Name = 'explorer.exe'"));
+                    using var procResults = procSearcher.Get();
+                    foreach (ManagementObject proc in procResults)
+                    {
+                        using (proc)
+                        {
+                            var outParams = proc.InvokeMethod("GetOwner", null, null);
+                            if (outParams != null)
+                            {
+                                string user = outParams["User"]?.ToString() ?? string.Empty;
+                                string domain = outParams["Domain"]?.ToString() ?? string.Empty;
+
+                                if (!string.IsNullOrWhiteSpace(user) && !seenUsers.Contains($"{domain}\\{user}"))
+                                {
+                                    seenUsers.Add($"{domain}\\{user}");
+                                    sessions.Add(new ComputerSessionInfo
+                                    {
+                                        SessionId = 1,
+                                        Username = user,
+                                        Domain = domain,
+                                        SamAccountName = user,
+                                        DisplayName = user,
+                                        SessionType = ComputerSessionType.Console,
+                                        LogonTime = DateTime.Now,
+                                        IsActive = true
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            return new ComputerSessionSnapshot
+            {
+                Hostname = cleanHost,
+                Sessions = sessions,
+                IsSuccess = true,
+                QueriedAt = DateTime.Now
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ComputerSessionSnapshot
+            {
+                Hostname = cleanHost,
+                IsSuccess = false,
+                ErrorMessage = ex.Message,
+                QueriedAt = DateTime.Now
+            };
+        }
+    }
+
+    private static ComputerSessionSnapshot GetFallbackSessionSnapshot(string cleanHost, string originalError)
+    {
+        if (IsDemoFixture(cleanHost))
+        {
+            var sessions = new List<ComputerSessionInfo>();
+
+            if (cleanHost.Contains("DELL", StringComparison.OrdinalIgnoreCase))
+            {
+                uint sessId = 1;
+                if (!_disconnectedDemoSessions.ContainsKey($"{cleanHost}:{sessId}"))
+                {
+                    sessions.Add(new ComputerSessionInfo
+                    {
+                        SessionId = sessId,
+                        Username = "m.mustermann",
+                        Domain = "CORP",
+                        SamAccountName = "m.mustermann",
+                        DisplayName = "Max Mustermann",
+                        SessionType = ComputerSessionType.Console,
+                        LogonTime = DateTime.Today.AddHours(7).AddMinutes(45),
+                        IsActive = true
+                    });
+                }
+            }
+            else if (cleanHost.Contains("LENOVO", StringComparison.OrdinalIgnoreCase) || cleanHost.Contains("THINKPAD", StringComparison.OrdinalIgnoreCase))
+            {
+                uint sessId1 = 2;
+                if (!_disconnectedDemoSessions.ContainsKey($"{cleanHost}:{sessId1}"))
+                {
+                    sessions.Add(new ComputerSessionInfo
+                    {
+                        SessionId = sessId1,
+                        Username = "e.schmidt",
+                        Domain = "CORP",
+                        SamAccountName = "e.schmidt",
+                        DisplayName = "Erika Schmidt",
+                        SessionType = ComputerSessionType.RemoteDesktop,
+                        LogonTime = DateTime.Today.AddHours(8).AddMinutes(30),
+                        IsActive = true
+                    });
+                }
+
+                uint sessId2 = 3;
+                if (!_disconnectedDemoSessions.ContainsKey($"{cleanHost}:{sessId2}"))
+                {
+                    sessions.Add(new ComputerSessionInfo
+                    {
+                        SessionId = sessId2,
+                        Username = "a.becker",
+                        Domain = "CORP",
+                        SamAccountName = "a.becker",
+                        DisplayName = "Alexander Becker",
+                        SessionType = ComputerSessionType.Disconnected,
+                        LogonTime = DateTime.Today.AddDays(-1).AddHours(17).AddMinutes(15),
+                        IsActive = false
+                    });
+                }
+            }
+            else
+            {
+                uint sessIdDefault = 1;
+                if (!_disconnectedDemoSessions.ContainsKey($"{cleanHost}:{sessIdDefault}"))
+                {
+                    sessions.Add(new ComputerSessionInfo
+                    {
+                        SessionId = sessIdDefault,
+                        Username = "admin",
+                        Domain = "CORP",
+                        SamAccountName = "admin",
+                        DisplayName = "Administrator",
+                        SessionType = ComputerSessionType.Console,
+                        LogonTime = DateTime.Today.AddHours(9).AddMinutes(0),
+                        IsActive = true
+                    });
+                }
+            }
+
+            return new ComputerSessionSnapshot
+            {
+                Hostname = cleanHost,
+                Sessions = sessions,
+                IsSuccess = true,
+                QueriedAt = DateTime.Now
+            };
+        }
+
+        return new ComputerSessionSnapshot
         {
             Hostname = cleanHost,
             IsSuccess = false,

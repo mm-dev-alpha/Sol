@@ -155,19 +155,17 @@
                                 Visibility="{x:Bind ViewModel.IsAccountDisabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         
                         <Button Content="{x:Bind S.DisableComputerBtn}"
-                                Command="{x:Bind ViewModel.ToggleComputerAccountCommand}"
+                                Click="DisableComputer_Click"
                                 Visibility="{x:Bind ViewModel.IsAccountEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                        <DropDownButton Content="PowerShell">
-                            <DropDownButton.Flyout>
-                                <MenuFlyout>
-                                    <MenuFlyoutItem Text="Get-ADComputer" Click="CopyPs_GetAdComputer"/>
-                                    <MenuFlyoutItem Text="Test-Connection (Ping)" Click="CopyPs_TestConnection"/>
-                                    <MenuFlyoutItem Text="Enter-PSSession" Click="CopyPs_EnterPsSession"/>
-                                    <MenuFlyoutItem Text="mstsc (RDP)" Click="CopyPs_Mstsc"/>
-                                </MenuFlyout>
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
+                        <Button Style="{ThemeResource DefaultButtonStyle}"
+                                Click="OpenProcessManager_Click"
+                                ToolTipService.ToolTip="{x:Bind S.ProcessManagerTooltip}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE9D9;" FontSize="14"/>
+                                <TextBlock Text="{x:Bind S.ProcessManagerBtn}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
 
@@ -178,7 +176,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- LEFT COLUMN: System Identity & BitLocker Keys -->
+                    <!-- LEFT COLUMN: System Identity & Group Memberships -->
                     <StackPanel Grid.Column="0" Spacing="20">
                         
                         <!-- System Identity Section -->
@@ -264,6 +262,289 @@
                                         </Button>
                                     </Grid>
                                 </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Group Memberships Section (Left Column, Mirroring User Workspace) -->
+                        <StackPanel Spacing="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Section Header with Group Count Pill -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind S.GroupsTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind ViewModel.GroupCountBadge, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Quick Add Group Button with Flyout -->
+                                <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.AddGroupTooltip}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE710;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="{x:Bind S.AddBtn}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    </StackPanel>
+                                    <Button.Flyout>
+                                        <Flyout x:Name="AddGroupFlyout">
+                                            <StackPanel Spacing="10" Width="300" Padding="4">
+                                                <TextBlock Text="{x:Bind S.AddGroupTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                <AutoSuggestBox x:Name="NewGroupNameBox"
+                                                                Text="{x:Bind ViewModel.NewGroupName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                PlaceholderText="{x:Bind S.SearchGroupToAddPlaceholder}"
+                                                                ItemsSource="{x:Bind ViewModel.GroupSearchSuggestions, Mode=OneWay}"
+                                                                TextChanged="GroupSearchBox_TextChanged"
+                                                                SuggestionChosen="GroupSearchBox_SuggestionChosen"
+                                                                QuerySubmitted="GroupSearchBox_QuerySubmitted"
+                                                                UpdateTextOnSelect="True">
+                                                    <AutoSuggestBox.QueryIcon>
+                                                        <FontIcon Glyph="&#xE716;"/>
+                                                    </AutoSuggestBox.QueryIcon>
+                                                </AutoSuggestBox>
+                                                <Button Content="{x:Bind S.AddGroupBtn}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Right" Click="ConfirmAddGroup_Click"/>
+                                            </StackPanel>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+
+                            <!-- Card Container -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{ThemeResource CardCornerRadius}">
+                                <StackPanel Spacing="0">
+                                    <!-- Filter Search Bar -->
+                                    <Grid Padding="12,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                        <TextBox x:Name="GroupFilterBox"
+                                                 PlaceholderText="{x:Bind S.FilterGroupsPlaceholder}"
+                                                 Text="{x:Bind ViewModel.GroupFilterQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 TextChanged="GroupFilterBox_TextChanged"/>
+                                    </Grid>
+
+                                    <!-- Groups List -->
+                                    <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}"
+                                              MaxHeight="260"
+                                              SelectionMode="None"
+                                              Padding="0,4">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:String">
+                                                <Grid Padding="12,8" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <!-- Group Icon -->
+                                                    <FontIcon Grid.Column="0" Glyph="&#xE716;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                    
+                                                    <!-- Group Name -->
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    
+                                                    <!-- Delete Button -->
+                                                    <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
+                                                            Click="RemoveGroup_Click" Tag="{x:Bind}"
+                                                            ToolTipService.ToolTip="{x:Bind local:Strings.S.RemoveGroupTooltip}">
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+
+                                    <!-- Empty Filter State -->
+                                    <Grid Padding="16,20" HorizontalAlignment="Center"
+                                          Visibility="{x:Bind ViewModel.HasNoFilteredGroups, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind S.NoGroupsMatchFilter}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                    </StackPanel>
+
+                    <!-- RIGHT COLUMN: Management, Hardware, Drives, Battery & BitLocker -->
+                    <StackPanel Grid.Column="1" Spacing="20">
+                        
+                        <!-- Management & Location Section -->
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.HasManagedBy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="{x:Bind S.ManagedByLabel}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Spacing="4">
+                                <controls:SettingsCard Header="{x:Bind S.ManagedByLabel}">
+                                    <Button Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.NavigateToManagedByUserCommand}" ToolTipService.ToolTip="{x:Bind S.OpenUserWorkspaceTooltip}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <PersonPicture DisplayName="{x:Bind ViewModel.CurrentComputer.ManagedBy, Mode=OneWay}" Width="24" Height="24"/>
+                                            <TextBlock Text="{x:Bind ViewModel.CurrentComputer.ManagedBy, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Header="{x:Bind S.LocationLabel}" Visibility="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}">
+                                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                        </Button>
+                                    </Grid>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Logged-on Users & Active Sessions Section (Feature 5) -->
+                        <StackPanel Spacing="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind S.LoggedOnUsersTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="10" 
+                                            Padding="8,2" 
+                                            VerticalAlignment="Center"
+                                            Visibility="{x:Bind ViewModel.HasSessionSnapshot, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind ViewModel.ActiveSessionsCountBadge, Mode=OneWay}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
+                                        Command="{x:Bind ViewModel.RefreshSessionsSnapshotCommand}"
+                                        ToolTipService.ToolTip="{x:Bind S.RefreshSessionsBtn}">
+                                    <FontIcon Glyph="&#xE72C;" FontSize="12"/>
+                                </Button>
+                            </Grid>
+
+                            <StackPanel Spacing="4">
+                                <!-- Loading State -->
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.IsSessionsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <controls:SettingsCard.Header>
+                                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind S.FetchingSessionData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </controls:SettingsCard.Header>
+                                </controls:SettingsCard>
+
+                                <!-- Error State -->
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.HasSessionError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                       Header="{x:Bind S.SessionDiagnosticFailed}">
+                                    <controls:SettingsCard.HeaderIcon>
+                                        <FontIcon Glyph="&#xE783;" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                    </controls:SettingsCard.HeaderIcon>
+                                </controls:SettingsCard>
+
+                                <!-- No Active Sessions Found -->
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.HasNoActiveSessions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                       Header="{x:Bind S.NoActiveSessionsFound}">
+                                    <controls:SettingsCard.HeaderIcon>
+                                        <FontIcon Glyph="&#xE77B;" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </controls:SettingsCard.HeaderIcon>
+                                </controls:SettingsCard>
+
+                                <!-- Sessions List -->
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Sessions, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="models:ComputerSessionInfo">
+                                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="14,10"
+                                                    Margin="0,0,0,4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Left: Avatar -->
+                                                    <PersonPicture Grid.Column="0" DisplayName="{x:Bind EffectiveDisplayName}" Width="32" Height="32" Margin="0,0,12,0" VerticalAlignment="Center"/>
+
+                                                    <!-- Middle: User Details & Session Badge -->
+                                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                            <TextBlock Text="{x:Bind EffectiveDisplayName}" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                                                            
+                                                            <!-- Session Type Pill: Console -->
+                                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                                    Visibility="{x:Bind IsConsole, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE77B;" FontSize="10" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind SessionTypeText}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Border>
+
+                                                            <!-- Session Type Pill: Remote Desktop (RDP) -->
+                                                            <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" BorderBrush="{ThemeResource SystemFillColorSuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                                    Visibility="{x:Bind IsRdp, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE836;" FontSize="10" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind SessionTypeText}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Border>
+
+                                                            <!-- Session Type Pill: Disconnected -->
+                                                            <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" BorderBrush="{ThemeResource SystemFillColorCautionBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                                    Visibility="{x:Bind IsDisconnected, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE7BA;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind SessionTypeText}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                            <TextBlock Text="{x:Bind FullUsername}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="•" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{x:Bind FormattedSessionSummary}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+
+                                                    <!-- Right: Actions (Jump to User Workspace & Disconnect) -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                        <!-- Copy Session Info -->
+                                                        <Button Style="{StaticResource SubtleIconButtonStyle}"
+                                                                Click="CopyText_Click"
+                                                                Tag="{x:Bind CopyDetailsText}"
+                                                                ToolTipService.ToolTip="{x:Bind local:Strings.S.CopyBtn}">
+                                                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                                        </Button>
+
+                                                        <!-- Open in User Workspace -->
+                                                        <Button Style="{StaticResource SubtleIconButtonStyle}"
+                                                                Click="OpenSessionUser_Click"
+                                                                Tag="{x:Bind SamAccountName}"
+                                                                ToolTipService.ToolTip="{x:Bind local:Strings.S.OpenUserWorkspaceTooltip}">
+                                                            <FontIcon Glyph="&#xE8A7;" FontSize="12"/>
+                                                        </Button>
+
+                                                        <!-- Remote Disconnect / Logoff Button -->
+                                                        <Button Style="{StaticResource SubtleIconButtonStyle}"
+                                                                Click="DisconnectSession_Click"
+                                                                Tag="{x:Bind}"
+                                                                ToolTipService.ToolTip="{x:Bind local:Strings.S.DisconnectSessionTooltip}">
+                                                            <FontIcon Glyph="&#xF3B1;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </StackPanel>
 
@@ -429,9 +710,9 @@
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="{x:Bind ViewModel.UptimeSnapshot.IsRebootPending, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind ViewModel.UptimeSnapshot.IsRebootPending, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
-                                            <TextBlock Text="{x:Bind ViewModel.UptimeSnapshot.RebootStatusText, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" ToolTipService.ToolTip="{x:Bind ViewModel.UptimeSnapshot.FormattedRebootReasons, Mode=OneWay}"/>
+                                            <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="{x:Bind ViewModel.UptimeSnapshot.IsRebootPending, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                            <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind ViewModel.UptimeSnapshot.IsRebootPending, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind ViewModel.UptimeSnapshot.RebootStatusText, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" ToolTipService.ToolTip="{x:Bind ViewModel.UptimeSnapshot.FormattedRebootReasons, Mode=OneWay}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.UptimeSnapshot.RebootStatusText, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}">
                                             <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
@@ -460,7 +741,8 @@
                                             Visibility="{x:Bind ViewModel.HasDiskSnapshot, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <TextBlock Text="{x:Bind ViewModel.DrivesCountBadge, Mode=OneWay}" 
                                                    Style="{ThemeResource CaptionTextBlockStyle}" 
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
                                     </Border>
                                 </StackPanel>
                                 <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
@@ -474,7 +756,7 @@
                                 <!-- Loading State -->
                                 <controls:SettingsCard Visibility="{x:Bind ViewModel.IsDiskLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                             <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind S.FetchingDrivesData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
@@ -525,12 +807,12 @@
                                                         <FontIcon Grid.Column="0" Glyph="&#xEDA2;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
 
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                            <TextBlock Text="{x:Bind DisplayTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,1">
-                                                                <TextBlock Text="{x:Bind FileSystem}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                            <TextBlock Text="{x:Bind DisplayTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                                <TextBlock Text="{x:Bind FileSystem}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                                             </Border>
-                                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,1">
-                                                                <TextBlock Text="{x:Bind MediaType}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                                <TextBlock Text="{x:Bind MediaType}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                                             </Border>
 
                                                             <!-- Drive Health Status Badge: OK / Healthy -->
@@ -538,12 +820,13 @@
                                                                     BorderBrush="{ThemeResource SystemFillColorSuccessBrush}" 
                                                                     BorderThickness="1" 
                                                                     CornerRadius="4" 
-                                                                    Padding="6,1"
+                                                                    Padding="6,2"
+                                                                    VerticalAlignment="Center"
                                                                     ToolTipService.ToolTip="{x:Bind HealthTooltip}"
                                                                     Visibility="{x:Bind IsHealthOk, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                    <FontIcon Glyph="&#xE73E;" FontSize="10" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
-                                                                    <TextBlock Text="{x:Bind HealthStatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE73E;" FontSize="10" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind HealthStatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Border>
 
@@ -552,12 +835,13 @@
                                                                     BorderBrush="{ThemeResource SystemFillColorCautionBrush}" 
                                                                     BorderThickness="1" 
                                                                     CornerRadius="4" 
-                                                                    Padding="6,1"
+                                                                    Padding="6,2"
+                                                                    VerticalAlignment="Center"
                                                                     ToolTipService.ToolTip="{x:Bind HealthTooltip}"
                                                                     Visibility="{x:Bind IsHealthWarning, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                    <FontIcon Glyph="&#xE7BA;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                                                                    <TextBlock Text="{x:Bind HealthStatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE7BA;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind HealthStatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Border>
 
@@ -566,12 +850,13 @@
                                                                     BorderBrush="{ThemeResource SystemFillColorCriticalBrush}" 
                                                                     BorderThickness="1" 
                                                                     CornerRadius="4" 
-                                                                    Padding="6,1"
+                                                                    Padding="6,2"
+                                                                    VerticalAlignment="Center"
                                                                     ToolTipService.ToolTip="{x:Bind HealthTooltip}"
                                                                     Visibility="{x:Bind IsHealthError, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                    <FontIcon Glyph="&#xEA39;" FontSize="10" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
-                                                                    <TextBlock Text="{x:Bind HealthStatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xEA39;" FontSize="10" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind HealthStatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Border>
 
@@ -580,11 +865,12 @@
                                                                     BorderBrush="{ThemeResource SystemFillColorCautionBrush}" 
                                                                     BorderThickness="1" 
                                                                     CornerRadius="4" 
-                                                                    Padding="6,1"
+                                                                    Padding="6,2"
+                                                                    VerticalAlignment="Center"
                                                                     Visibility="{x:Bind IsLowSpace, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                    <FontIcon Glyph="&#xE7BA;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                                                                    <TextBlock Text="{x:Bind local:Strings.S.LowDiskSpaceWarning}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE7BA;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{x:Bind local:Strings.S.LowDiskSpaceWarning}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Border>
                                                         </StackPanel>
@@ -614,6 +900,195 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Battery & Power Section -->
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.BatterySectionVisibility, Mode=OneWay}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind S.BatteryAndPowerTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    
+                                    <!-- Health Badge Pill: OK / Healthy -->
+                                    <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" 
+                                            BorderBrush="{ThemeResource SystemFillColorSuccessBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="4" 
+                                            Padding="6,2"
+                                            VerticalAlignment="Center"
+                                            Visibility="{x:Bind ViewModel.BatterySnapshot.IsHealthOk, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE73E;" FontSize="10" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.HealthStatusDisplay, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Health Badge Pill: Warning / Degraded -->
+                                    <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" 
+                                            BorderBrush="{ThemeResource SystemFillColorCautionBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="4" 
+                                            Padding="6,2"
+                                            VerticalAlignment="Center"
+                                            Visibility="{x:Bind ViewModel.BatterySnapshot.IsHealthWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE7BA;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.HealthStatusDisplay, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Health Badge Pill: Critical / Service -->
+                                    <Border Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" 
+                                            BorderBrush="{ThemeResource SystemFillColorCriticalBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="4" 
+                                            Padding="6,2"
+                                            VerticalAlignment="Center"
+                                            Visibility="{x:Bind ViewModel.BatterySnapshot.IsHealthCritical, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xEA39;" FontSize="10" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.HealthStatusDisplay, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Copy All Battery Info Button -->
+                                <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}"
+                                        Command="{x:Bind ViewModel.CopyToClipboardCommand}"
+                                        CommandParameter="{x:Bind ViewModel.BatterySnapshot.CopyDetailsText, Mode=OneWay}"
+                                        ToolTipService.ToolTip="{x:Bind S.CopyBtn}"
+                                        Visibility="{x:Bind ViewModel.HasBatterySnapshot, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Margin="0,0,4,0">
+                                    <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                                </Button>
+
+                                <!-- Refresh Battery Button -->
+                                <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
+                                        Command="{x:Bind ViewModel.RefreshBatterySnapshotCommand}"
+                                        ToolTipService.ToolTip="{x:Bind S.RefreshBatteryBtn}">
+                                    <FontIcon Glyph="&#xE72C;" FontSize="12"/>
+                                </Button>
+                            </Grid>
+
+                            <StackPanel Spacing="4">
+                                <!-- Loading State -->
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.IsBatteryLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <controls:SettingsCard.Header>
+                                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind S.FetchingBatteryData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </controls:SettingsCard.Header>
+                                </controls:SettingsCard>
+
+                                <!-- Error State -->
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.HasBatteryError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                       Header="{x:Bind S.BatteryDiagnosticFailed}">
+                                    <controls:SettingsCard.HeaderIcon>
+                                        <FontIcon Glyph="&#xE783;" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                    </controls:SettingsCard.HeaderIcon>
+                                </controls:SettingsCard>
+
+                                <!-- Main Battery Card (Rich Display per User Decision) -->
+                                <Border Visibility="{x:Bind ViewModel.HasBatterySnapshot, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="16,14">
+                                    <Grid RowSpacing="12">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Top Row: Device Name, Chemistry, Charging Status Pill -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <FontIcon Grid.Column="0" Glyph="&#xEBAE;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.DeviceName, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                        Visibility="{x:Bind ViewModel.BatterySnapshot.Chemistry, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                                    <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.Chemistry, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Live Charging / Power Status Pill -->
+                                            <Border Grid.Column="2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                                    <FontIcon Glyph="&#xEBAB;" FontSize="11" Foreground="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind ViewModel.BatterySnapshot.IsCharging, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                                    <FontIcon Glyph="&#xEBAE;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind ViewModel.BatterySnapshot.IsCharging, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.BatteryStatusText, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Row 1: Live Charge Level Progress Bar -->
+                                        <StackPanel Grid.Row="1" Spacing="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{x:Bind S.BatteryChargeRemainingLabel}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.BatterySnapshot.FormattedChargeSummary, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            </Grid>
+                                            <ProgressBar Value="{x:Bind ViewModel.BatterySnapshot.EstimatedChargeRemainingPercent, Mode=OneWay}" Maximum="100" Height="8" CornerRadius="4"/>
+                                        </StackPanel>
+
+                                        <!-- Row 2: Battery Wear & Degradation Gauge (Full Charge vs Design Capacity) -->
+                                        <StackPanel Grid.Row="2" Spacing="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind S.BatteryHealthLabel}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="•" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.FormattedWearNotice, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.BatterySnapshot.FormattedCapacitySummary, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <ProgressBar Value="{x:Bind ViewModel.BatterySnapshot.HealthPercentage, Mode=OneWay}" Maximum="100" Height="6" CornerRadius="3" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                        </StackPanel>
+
+                                        <!-- Row 3: Cycle Count & Estimated Runtime Grid -->
+                                        <Grid Grid.Row="3" Margin="0,4,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Cycle Count -->
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="{x:Bind S.BatteryCycleCountLabel}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                                <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.FormattedCycleCount, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            </StackPanel>
+
+                                            <!-- Estimated Remaining Runtime -->
+                                            <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                                <TextBlock Text="{x:Bind S.BatteryRuntimeLabel}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Right"/>
+                                                <TextBlock Text="{x:Bind ViewModel.BatterySnapshot.FormattedEstimatedRunTime, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
 
@@ -649,136 +1124,6 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </StackPanel>
-                        </StackPanel>
-
-                    </StackPanel>
-
-                    <!-- RIGHT COLUMN: Management & Groups -->
-                    <StackPanel Grid.Column="1" Spacing="20">
-                        
-                        <!-- Management & Location Section -->
-                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.HasManagedBy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Text="{x:Bind S.ManagedByLabel}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <StackPanel Spacing="4">
-                                <controls:SettingsCard Header="{x:Bind S.ManagedByLabel}">
-                                    <Button Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.NavigateToManagedByUserCommand}" ToolTipService.ToolTip="{x:Bind S.OpenUserWorkspaceTooltip}">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <PersonPicture DisplayName="{x:Bind ViewModel.CurrentComputer.ManagedBy, Mode=OneWay}" Width="24" Height="24"/>
-                                            <TextBlock Text="{x:Bind ViewModel.CurrentComputer.ManagedBy, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                                            <FontIcon Glyph="&#xE8A7;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                        </StackPanel>
-                                    </Button>
-                                </controls:SettingsCard>
-
-                                <controls:SettingsCard Header="{x:Bind S.LocationLabel}" Visibility="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}"/>
-                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentComputer.Location, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}">
-                                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
-                                        </Button>
-                                    </Grid>
-                                </controls:SettingsCard>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <!-- Group Memberships Section -->
-                        <StackPanel Spacing="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <!-- Section Header with Group Count Pill -->
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind S.GroupsTitle}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind ViewModel.GroupCountBadge, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- Quick Add Group Button with Flyout -->
-                                <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.AddGroupTooltip}">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <FontIcon Glyph="&#xE710;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                        <TextBlock Text="{x:Bind S.AddBtn}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                    </StackPanel>
-                                    <Button.Flyout>
-                                        <Flyout x:Name="AddGroupFlyout">
-                                            <StackPanel Spacing="10" Width="300" Padding="4">
-                                                <TextBlock Text="{x:Bind S.AddGroupTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                                                <AutoSuggestBox x:Name="NewGroupNameBox"
-                                                                Text="{x:Bind ViewModel.NewGroupName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                PlaceholderText="{x:Bind S.SearchGroupToAddPlaceholder}"
-                                                                ItemsSource="{x:Bind ViewModel.GroupSearchSuggestions, Mode=OneWay}"
-                                                                TextChanged="GroupSearchBox_TextChanged"
-                                                                SuggestionChosen="GroupSearchBox_SuggestionChosen"
-                                                                QuerySubmitted="GroupSearchBox_QuerySubmitted"
-                                                                UpdateTextOnSelect="True">
-                                                    <AutoSuggestBox.QueryIcon>
-                                                        <FontIcon Glyph="&#xE716;"/>
-                                                    </AutoSuggestBox.QueryIcon>
-                                                </AutoSuggestBox>
-                                                <Button Content="{x:Bind S.AddGroupBtn}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Right" Click="ConfirmAddGroup_Click"/>
-                                            </StackPanel>
-                                        </Flyout>
-                                    </Button.Flyout>
-                                </Button>
-                            </Grid>
-
-                            <!-- Card Container -->
-                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{ThemeResource CardCornerRadius}">
-                                <StackPanel Spacing="0">
-                                    <!-- Filter Search Bar -->
-                                    <Grid Padding="12,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                        <TextBox x:Name="GroupFilterBox"
-                                                 PlaceholderText="{x:Bind S.FilterGroupsPlaceholder}"
-                                                 Text="{x:Bind ViewModel.GroupFilterQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 TextChanged="GroupFilterBox_TextChanged"/>
-                                    </Grid>
-
-                                    <!-- Groups List -->
-                                    <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}"
-                                              MaxHeight="260"
-                                              SelectionMode="None"
-                                              Padding="0,4">
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate x:DataType="sys:String">
-                                                <Grid Padding="12,8" HorizontalAlignment="Stretch">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    
-                                                    <!-- Group Icon -->
-                                                    <FontIcon Grid.Column="0" Glyph="&#xE716;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                    
-                                                    <!-- Group Name -->
-                                                    <TextBlock Grid.Column="1" Text="{x:Bind}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                    
-                                                    <!-- Delete Button -->
-                                                    <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
-                                                            Click="RemoveGroup_Click" Tag="{x:Bind}"
-                                                            ToolTipService.ToolTip="{x:Bind local:Strings.S.RemoveGroupTooltip}">
-                                                        <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
-                                                    </Button>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-
-                                    <!-- Empty Filter State -->
-                                    <Grid Padding="16,20" HorizontalAlignment="Center"
-                                          Visibility="{x:Bind ViewModel.HasNoFilteredGroups, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <TextBlock Text="{x:Bind S.NoGroupsMatchFilter}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                     </StackPanel>

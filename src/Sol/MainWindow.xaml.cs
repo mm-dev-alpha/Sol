@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Security.Principal;
 using Microsoft.UI.Xaml;
@@ -25,12 +25,31 @@ public sealed partial class MainWindow : Window
         
         InitializeComponent();
 
+        Title = "Sol";
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            if (appWindow != null)
+            {
+                appWindow.Title = "Sol";
+                string iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
+                if (System.IO.File.Exists(iconPath))
+                {
+                    appWindow.SetIcon(iconPath);
+                }
+            }
+        }
+        catch { }
 
         // Initialize DI NavigationService with Shell ContentFrame
         _navigationService.Initialize(ContentFrame);
         _navigationService.Navigated += OnNavigated;
+        this.Closed += MainWindow_Closed;
 
         // Set Identity Context in TitleBar
         try
@@ -53,10 +72,17 @@ public sealed partial class MainWindow : Window
         {
             DispatcherQueue.TryEnqueue(() => 
             {
+                _toastTimer.Stop();
                 GlobalInfoBar.Message = m.Message;
                 GlobalInfoBar.Severity = m.Severity;
                 GlobalInfoBar.IsOpen = true;
-                _toastTimer.Start();
+
+                // Errors stay visible until the user explicitly dismisses them via the 'X' button.
+                // Informational, Success, and Warning notifications auto-dismiss after 4 seconds.
+                if (m.Severity != InfoBarSeverity.Error)
+                {
+                    _toastTimer.Start();
+                }
             });
         });
 
@@ -130,6 +156,10 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigated(object? sender, string pageKey)
     {
+        // Dismiss active notifications on navigation between workspaces/pages
+        GlobalInfoBar.IsOpen = false;
+        _toastTimer.Stop();
+
         // Keep NavigationView selection synchronized with active page key
         if (pageKey == "SettingsPage")
         {
@@ -143,5 +173,17 @@ public sealed partial class MainWindow : Window
                 RootNavigationView.SelectedItem = item;
             }
         }
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        try
+        {
+            var compVm = App.GetService<ComputerWorkspaceViewModel>();
+            compVm.RequestCloseProcessManager();
+        }
+        catch { }
+
+        Application.Current.Exit();
     }
 }

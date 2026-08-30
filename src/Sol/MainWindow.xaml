@@ -86,10 +86,11 @@
         <InfoBar x:Name="GlobalInfoBar" 
                  Grid.Row="1" 
                  IsOpen="False" 
+                 IsClosable="True"
                  Margin="24,16,24,0" 
                  VerticalAlignment="Top" 
-                 HorizontalAlignment="Center"
-                 MaxWidth="500"
+                 HorizontalAlignment="Center" 
+                 MaxWidth="620"
                  Canvas.ZIndex="1000" />
 
         <!-- Native Windows 11 Extended Splash Screen Overlay -->

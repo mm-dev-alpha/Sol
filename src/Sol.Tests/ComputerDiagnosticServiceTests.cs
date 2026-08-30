@@ -468,6 +468,395 @@ public class ComputerDiagnosticServiceTests
         Assert.NotNull(snapshot.ErrorMessage);
     }
 
+    [Fact]
+    public void ComputerBatterySnapshot_HealthMath_CalculatesCorrectly()
+    {
+        var battery = new ComputerBatterySnapshot
+        {
+            Hostname = "PC-DELL-01",
+            IsSuccess = true,
+            HasBattery = true,
+            DesignCapacityMWh = 54000,
+            FullChargeCapacityMWh = 48060, // 48060 / 54000 = 89.0%
+            EstimatedChargeRemainingPercent = 92,
+            CycleCount = 184,
+            EstimatedRunTime = TimeSpan.FromHours(4).Add(TimeSpan.FromMinutes(15))
+        };
+
+        Assert.Equal(89.0, battery.HealthPercentage, 1);
+        Assert.Equal(11.0, battery.WearPercentage, 1);
+        Assert.True(battery.IsHealthOk);
+        Assert.False(battery.IsHealthWarning);
+        Assert.False(battery.IsHealthCritical);
+        Assert.Equal("54.0 Wh", battery.FormattedDesignCapacity);
+        Assert.Equal("48.1 Wh", battery.FormattedFullChargeCapacity);
+        Assert.Equal("48.1 Wh / 54.0 Wh", battery.FormattedCapacitySummary);
+        Assert.Contains("184", battery.FormattedCycleCount);
+        Assert.Contains("4", battery.FormattedEstimatedRunTime);
+        Assert.Contains("PC-DELL-01", battery.CopyDetailsText);
+    }
+
+    [Fact]
+    public void ComputerBatterySnapshot_HealthFlags_EvaluateCorrectly()
+    {
+        var perfectBattery = new ComputerBatterySnapshot { IsSuccess = true, HasBattery = true, DesignCapacityMWh = 50000, FullChargeCapacityMWh = 50000 }; // 100%
+        var freshExceedingBattery = new ComputerBatterySnapshot { IsSuccess = true, HasBattery = true, DesignCapacityMWh = 50000, FullChargeCapacityMWh = 52000 }; // Clamped to 100%
+        var warnBattery = new ComputerBatterySnapshot { IsSuccess = true, HasBattery = true, DesignCapacityMWh = 50000, FullChargeCapacityMWh = 36000 }; // 72%
+        var critBattery = new ComputerBatterySnapshot { IsSuccess = true, HasBattery = true, DesignCapacityMWh = 50000, FullChargeCapacityMWh = 20000 }; // 40%
+        var failedBattery = new ComputerBatterySnapshot { IsSuccess = false, HasBattery = false };
+
+        Assert.Equal(100.0, perfectBattery.HealthPercentage);
+        Assert.True(perfectBattery.IsHealthOk);
+        Assert.False(perfectBattery.IsHealthWarning);
+
+        Assert.Equal(100.0, freshExceedingBattery.HealthPercentage);
+        Assert.True(freshExceedingBattery.IsHealthOk);
+
+        Assert.Equal(72.0, warnBattery.HealthPercentage, 1);
+        Assert.False(warnBattery.IsHealthOk);
+        Assert.True(warnBattery.IsHealthWarning);
+        Assert.False(warnBattery.IsHealthCritical);
+
+        Assert.Equal(40.0, critBattery.HealthPercentage, 1);
+        Assert.False(critBattery.IsHealthOk);
+        Assert.False(critBattery.IsHealthWarning);
+        Assert.True(critBattery.IsHealthCritical);
+
+        Assert.False(failedBattery.IsHealthOk);
+        Assert.False(failedBattery.IsHealthWarning);
+        Assert.False(failedBattery.IsHealthCritical);
+    }
+
+    [Fact]
+    public async Task GetBatterySnapshotAsync_EmptyHost_ReturnsFailedSnapshot()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetBatterySnapshotAsync(string.Empty);
+
+        Assert.False(snapshot.IsSuccess);
+        Assert.NotEmpty(snapshot.ErrorMessage ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task GetBatterySnapshotAsync_DellDemo_ReturnsExpectedBatteryData()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetBatterySnapshotAsync("PC-DELL-LATITUDE.company.local");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.True(snapshot.HasBattery);
+        Assert.Equal(54000u, snapshot.DesignCapacityMWh);
+        Assert.Equal(48060u, snapshot.FullChargeCapacityMWh);
+        Assert.Equal(89.0, snapshot.HealthPercentage, 1);
+        Assert.True(snapshot.IsHealthOk);
+        Assert.Equal(184, snapshot.CycleCount);
+        Assert.Equal(92u, snapshot.EstimatedChargeRemainingPercent);
+        Assert.False(snapshot.IsCharging);
+    }
+
+    [Fact]
+    public async Task GetBatterySnapshotAsync_LenovoDemo_ReturnsDegradedBatteryWarning()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetBatterySnapshotAsync("PC-LENOVO-THINKPAD.company.local");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.True(snapshot.HasBattery);
+        Assert.Equal(57000u, snapshot.DesignCapacityMWh);
+        Assert.Equal(41040u, snapshot.FullChargeCapacityMWh);
+        Assert.Equal(72.0, snapshot.HealthPercentage, 1);
+        Assert.True(snapshot.IsHealthWarning);
+        Assert.Equal(412, snapshot.CycleCount);
+        Assert.Equal(45u, snapshot.EstimatedChargeRemainingPercent);
+        Assert.True(snapshot.IsCharging);
+    }
+
+    [Fact]
+    public async Task GetBatterySnapshotAsync_UnreachableHost_ReturnsFailure()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetBatterySnapshotAsync("NON-EXISTENT-HOST-99999.invalid");
+
+        Assert.False(snapshot.IsSuccess);
+        Assert.NotNull(snapshot.ErrorMessage);
+    }
+
+    [Fact]
+    public void ComputerSessionSnapshot_SessionProperties_EvaluateCorrectly()
+    {
+        var session = new ComputerSessionInfo
+        {
+            SessionId = 1,
+            Username = "m.mustermann",
+            Domain = "CORP",
+            SamAccountName = "m.mustermann",
+            DisplayName = "Max Mustermann",
+            SessionType = ComputerSessionType.Console,
+            LogonTime = DateTime.Now.AddHours(-2).AddMinutes(-30),
+            IsActive = true
+        };
+
+        Assert.Equal("CORP\\m.mustermann", session.FullUsername);
+        Assert.Equal("Max Mustermann", session.EffectiveDisplayName);
+        Assert.True(session.IsConsole);
+        Assert.False(session.IsRdp);
+        Assert.False(session.IsDisconnected);
+        Assert.NotEmpty(session.FormattedLogonTime);
+        Assert.NotEmpty(session.FormattedDuration);
+        Assert.NotEmpty(session.CopyDetailsText);
+
+        var rdpSession = session with { SessionType = ComputerSessionType.RemoteDesktop };
+        Assert.True(rdpSession.IsRdp);
+        Assert.False(rdpSession.IsConsole);
+
+        var disconnectedSession = session with { SessionType = ComputerSessionType.Disconnected };
+        Assert.True(disconnectedSession.IsDisconnected);
+    }
+
+    [Fact]
+    public async Task GetSessionSnapshotAsync_EmptyHost_ReturnsFailure()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetSessionSnapshotAsync(string.Empty);
+
+        Assert.False(snapshot.IsSuccess);
+        Assert.NotEmpty(snapshot.ErrorMessage ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task GetSessionSnapshotAsync_DellDemo_ReturnsConsoleUser()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetSessionSnapshotAsync("PC-DELL-LATITUDE.company.local");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.True(snapshot.HasActiveSessions);
+        Assert.Single(snapshot.Sessions);
+        var user = snapshot.Sessions[0];
+        Assert.Equal("Max Mustermann", user.EffectiveDisplayName);
+        Assert.Equal("CORP\\m.mustermann", user.FullUsername);
+        Assert.True(user.IsConsole);
+        Assert.Equal(1u, user.SessionId);
+    }
+
+    [Fact]
+    public async Task GetSessionSnapshotAsync_LenovoDemo_ReturnsRdpAndDisconnectedUsers()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetSessionSnapshotAsync("PC-LENOVO-THINKPAD.company.local");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.True(snapshot.HasActiveSessions);
+        Assert.Equal(2, snapshot.Sessions.Count);
+
+        var rdpUser = snapshot.Sessions.FirstOrDefault(s => s.IsRdp);
+        Assert.NotNull(rdpUser);
+        Assert.Equal("Erika Schmidt", rdpUser.EffectiveDisplayName);
+        Assert.Equal(2u, rdpUser.SessionId);
+
+        var discUser = snapshot.Sessions.FirstOrDefault(s => s.IsDisconnected);
+        Assert.NotNull(discUser);
+        Assert.Equal("Alexander Becker", discUser.EffectiveDisplayName);
+        Assert.Equal(3u, discUser.SessionId);
+    }
+
+    [Fact]
+    public async Task GetSessionSnapshotAsync_UnreachableHost_ReturnsFailure()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetSessionSnapshotAsync("NON-EXISTENT-SESSION-HOST-99999.invalid");
+
+        Assert.False(snapshot.IsSuccess);
+        Assert.NotNull(snapshot.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task DisconnectSessionAsync_DellDemo_RemovesSessionSuccessfully()
+    {
+        var service = new ComputerDiagnosticService();
+        string host = "DEMO-DISCONNECT-TEST-PC.company.local";
+
+        // Query initial
+        var initialSnapshot = await service.GetSessionSnapshotAsync(host);
+        Assert.True(initialSnapshot.IsSuccess);
+        Assert.NotEmpty(initialSnapshot.Sessions);
+
+        uint sessionId = initialSnapshot.Sessions[0].SessionId ?? 1;
+
+        // Disconnect
+        await service.DisconnectSessionAsync(host, sessionId);
+
+        // Query again
+        var postDisconnectSnapshot = await service.GetSessionSnapshotAsync(host);
+        Assert.True(postDisconnectSnapshot.IsSuccess);
+        Assert.DoesNotContain(postDisconnectSnapshot.Sessions, s => s.SessionId == sessionId);
+    }
+
+    [Fact]
+    public void ComputerProcessInfo_PropertiesAndFormatters_EvaluateCorrectly()
+    {
+        var testDate = new DateTime(2026, 8, 30, 8, 0, 0);
+        var proc = new ComputerProcessInfo
+        {
+            ProcessId = 6120,
+            Name = "chrome.exe",
+            ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            WorkingSetBytes = 1536UL * 1024UL * 1024UL,
+            Owner = "CORP\\m.mustermann",
+            CreationDate = testDate
+        };
+
+        Assert.Equal("1.50 GB", proc.FormattedMemory);
+        Assert.Equal(1536.0, proc.MemoryMb, 1);
+        Assert.Equal("CORP\\m.mustermann", proc.DisplayOwner);
+        Assert.False(proc.IsCriticalSystemProcess);
+        Assert.True(proc.CanTerminate);
+        Assert.Equal(testDate.ToString("g"), proc.FormattedCreationDate);
+    }
+
+    [Fact]
+    public void ComputerProcessInfo_CriticalSystemProcesses_CannotBeTerminated()
+    {
+        var systemProc = new ComputerProcessInfo { ProcessId = 4, Name = "System" };
+        Assert.True(systemProc.IsCriticalSystemProcess);
+        Assert.False(systemProc.CanTerminate);
+
+        var lsassProc = new ComputerProcessInfo { ProcessId = 844, Name = "lsass.exe" };
+        Assert.True(lsassProc.IsCriticalSystemProcess);
+        Assert.False(lsassProc.CanTerminate);
+
+        var csrssProc = new ComputerProcessInfo { ProcessId = 620, Name = "csrss.exe" };
+        Assert.True(csrssProc.IsCriticalSystemProcess);
+        Assert.False(csrssProc.CanTerminate);
+
+        var smssProc = new ComputerProcessInfo { ProcessId = 412, Name = "smss.exe" };
+        Assert.True(smssProc.IsCriticalSystemProcess);
+        Assert.False(smssProc.CanTerminate);
+
+        var svchostSystem = new ComputerProcessInfo { ProcessId = 1120, Name = "svchost.exe", Owner = "NT AUTHORITY\\SYSTEM" };
+        Assert.True(svchostSystem.IsCriticalSystemProcess);
+        Assert.False(svchostSystem.CanTerminate);
+    }
+
+    [Fact]
+    public async Task GetProcessesSnapshotAsync_DellDemo_ReturnsProcessesAndUserOwner()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetProcessesSnapshotAsync("PC-DELL-LATITUDE.company.local");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.NotEmpty(snapshot.Processes);
+        Assert.True(snapshot.TotalProcessCount >= 10);
+        Assert.NotEmpty(snapshot.FormattedTotalMemory);
+
+        var chrome = snapshot.Processes.FirstOrDefault(p => p.Name.Equals("chrome.exe", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(chrome);
+        Assert.Equal("CORP\\m.mustermann", chrome.Owner);
+        Assert.True(chrome.CanTerminate);
+    }
+
+    [Fact]
+    public async Task GetProcessesSnapshotAsync_LenovoDemo_ReturnsProcessesAndUserOwner()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetProcessesSnapshotAsync("PC-LENOVO-THINKPAD.company.local");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.NotEmpty(snapshot.Processes);
+
+        var teams = snapshot.Processes.FirstOrDefault(p => p.Name.Equals("ms-teams.exe", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(teams);
+        Assert.Equal("CORP\\e.schmidt", teams.Owner);
+    }
+
+    [Fact]
+    public async Task TerminateProcessAsync_Demo_RemovesProcessSuccessfully()
+    {
+        var service = new ComputerDiagnosticService();
+        string host = "DEMO-PROC-TERMINATE-PC.company.local";
+
+        var initialSnapshot = await service.GetProcessesSnapshotAsync(host);
+        Assert.True(initialSnapshot.IsSuccess);
+        Assert.NotEmpty(initialSnapshot.Processes);
+
+        var procToKill = initialSnapshot.Processes.First(p => p.CanTerminate);
+        uint pid = procToKill.ProcessId;
+
+        bool terminated = await service.TerminateProcessAsync(host, pid);
+        Assert.True(terminated);
+
+        var postSnapshot = await service.GetProcessesSnapshotAsync(host);
+        Assert.True(postSnapshot.IsSuccess);
+        Assert.DoesNotContain(postSnapshot.Processes, p => p.ProcessId == pid);
+    }
+
+    [Fact]
+    public void ComputerWorkspaceViewModel_ProcessFilteringAndSorting_WorksCorrectly()
+    {
+        var mockAd = new MockAdService();
+        var mockNav = new MockNavigationService();
+        var mockDiag = new ComputerDiagnosticService();
+        var vm = new ComputerWorkspaceViewModel(mockAd, mockNav, mockDiag);
+
+        vm.ProcessSnapshot = new ComputerProcessSnapshot
+        {
+            Hostname = "TEST-PC",
+            IsSuccess = true,
+            Processes = new List<ComputerProcessInfo>
+            {
+                new() { ProcessId = 100, Name = "alpha.exe", WorkingSetBytes = 100 * 1024 * 1024, Owner = "CORP\\userA" },
+                new() { ProcessId = 200, Name = "beta.exe", WorkingSetBytes = 500 * 1024 * 1024, Owner = "CORP\\userB" },
+                new() { ProcessId = 300, Name = "gamma.exe", WorkingSetBytes = 250 * 1024 * 1024, Owner = "CORP\\userA" }
+            }
+        };
+
+        // Default sort (Memory Descending)
+        vm.ApplyProcessFilterAndSort();
+        Assert.Equal(3, vm.FilteredProcesses.Count);
+        Assert.Equal("beta.exe", vm.FilteredProcesses[0].Name);
+        Assert.Equal("gamma.exe", vm.FilteredProcesses[1].Name);
+        Assert.Equal("alpha.exe", vm.FilteredProcesses[2].Name);
+
+        // Sort Name Ascending
+        vm.ToggleProcessSort("Name");
+        Assert.Equal("alpha.exe", vm.FilteredProcesses[0].Name);
+        Assert.Equal("beta.exe", vm.FilteredProcesses[1].Name);
+        Assert.Equal("gamma.exe", vm.FilteredProcesses[2].Name);
+
+        // Toggle Name Descending
+        vm.ToggleProcessSort("Name");
+        Assert.Equal("gamma.exe", vm.FilteredProcesses[0].Name);
+        Assert.Equal("beta.exe", vm.FilteredProcesses[1].Name);
+        Assert.Equal("alpha.exe", vm.FilteredProcesses[2].Name);
+
+        // Sort PID Ascending
+        vm.ToggleProcessSort("PID");
+        Assert.Equal(100u, vm.FilteredProcesses[0].ProcessId);
+        Assert.Equal(200u, vm.FilteredProcesses[1].ProcessId);
+        Assert.Equal(300u, vm.FilteredProcesses[2].ProcessId);
+
+        // Filter by user
+        vm.FilterProcesses("userB");
+        Assert.Single(vm.FilteredProcesses);
+        Assert.Equal("beta.exe", vm.FilteredProcesses[0].Name);
+
+        // Verify CloseProcessManagerRequested event
+        bool closeRequested = false;
+        vm.CloseProcessManagerRequested += () => closeRequested = true;
+        vm.ResetToHeroState();
+        Assert.True(closeRequested);
+    }
+
+    private class MockNavigationService : INavigationService
+    {
+        public bool CanGoBack => false;
+        public string? CurrentPageKey => "ComputerWorkspacePage";
+        public event EventHandler<string>? Navigated { add { } remove { } }
+        public void Initialize(Microsoft.UI.Xaml.Controls.Frame frame) { }
+        public bool NavigateTo(string pageKey, object? parameter = null) => true;
+        public bool GoBack() => true;
+    }
+
     private class MockSearchService : ISearchService
     {
         public Task<IEnumerable<AdUser>> SearchUsersAsync(string query, CancellationToken cancellationToken = default) =>

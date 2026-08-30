@@ -108,4 +108,38 @@ public class AttributeEditorSafetyTests : IDisposable
         Assert.Equal("title", item.Key);
         Assert.Equal("Software Engineer", item.Value);
     }
+
+    [Theory]
+    [InlineData("title", true)]
+    [InlineData("givenName", true)]
+    [InlineData("sn", true)]
+    [InlineData("mail", true)]
+    [InlineData("department", true)]
+    [InlineData("physicalDeliveryOfficeName", true)]
+    [InlineData("userAccountControl", false)]
+    [InlineData("adminCount", false)]
+    [InlineData("pwdLastSet", false)]
+    [InlineData("objectSid", false)]
+    [InlineData("memberOf", false)]
+    public void IsProfileAttributeEditable_StrictlyEnforcesAllowlist(string attr, bool expected)
+    {
+        Assert.Equal(expected, ActiveDirectoryService.IsProfileAttributeEditable(attr));
+    }
+
+    [Theory]
+    [InlineData(0u, "System Idle Process", null, true)]
+    [InlineData(4u, "System", null, true)]
+    [InlineData(100u, "lsass.exe", null, true)]
+    [InlineData(101u, "csrss.exe", null, true)]
+    [InlineData(102u, "wininit.exe", null, true)]
+    [InlineData(103u, "services.exe", null, true)]
+    [InlineData(104u, "dwm.exe", null, true)]
+    [InlineData(105u, "svchost.exe", "NT AUTHORITY\\SYSTEM", true)]
+    [InlineData(106u, "svchost.exe", "CORP\\user", false)]
+    [InlineData(5000u, "chrome.exe", "CORP\\user", false)]
+    [InlineData(5001u, "notepad.exe", "CORP\\user", false)]
+    public void IsCriticalProcess_GuardsCriticalProcesses(uint pid, string name, string? owner, bool expectedCritical)
+    {
+        Assert.Equal(expectedCritical, Sol.Models.ComputerProcessInfo.IsCriticalProcess(pid, name, owner));
+    }
 }

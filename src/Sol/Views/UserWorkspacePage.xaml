@@ -98,11 +98,10 @@
                 <!-- Quick Command Bar -->
                 <CommandBar DefaultLabelPosition="Right" Background="Transparent">
                     <AppBarButton Icon="Edit" Label="{x:Bind S.EditBtn}" Command="{x:Bind ViewModel.BeginEditCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
-                    <AppBarButton Icon="Save" Label="{x:Bind S.SaveBtn}" Command="{x:Bind ViewModel.SaveProfileCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <AppBarButton Icon="Save" Label="{x:Bind S.SaveBtn}" Click="SaveProfile_Click" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <AppBarButton Icon="Cancel" Label="{x:Bind S.CancelBtn}" Command="{x:Bind ViewModel.CancelEditCommand}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <AppBarSeparator/>
                     <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllCommand}" />
-                    <AppBarButton Icon="Keyboard" Label="{x:Bind S.CopyPowerShellBtn}" Command="{x:Bind ViewModel.CopyPowerShellCommand}" />
                     <AppBarButton Icon="Repair" Label="{x:Bind S.AdvancedEditorBtn}" Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}" />
                     <AppBarButton Icon="Home" Label="{x:Bind S.CloseWorkspaceBtn}" Command="{x:Bind ViewModel.CloseWorkspaceCommand}"/>
                 </CommandBar>
@@ -149,7 +148,7 @@
                                 Visibility="{x:Bind ViewModel.IsAccountDisabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                         <Button Content="{x:Bind S.DisableAccountBtn}" 
-                                Command="{x:Bind ViewModel.DisableAccountCommand}" 
+                                Click="DisableAccount_Click" 
                                 Visibility="{x:Bind ViewModel.IsAccountEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         
                         <Button Content="{x:Bind S.UnlockAccountBtn}" 
@@ -440,7 +439,7 @@
                                         </Button>
 
                                         <!-- No Manager Assigned Fallback -->
-                                        <TextBlock Grid.Column="0" Text="N/A" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind ViewModel.NoManagerDisplayVisibility, Mode=OneWay}"/>
+                                        <TextBlock Grid.Column="0" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind ViewModel.NoManagerDisplayVisibility, Mode=OneWay}"/>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.TitleLabel}">

@@ -24,7 +24,14 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            await ViewModel.SearchCenterCommand.ExecuteAsync(sender.Text);
+            try
+            {
+                await ViewModel.SearchCenterCommand.ExecuteAsync(sender.Text);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -32,19 +39,33 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (args.SelectedItem is AdComputer chosenComp)
         {
-            await ViewModel.LoadComputerAsync(chosenComp);
+            try
+            {
+                await ViewModel.LoadComputerAsync(chosenComp);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
     private async void CenterSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
-        if (args.ChosenSuggestion is AdComputer chosenComp)
+        try
         {
-            await ViewModel.LoadComputerAsync(chosenComp);
+            if (args.ChosenSuggestion is AdComputer chosenComp)
+            {
+                await ViewModel.LoadComputerAsync(chosenComp);
+            }
+            else if (!string.IsNullOrWhiteSpace(args.QueryText))
+            {
+                await ViewModel.SearchAndLoadComputerAsync(args.QueryText);
+            }
         }
-        else if (!string.IsNullOrWhiteSpace(args.QueryText))
+        catch (Exception ex)
         {
-            await ViewModel.SearchAndLoadComputerAsync(args.QueryText);
+            ViewModel.ShowError(ex.Message);
         }
     }
 
@@ -52,7 +73,14 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (e.AddedItems.Count > 0 && e.AddedItems[0] is AdComputer selectedComp)
         {
-            await ViewModel.LoadComputerAsync(selectedComp);
+            try
+            {
+                await ViewModel.LoadComputerAsync(selectedComp);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -73,7 +101,14 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            await ViewModel.SearchGroupsCommand.ExecuteAsync(sender.Text);
+            try
+            {
+                await ViewModel.SearchGroupsCommand.ExecuteAsync(sender.Text);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -89,8 +124,15 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (!string.IsNullOrWhiteSpace(args.QueryText))
         {
-            await ViewModel.AddToGroupCommand.ExecuteAsync(args.QueryText);
-            AddGroupFlyout?.Hide();
+            try
+            {
+                await ViewModel.AddToGroupCommand.ExecuteAsync(args.QueryText);
+                AddGroupFlyout?.Hide();
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -98,16 +140,118 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (!string.IsNullOrWhiteSpace(ViewModel.NewGroupName))
         {
-            await ViewModel.AddToGroupCommand.ExecuteAsync(ViewModel.NewGroupName);
-            AddGroupFlyout?.Hide();
+            try
+            {
+                await ViewModel.AddToGroupCommand.ExecuteAsync(ViewModel.NewGroupName);
+                AddGroupFlyout?.Hide();
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
     private async void RemoveGroup_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string groupName)
+        if (sender is Button btn && btn.Tag is string groupName && !string.IsNullOrWhiteSpace(groupName))
         {
-            await ViewModel.RemoveFromGroupCommand.ExecuteAsync(groupName);
+            try
+            {
+                string computerName = ViewModel.CurrentComputer?.SamAccountName ?? string.Empty;
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = this.XamlRoot,
+                    Title = S.ConfirmRemoveFromGroupTitle,
+                    Content = Strings.ConfirmRemoveComputerFromGroupPrompt(computerName, groupName),
+                    PrimaryButtonText = S.ConfirmBtn,
+                    CloseButtonText = S.CancelBtn,
+                    DefaultButton = ContentDialogButton.Close
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    await ViewModel.RemoveFromGroupCommand.ExecuteAsync(groupName);
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
+        }
+    }
+
+    private async void DisableComputer_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentComputer == null) return;
+        try
+        {
+            string computerName = ViewModel.CurrentComputer.SamAccountName;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = S.ConfirmDisableAccountTitle,
+                Content = Strings.ConfirmDisableComputerAccountPrompt(computerName),
+                PrimaryButtonText = S.ConfirmBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.ToggleComputerAccountCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ShowError(ex.Message);
+        }
+    }
+
+    private async void OpenSessionUser_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string samAccountName && !string.IsNullOrWhiteSpace(samAccountName))
+        {
+            try
+            {
+                await ViewModel.NavigateToSessionUserCommand.ExecuteAsync(samAccountName);
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
+        }
+    }
+
+    private async void DisconnectSession_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is ComputerSessionInfo session)
+        {
+            try
+            {
+                string host = ViewModel.CurrentComputer?.SamAccountName ?? string.Empty;
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = this.XamlRoot,
+                    Title = S.ConfirmDisconnectSessionTitle,
+                    Content = Strings.ConfirmDisconnectSessionPrompt(session.EffectiveDisplayName, host),
+                    PrimaryButtonText = S.ConfirmBtn,
+                    CloseButtonText = S.CancelBtn,
+                    DefaultButton = ContentDialogButton.Close
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    await ViewModel.DisconnectSessionCommand.ExecuteAsync(session);
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewModel.ShowError(ex.Message);
+            }
         }
     }
 
@@ -127,10 +271,25 @@ public sealed partial class ComputerWorkspacePage : Page
         }
     }
 
-    private void CopyPs_GetAdComputer(object sender, RoutedEventArgs e) => ViewModel.CopyPowerShellCommand("Get-ADComputer");
-    private void CopyPs_TestConnection(object sender, RoutedEventArgs e) => ViewModel.CopyPowerShellCommand("Test-Connection");
-    private void CopyPs_EnterPsSession(object sender, RoutedEventArgs e) => ViewModel.CopyPowerShellCommand("Enter-PSSession");
-    private void CopyPs_Mstsc(object sender, RoutedEventArgs e) => ViewModel.CopyPowerShellCommand("mstsc");
+    private ProcessManagerWindow? _processManagerWindow;
+
+    private void OpenProcessManager_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentComputer == null) return;
+
+        if (_processManagerWindow != null)
+        {
+            _processManagerWindow.Activate();
+            return;
+        }
+
+        _processManagerWindow = new ProcessManagerWindow(ViewModel);
+        _processManagerWindow.Closed += (s, args) =>
+        {
+            _processManagerWindow = null;
+        };
+        _processManagerWindow.Activate();
+    }
 
     private void Ping_Click(object sender, RoutedEventArgs e)
     {

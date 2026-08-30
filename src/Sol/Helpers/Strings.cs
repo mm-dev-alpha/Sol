@@ -150,6 +150,7 @@ public class Strings
     public string RefreshBtn => IsDe ? "Aktualisieren" : "Refresh";
     public string CloseBtn => IsDe ? "Schließen" : "Close";
     public string ConfirmBtn => IsDe ? "Bestätigen" : "Confirm";
+    public string DeleteBtn => IsDe ? "Löschen" : "Delete";
 
     // User Workspace Sections
     public string AccountIdentitySection => IsDe ? "Konto & Identität" : "Account & Identity";
@@ -200,7 +201,7 @@ public class Strings
     public string CheckWarrantyTooltip => IsDe ? "Hersteller-Garantie aufrufen" : "Check Vendor Warranty";
     public string OpenUserWorkspaceTooltip => IsDe ? "Benutzer im Arbeitsbereich öffnen" : "Open user in workspace";
     public string FetchingHardwareData => IsDe ? "Hardware-Spezifikationen werden remote abgefragt..." : "Querying remote hardware specs...";
-    public string HardwareDiagnosticFailed => IsDe ? "Hardware-Diagnose nicht erreichbar (Computer offline oder WMI/RPC blockiert)" : "Hardware diagnostics unreachable (endpoint offline or WMI/RPC blocked)";
+    public string HardwareDiagnosticFailed => IsDe ? "Hardwarediagnose nicht erreichbar (Computer offline oder WMI/RPC blockiert)" : "Hardware diagnostics unreachable (endpoint offline or WMI/RPC blocked)";
     public string RefreshHardwareBtn => IsDe ? "Hardware-Diagnose aktualisieren" : "Refresh Hardware Diagnostics";
     public string WarrantyBtn => IsDe ? "Garantie prüfen" : "Check Warranty";
 
@@ -220,7 +221,7 @@ public class Strings
     public string DrivesAndStorageTitle => IsDe ? "Laufwerke & Speicherplatz" : "Drives & Storage";
     public string RefreshDrivesBtn => IsDe ? "Laufwerksdaten aktualisieren" : "Refresh Drive Data";
     public string FetchingDrivesData => IsDe ? "Laufwerksdaten werden über WMI abgerufen..." : "Querying remote storage & drives...";
-    public string DrivesDiagnosticFailed => IsDe ? "Laufwerks-Diagnose nicht erreichbar (Computer offline oder WMI blockiert)" : "Drive diagnostics unreachable (endpoint offline or WMI blocked)";
+    public string DrivesDiagnosticFailed => IsDe ? "Laufwerksdiagnose nicht erreichbar (Computer offline oder WMI/RPC blockiert)" : "Drive diagnostics unreachable (endpoint offline or WMI/RPC blocked)";
     public string NoDrivesFound => IsDe ? "Keine lokalen Festplattenlaufwerke gefunden." : "No local fixed disk drives found.";
     public string FreeOfLabel => IsDe ? "frei von" : "free of";
     public string UsedLabel => IsDe ? "belegt" : "used";
@@ -236,6 +237,123 @@ public class Strings
     public static string FormatDriveCapacity(string freeFormatted, string totalFormatted, double usedPct) => IsDe
         ? $"{freeFormatted} frei von {totalFormatted} ({usedPct:F0}% belegt)"
         : $"{freeFormatted} free of {totalFormatted} ({usedPct:F0}% used)";
+
+    // Feature 4: Battery Degradation & Health
+    public string BatteryAndPowerTitle => IsDe ? "Akku & Energie" : "Battery & Power";
+    public string RefreshBatteryBtn => IsDe ? "Akkudaten aktualisieren" : "Refresh Battery Data";
+    public string FetchingBatteryData => IsDe ? "Akkudaten werden remote abgefragt..." : "Querying remote battery & power state...";
+    public string BatteryDiagnosticFailed => IsDe ? "Akkudiagnose nicht erreichbar (Computer offline oder WMI/RPC blockiert)" : "Battery diagnostics unreachable (endpoint offline or WMI/RPC blocked)";
+    public string NoBatteryDetected => IsDe ? "Kein Akku erkannt (Desktop / stationäres System)" : "No battery detected (Desktop / AC-powered system)";
+    public string BatteryHealthLabel => IsDe ? "Akkuzustand (Gesundheit)" : "Battery Health";
+    public string BatteryWearNotice => IsDe ? "Verschleiß" : "Wear";
+    public string BatteryDesignCapacityLabel => IsDe ? "Design-Kapazität" : "Design Capacity";
+    public string BatteryFullChargeCapacityLabel => IsDe ? "Volle Ladekapazität" : "Full Charge Capacity";
+    public string BatteryChargeRemainingLabel => IsDe ? "Aktueller Ladestand" : "Current Charge";
+    public string BatteryCycleCountLabel => IsDe ? "Ladezyklen" : "Cycle Count";
+    public string BatteryRuntimeLabel => IsDe ? "Geschätzte Restlaufzeit" : "Estimated Runtime";
+    public string BatteryStatusCharging => IsDe ? "Wird geladen (Netzbetrieb)" : "Charging (AC)";
+    public string BatteryStatusDischarging => IsDe ? "Entlädt (Akkubetrieb)" : "Discharging (Battery)";
+    public string BatteryStatusFull => IsDe ? "Vollständig geladen" : "Fully Charged";
+    public string BatteryStatusUnknown => IsDe ? "Unbekannt" : "Unknown";
+    public string BatteryCyclesUnknown => IsDe ? "Nicht verfügbar" : "Not available";
+    public string BatteryRuntimeUnknown => IsDe ? "Wird berechnet..." : "Calculating...";
+    public string BatteryHealthOk => IsDe ? "Fehlerfrei" : "Healthy";
+    public string BatteryHealthWarning => IsDe ? "Abnutzung" : "Degraded";
+    public string BatteryHealthCritical => IsDe ? "Austausch empfohlen" : "Service Recommended";
+    public string BatteryHealthOkFormat => IsDe ? "Fehlerfrei ({0:F0}%)" : "Healthy ({0:F0}%)";
+    public string BatteryHealthWarningFormat => IsDe ? "Abnutzung ({0:F0}%)" : "Degraded ({0:F0}%)";
+    public string BatteryHealthCriticalFormat => IsDe ? "Austausch empfohlen ({0:F0}%)" : "Service Recommended ({0:F0}%)";
+    public static string FormatBatteryCycles(int cycles) => IsDe ? $"{cycles:N0} Zyklen" : $"{cycles:N0} cycles";
+    public static string FormatDuration(TimeSpan ts)
+    {
+        if (ts.TotalDays >= 1)
+        {
+            return FormatUptimeDays((int)ts.TotalDays, ts.Hours);
+        }
+        if (ts.TotalHours >= 1)
+        {
+            return FormatUptimeHours(ts.Hours, ts.Minutes);
+        }
+        return FormatUptimeMinutes(Math.Max(1, ts.Minutes));
+    }
+
+    // Feature 5: Live Logged-On Users & Active Session Inspector
+    public string LoggedOnUsersTitle => IsDe ? "Aktive Benutzer & Sitzungen" : "Logged-on Users & Active Sessions";
+    public string NoActiveSessionsFound => IsDe ? "Keine aktiven Benutzersitzungen angemeldet." : "No active user sessions logged on.";
+    public string SessionTypeConsole => IsDe ? "Konsole (Lokal)" : "Console (Local)";
+    public string SessionTypeRdp => IsDe ? "Remotedesktop (RDP)" : "Remote Desktop (RDP)";
+    public string SessionTypeDisconnected => IsDe ? "Getrennt" : "Disconnected";
+    public string FetchingSessionData => IsDe ? "Sitzungen werden abgefragt..." : "Fetching active sessions...";
+    public string SessionDiagnosticFailed => IsDe ? "Sitzungsdiagnose nicht erreichbar (Computer offline oder WMI/RPC blockiert)" : "Session diagnostics unreachable (endpoint offline or WMI/RPC blocked)";
+    public string RefreshSessionsBtn => IsDe ? "Sitzungen aktualisieren" : "Refresh Sessions";
+    public string DisconnectSessionBtn => IsDe ? "Sitzung trennen" : "Disconnect Session";
+    public string DisconnectSessionTooltip => IsDe ? "Diese Benutzersitzung remote abmelden oder trennen" : "Disconnect or log off this remote user session";
+    public string SessionDurationJustNow => IsDe ? "gerade angemeldet" : "just logged on";
+    public static string FormatSessionSince(string logonTime) => IsDe ? $"Angemeldet seit: {logonTime}" : $"Logged on since: {logonTime}";
+    public static string DisconnectSuccess(string user) => IsDe ? $"Sitzung von '{user}' wurde erfolgreich getrennt." : $"Session for '{user}' was disconnected successfully.";
+    public static string DisconnectFailed(string user, string err) => IsDe ? $"Trennen der Sitzung von '{user}' fehlgeschlagen: {err}" : $"Failed to disconnect session for '{user}': {err}";
+
+    // Safety Confirmation Dialog Strings
+    public string ConfirmDisconnectSessionTitle => IsDe ? "Sitzungsabmeldung bestätigen" : "Confirm Session Disconnect";
+    public static string ConfirmDisconnectSessionPrompt(string user, string host) => IsDe 
+        ? $"Möchten Sie die Sitzung von '{user}' auf '{host}' wirklich trennen / abmelden? Nicht gespeicherte Daten des Benutzers könnten verloren gehen."
+        : $"Are you sure you want to disconnect / log off the session of '{user}' on '{host}'? Any unsaved user data might be lost.";
+    
+    public string ConfirmRemoveFromGroupTitle => IsDe ? "Aus Gruppe entfernen" : "Remove from Group";
+    public static string ConfirmRemoveUserFromGroupPrompt(string user, string group) => IsDe
+        ? $"Möchten Sie den Benutzer '{user}' wirklich aus der Gruppe '{group}' entfernen?"
+        : $"Are you sure you want to remove user '{user}' from group '{group}'?";
+    public static string ConfirmRemoveComputerFromGroupPrompt(string computer, string group) => IsDe
+        ? $"Möchten Sie das Computerkonto '{computer}' wirklich aus der Gruppe '{group}' entfernen?"
+        : $"Are you sure you want to remove computer '{computer}' from group '{group}'?";
+
+    public string ConfirmDisableAccountTitle => IsDe ? "Konto deaktivieren" : "Disable Account";
+    public static string ConfirmDisableUserAccountPrompt(string user) => IsDe
+        ? $"Möchten Sie das Benutzerkonto von '{user}' wirklich deaktivieren? Der Benutzer kann sich danach nicht mehr anmelden."
+        : $"Are you sure you want to disable the user account of '{user}'? The user will no longer be able to log in.";
+    public static string ConfirmDisableComputerAccountPrompt(string computer) => IsDe
+        ? $"Möchten Sie das Computerkonto '{computer}' wirklich deaktivieren? Das Gerät verliert die Domänenauthentifizierung."
+        : $"Are you sure you want to disable computer account '{computer}'? The device will lose domain trust.";
+
+    public string ConfirmForcePasswordChangeTitle => IsDe ? "Kennwortänderung erzwingen" : "Require Password Change";
+    public static string ConfirmForcePasswordChangePrompt(string user) => IsDe
+        ? $"Möchten Sie für '{user}' erzwingen, dass das Kennwort bei der nächsten Anmeldung geändert werden muss?"
+        : $"Are you sure you want to require '{user}' to change their password at next logon?";
+
+    public string ConfirmSaveProfileTitle => IsDe ? "Profiländerungen speichern" : "Save Profile Changes";
+    public static string ConfirmSaveProfilePrompt(string user) => IsDe
+        ? $"Möchten Sie die vorgenommenen Änderungen am Benutzerkonto '{user}' in Active Directory speichern?"
+        : $"Are you sure you want to save the modified properties for user '{user}' to Active Directory?";
+
+    // Feature 6: Remote Process Manager & Task Terminator
+    public string ProcessManagerTitle => IsDe ? "Remote-Task-Manager" : "Remote Process Manager";
+    public string ProcessManagerBtn => IsDe ? "Task-Manager" : "Process Manager";
+    public string ProcessManagerTooltip => IsDe ? "Laufende Prozesse auf dem Remote-Computer verwalten" : "Manage running processes on remote computer";
+    public string PidHeader => "PID";
+    public string ProcessNameHeader => IsDe ? "Name" : "Process Name";
+    public string UserHeader => IsDe ? "Benutzer" : "User";
+    public string CpuHeader => "CPU";
+    public string MemoryHeader => IsDe ? "Arbeitsspeicher" : "Memory";
+    public string NetworkHeader => IsDe ? "Netzwerk" : "Network";
+    public string SearchProcessesPlaceholder => IsDe ? "Prozesse filtern (Name, PID, Benutzer)..." : "Filter processes (Name, PID, User)...";
+    public string SortByMemoryDesc => IsDe ? "Speicher (absteigend)" : "Memory (High to Low)";
+    public string SortByNameAsc => IsDe ? "Name (A-Z)" : "Name (A-Z)";
+    public string SortByPidAsc => IsDe ? "PID (aufsteigend)" : "PID (Low to High)";
+    public string TerminateProcessBtn => IsDe ? "Prozess beenden" : "End Process";
+    public string TerminateProcessTooltip => IsDe ? "Prozess sofort beenden" : "Terminate process immediately";
+    public string CriticalProcessCannotBeTerminated => IsDe ? "Kritischer Systemprozess kann nicht beendet werden (Systemschutz)" : "Critical system process cannot be terminated (System Protection)";
+    public string ConfirmTerminateProcessTitle => IsDe ? "Prozess beenden bestätigen" : "Confirm Process Termination";
+    public static string ConfirmTerminateProcessPrompt(string processName, uint pid, string host) => IsDe
+        ? $"Möchten Sie den Prozess '{processName}' (PID: {pid}) auf '{host}' wirklich beenden? Nicht gespeicherte Daten in dieser Anwendung gehen verloren."
+        : $"Are you sure you want to terminate process '{processName}' (PID: {pid}) on '{host}'? Unsaved data in this application will be lost.";
+    public static string ProcessTerminatedSuccess(string processName) => IsDe ? $"Prozess '{processName}' erfolgreich beendet." : $"Process '{processName}' terminated successfully.";
+    public static string TerminateProcessFailed(string error) => IsDe ? $"Beenden des Prozesses fehlgeschlagen: {error}" : $"Failed to terminate process: {error}";
+    public static string TerminateProcessFailedNamed(string processName, uint pid) => IsDe
+        ? $"Prozess '{processName}' (PID: {pid}) konnte nicht beendet werden."
+        : $"Failed to terminate process '{processName}' (PID: {pid}).";
+    public string FetchingProcessData => IsDe ? "Prozessliste wird remote abgefragt..." : "Querying remote process list...";
+    public string NoProcessesFound => IsDe ? "Keine laufenden Prozesse gefunden." : "No running processes found.";
+    public static string TotalProcessesCountBadge(int count) => IsDe ? $"{count} Prozesse" : $"{count} processes";
 
     // Advanced Attribute Editor (Safe Whitelist & Inspector)
     public string AdvancedEditorBtn => IsDe ? "Attribut-Editor" : "Attribute Editor";
