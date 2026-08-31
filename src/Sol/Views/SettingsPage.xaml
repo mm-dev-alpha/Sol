@@ -100,19 +100,19 @@
                                               Visibility="{x:Bind ViewModel.IsTestingJira, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                 <Button Content="{x:Bind S.TestJiraConnectionBtn}" 
                                         Command="{x:Bind ViewModel.TestJiraConnectionCommand}" 
-                                        IsEnabled="{x:Bind ViewModel.IsTestingJira, Mode=OneWay, Converter={StaticResource InvertedBoolConverter}}"
+                                        IsEnabled="{x:Bind ViewModel.IsNotTestingJira, Mode=OneWay}"
                                         Style="{ThemeResource DefaultButtonStyle}"/>
                             </StackPanel>
                         </controls:SettingsCard>
-
-                        <!-- Inline Feedback InfoBar -->
-                        <InfoBar IsOpen="{x:Bind ViewModel.IsJiraTestStatusOpen, Mode=TwoWay}"
-                                 Severity="{x:Bind ViewModel.JiraTestStatusSeverity, Mode=OneWay}"
-                                 Message="{x:Bind ViewModel.JiraTestStatusMessage, Mode=OneWay}"
-                                 IsClosable="True"
-                                 Margin="16,4,16,12"/>
                     </controls:SettingsExpander.Items>
                 </controls:SettingsExpander>
+
+                <!-- Inline Feedback InfoBar -->
+                <InfoBar IsOpen="{x:Bind ViewModel.IsJiraTestStatusOpen, Mode=TwoWay}"
+                         Severity="{x:Bind ViewModel.JiraTestStatusSeverity, Mode=OneWay}"
+                         Message="{x:Bind ViewModel.JiraTestStatusMessage, Mode=OneWay}"
+                         IsClosable="True"
+                         Margin="0,0,0,0"/>
             </StackPanel>
 
             <!-- About Section -->

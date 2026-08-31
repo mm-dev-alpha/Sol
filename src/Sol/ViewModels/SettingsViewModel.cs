@@ -35,11 +35,14 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial string JiraPatSecret { get; set; } = string.Empty;
     [ObservableProperty] public partial string JiraCloudTokenSecret { get; set; } = string.Empty;
 
-    [ObservableProperty] public partial bool IsTestingJira { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotTestingJira))]
+    public partial bool IsTestingJira { get; set; }
     [ObservableProperty] public partial bool IsJiraTestStatusOpen { get; set; }
     [ObservableProperty] public partial InfoBarSeverity JiraTestStatusSeverity { get; set; } = InfoBarSeverity.Informational;
     [ObservableProperty] public partial string JiraTestStatusMessage { get; set; } = string.Empty;
 
+    public bool IsNotTestingJira => !IsTestingJira;
     public bool IsJiraDataCenter => string.Equals(JiraDeploymentMode, "DataCenter", StringComparison.OrdinalIgnoreCase);
     public bool IsJiraCloud => string.Equals(JiraDeploymentMode, "Cloud", StringComparison.OrdinalIgnoreCase);
 
