@@ -12,21 +12,38 @@ public sealed partial class SettingsPage : Page
     {
         ViewModel = App.GetService<SettingsViewModel>();
         InitializeComponent();
+        this.Loaded += (s, e) => ViewModel.LoadSettings();
     }
 
-    private void JiraSecretBox_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void JiraPatBox_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        if (sender is PasswordBox pb && !string.IsNullOrEmpty(ViewModel.JiraSecret))
+        if (sender is PasswordBox pb && !string.IsNullOrEmpty(ViewModel.JiraPatSecret))
         {
-            pb.Password = ViewModel.JiraSecret;
+            pb.Password = ViewModel.JiraPatSecret;
         }
     }
 
-    private void JiraSecretBox_PasswordChanged(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void JiraPatBox_PasswordChanged(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         if (sender is PasswordBox pb)
         {
-            ViewModel.JiraSecret = pb.Password;
+            ViewModel.JiraPatSecret = pb.Password;
+        }
+    }
+
+    private void JiraApiTokenBox_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (sender is PasswordBox pb && !string.IsNullOrEmpty(ViewModel.JiraCloudTokenSecret))
+        {
+            pb.Password = ViewModel.JiraCloudTokenSecret;
+        }
+    }
+
+    private void JiraApiTokenBox_PasswordChanged(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (sender is PasswordBox pb)
+        {
+            ViewModel.JiraCloudTokenSecret = pb.Password;
         }
     }
 }

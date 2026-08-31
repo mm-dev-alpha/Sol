@@ -116,6 +116,8 @@ public record ComputerServiceInfo
     public string StartModeManualDisplay => Helpers.Strings.S.ServiceStartModeManual;
     public string StartModeDisabledDisplay => Helpers.Strings.S.ServiceStartModeDisabled;
 
+    public string[] AvailableStartModes => [StartModeAutoDisplay, StartModeManualDisplay, StartModeDisabledDisplay];
+
     public Microsoft.UI.Xaml.Visibility RunningVisibility => IsRunning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility StoppedVisibility => IsStopped ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility PendingVisibility => IsPending ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;

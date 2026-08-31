@@ -231,15 +231,12 @@
                                 <!-- Column 3: Startup Type ComboBox -->
                                 <ComboBox Grid.Column="3"
                                           Tag="{x:Bind}"
+                                          ItemsSource="{x:Bind AvailableStartModes}"
                                           SelectedIndex="{x:Bind StartModeIndex}"
                                           IsEnabled="{x:Bind CanChangeStartMode}"
                                           DropDownClosed="StartModeCombo_DropDownClosed"
                                           Width="125"
-                                          VerticalAlignment="Center">
-                                    <ComboBoxItem Content="{x:Bind StartModeAutoDisplay}" Tag="Auto" />
-                                    <ComboBoxItem Content="{x:Bind StartModeManualDisplay}" Tag="Manual" />
-                                    <ComboBoxItem Content="{x:Bind StartModeDisabledDisplay}" Tag="Disabled" />
-                                </ComboBox>
+                                          VerticalAlignment="Center"/>
 
                                 <!-- Column 4: Log On As -->
                                 <TextBlock Grid.Column="4" Text="{x:Bind DisplayStartName}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />

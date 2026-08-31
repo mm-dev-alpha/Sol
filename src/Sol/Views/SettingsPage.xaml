@@ -23,10 +23,9 @@
                     <controls:SettingsCard.HeaderIcon>
                         <SymbolIcon Symbol="Character"/>
                     </controls:SettingsCard.HeaderIcon>
-                    <ComboBox SelectedIndex="{x:Bind ViewModel.AppLanguageIndex, Mode=TwoWay}" Width="160">
-                        <ComboBoxItem Content="English"/>
-                        <ComboBoxItem Content="Deutsch"/>
-                    </ComboBox>
+                    <ComboBox ItemsSource="{x:Bind ViewModel.AvailableLanguages}"
+                              SelectedIndex="{x:Bind ViewModel.AppLanguageIndex, Mode=TwoWay}" 
+                              Width="160" />
                 </controls:SettingsCard>
             </StackPanel>
 
@@ -57,10 +56,9 @@
                     <controls:SettingsExpander.Items>
                         <!-- Deployment Model -->
                         <controls:SettingsCard Header="{x:Bind S.JiraDeploymentModeLabel}">
-                            <ComboBox SelectedIndex="{x:Bind ViewModel.JiraDeploymentModeIndex, Mode=TwoWay}" Width="260">
-                                <ComboBoxItem Content="{x:Bind S.JiraDataCenterOption}"/>
-                                <ComboBoxItem Content="{x:Bind S.JiraCloudOption}"/>
-                            </ComboBox>
+                            <ComboBox ItemsSource="{x:Bind ViewModel.JiraDeploymentModes}"
+                                      SelectedIndex="{x:Bind ViewModel.JiraDeploymentModeIndex, Mode=TwoWay}" 
+                                      Width="260" />
                         </controls:SettingsCard>
 
                         <!-- Base URL -->
@@ -79,8 +77,8 @@
                                                Description="{x:Bind S.JiraPatPlaceholder}"
                                                Visibility="{x:Bind ViewModel.IsJiraDataCenter, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <PasswordBox x:Name="JiraPatBox" 
-                                         Loaded="JiraSecretBox_Loaded"
-                                         PasswordChanged="JiraSecretBox_PasswordChanged" 
+                                         Loaded="JiraPatBox_Loaded"
+                                         PasswordChanged="JiraPatBox_PasswordChanged" 
                                          Width="320"/>
                         </controls:SettingsCard>
 
@@ -89,8 +87,8 @@
                                                Description="{x:Bind S.JiraApiTokenPlaceholder}"
                                                Visibility="{x:Bind ViewModel.IsJiraCloud, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <PasswordBox x:Name="JiraApiTokenBox" 
-                                         Loaded="JiraSecretBox_Loaded"
-                                         PasswordChanged="JiraSecretBox_PasswordChanged" 
+                                         Loaded="JiraApiTokenBox_Loaded"
+                                         PasswordChanged="JiraApiTokenBox_PasswordChanged" 
                                          Width="320"/>
                         </controls:SettingsCard>
 
@@ -106,6 +104,13 @@
                                         Style="{ThemeResource DefaultButtonStyle}"/>
                             </StackPanel>
                         </controls:SettingsCard>
+
+                        <!-- Inline Feedback InfoBar -->
+                        <InfoBar IsOpen="{x:Bind ViewModel.IsJiraTestStatusOpen, Mode=TwoWay}"
+                                 Severity="{x:Bind ViewModel.JiraTestStatusSeverity, Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.JiraTestStatusMessage, Mode=OneWay}"
+                                 IsClosable="True"
+                                 Margin="16,4,16,12"/>
                     </controls:SettingsExpander.Items>
                 </controls:SettingsExpander>
             </StackPanel>

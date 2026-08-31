@@ -459,6 +459,7 @@ public class Strings
     public string TestingJiraConnection => IsDe ? "JIRA-Verbindung wird getestet..." : "Testing JIRA connection...";
     public string JiraConnectionSuccessPrompt => IsDe ? "JIRA-Verbindung erfolgreich hergestellt." : "JIRA connection established successfully.";
     public string JiraConnectionFailedPrompt => IsDe ? "JIRA-Verbindung fehlgeschlagen. Bitte URL und Zugangsdaten prüfen." : "JIRA connection failed. Please verify URL and credentials.";
+    public string JiraUrlRequiredPrompt => IsDe ? "Bitte geben Sie zuerst eine gültige Basis-URL ein." : "Please enter a valid Base URL first.";
     public string JiraCredentialsSavedPrompt => IsDe ? "JIRA-Anmeldeinformationen sicher im Windows-Tresor gespeichert." : "JIRA credentials securely saved in Windows Credential Locker.";
 
     // Feature 10: Remote Windows Services Inspector & Controller

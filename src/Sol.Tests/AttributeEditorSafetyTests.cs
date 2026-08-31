@@ -142,4 +142,73 @@ public class AttributeEditorSafetyTests : IDisposable
     {
         Assert.Equal(expectedCritical, Sol.Models.ComputerProcessInfo.IsCriticalProcess(pid, name, owner));
     }
+
+    [Fact]
+    public void SettingsViewModel_NegativeIndex_DoesNotCorruptLanguageOrMode()
+    {
+        var settings = new SettingsService();
+        settings.AppLanguage = "de";
+        settings.JiraDeploymentMode = "Cloud";
+        var jira = new JiraService(settings);
+        var vm = new ViewModels.SettingsViewModel(settings, jira);
+
+        Assert.Equal("de", vm.AppLanguage);
+        Assert.Equal(1, vm.AppLanguageIndex);
+        Assert.Equal("Cloud", vm.JiraDeploymentMode);
+        Assert.Equal(1, vm.JiraDeploymentModeIndex);
+
+        // Simulate WinUI 3 transient unselected -1 on visual layout
+        vm.AppLanguageIndex = -1;
+        vm.JiraDeploymentModeIndex = -1;
+
+        Assert.Equal("de", vm.AppLanguage);
+        Assert.Equal("Cloud", vm.JiraDeploymentMode);
+    }
+
+    [Fact]
+    public void SettingsViewModel_TogglingJira_AutoPersistsWithoutRestart()
+    {
+        var settings = new SettingsService();
+        settings.IsJiraEnabled = false;
+        var jira = new JiraService(settings);
+        var vm = new ViewModels.SettingsViewModel(settings, jira);
+
+        Assert.False(settings.IsJiraEnabled);
+
+        // Turn on
+        vm.IsJiraEnabled = true;
+        Assert.True(settings.IsJiraEnabled);
+
+        // Turn off
+        vm.IsJiraEnabled = false;
+        Assert.False(settings.IsJiraEnabled);
+    }
+
+    [Fact]
+    public async Task SettingsViewModel_TestConnection_WarnsOnEmptyUrl()
+    {
+        var settings = new SettingsService();
+        var jira = new JiraService(settings);
+        var vm = new ViewModels.SettingsViewModel(settings, jira);
+
+        vm.JiraBaseUrl = "";
+        await vm.TestJiraConnectionCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsJiraTestStatusOpen);
+        Assert.Equal(Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning, vm.JiraTestStatusSeverity);
+    }
+
+    [Fact]
+    public void ComputerServiceInfo_AvailableStartModes_HasAllThreeOptions()
+    {
+        var info = new Models.ComputerServiceInfo { StartMode = "Auto" };
+        Assert.Equal(3, info.AvailableStartModes.Length);
+        Assert.Equal(0, info.StartModeIndex);
+
+        var manualInfo = new Models.ComputerServiceInfo { StartMode = "Manual" };
+        Assert.Equal(1, manualInfo.StartModeIndex);
+
+        var disabledInfo = new Models.ComputerServiceInfo { StartMode = "Disabled" };
+        Assert.Equal(2, disabledInfo.StartModeIndex);
+    }
 }
