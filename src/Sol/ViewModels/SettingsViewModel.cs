@@ -126,9 +126,6 @@ public partial class SettingsViewModel : ObservableObject
             JiraTestStatusMessage = Strings.S.JiraUrlRequiredPrompt;
             JiraTestStatusSeverity = InfoBarSeverity.Warning;
             IsJiraTestStatusOpen = true;
-            WeakReferenceMessenger.Default.Send(
-                new AppNotificationMessage(Strings.S.JiraUrlRequiredPrompt, InfoBarSeverity.Warning)
-            );
             return;
         }
 
@@ -148,18 +145,12 @@ public partial class SettingsViewModel : ObservableObject
                 JiraTestStatusMessage = Strings.S.JiraConnectionSuccessPrompt;
                 JiraTestStatusSeverity = InfoBarSeverity.Success;
                 IsJiraTestStatusOpen = true;
-                WeakReferenceMessenger.Default.Send(
-                    new AppNotificationMessage(Strings.S.JiraConnectionSuccessPrompt, InfoBarSeverity.Success)
-                );
             }
             else
             {
                 JiraTestStatusMessage = Strings.S.JiraConnectionFailedPrompt;
                 JiraTestStatusSeverity = InfoBarSeverity.Error;
                 IsJiraTestStatusOpen = true;
-                WeakReferenceMessenger.Default.Send(
-                    new AppNotificationMessage(Strings.S.JiraConnectionFailedPrompt, InfoBarSeverity.Error)
-                );
             }
         }
         catch (Exception ex)
@@ -167,9 +158,6 @@ public partial class SettingsViewModel : ObservableObject
             JiraTestStatusMessage = $"{Strings.S.JiraConnectionFailedPrompt}: {ex.Message}";
             JiraTestStatusSeverity = InfoBarSeverity.Error;
             IsJiraTestStatusOpen = true;
-            WeakReferenceMessenger.Default.Send(
-                new AppNotificationMessage($"{Strings.S.JiraConnectionFailedPrompt} ({ex.Message})", InfoBarSeverity.Error)
-            );
         }
         finally
         {
