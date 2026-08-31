@@ -24,6 +24,12 @@ public partial class App : Application
 
     public App()
     {
+        try
+        {
+            Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "en-US";
+        }
+        catch { }
+
         this.InitializeComponent();
 
         this.UnhandledException += (s, e) =>
@@ -73,6 +79,12 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        try
+        {
+            Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "en-US";
+        }
+        catch { }
+
         Sol.Helpers.Strings.CurrentLanguage = "en";
 
         MainWindow = new MainWindow();

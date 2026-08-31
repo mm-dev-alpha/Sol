@@ -104,6 +104,11 @@ public sealed partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        if (RootNavigationView.SettingsItem is NavigationViewItem settingsItem)
+        {
+            settingsItem.Content = Strings.S.NavSettings;
+        }
+
         // Smooth natural pause (~450ms) to ensure views and navigation are fully measured
         await System.Threading.Tasks.Task.Delay(450);
 
