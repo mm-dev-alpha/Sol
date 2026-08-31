@@ -75,26 +75,34 @@ public class JiraService : IJiraService
         string baseUrl = (overrideBaseUrl ?? _settings.JiraBaseUrl ?? string.Empty).Trim().TrimEnd('/');
         string mode = overrideMode ?? _settings.JiraDeploymentMode ?? "DataCenter";
         string email = (overrideEmail ?? _settings.JiraCloudEmail ?? string.Empty).Trim();
-        string secret = overrideSecret ?? JiraCredentialHelper.GetSecret(mode);
+        string secret = (overrideSecret ?? JiraCredentialHelper.GetSecret(mode) ?? string.Empty).Trim();
 
-        if (string.IsNullOrWhiteSpace(baseUrl))
-            return false;
-
-        if (IsDemoOrTestEndpoint(baseUrl, secret))
+        // 1. Strict URL validation: must be an absolute http or https URI
+        if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            await Task.Delay(400, cancellationToken);
-            return true;
+            return false;
         }
 
+        bool isCloud = string.Equals(mode, "Cloud", StringComparison.OrdinalIgnoreCase);
+
+        // 2. Strict credentials check: Secret is required for all modes; email is required for Cloud
+        if (string.IsNullOrWhiteSpace(secret))
+            return false;
+
+        if (isCloud && string.IsNullOrWhiteSpace(email))
+            return false;
+
+        // 3. Real network verification against Jira REST API /myself endpoint
         try
         {
-            bool isCloud = string.Equals(mode, "Cloud", StringComparison.OrdinalIgnoreCase);
             string endpoint = isCloud 
                 ? $"{baseUrl}/rest/api/3/myself" 
                 : $"{baseUrl}/rest/api/2/myself";
 
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.UserAgent.ParseAdd("Sol-Desktop-App/3.6.0");
 
             if (isCloud)
             {
@@ -106,7 +114,10 @@ public class JiraService : IJiraService
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
             }
 
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linkedCts.CancelAfter(TimeSpan.FromSeconds(8));
+
+            using var response = await _httpClient.SendAsync(request, linkedCts.Token);
             return response.IsSuccessStatusCode;
         }
         catch

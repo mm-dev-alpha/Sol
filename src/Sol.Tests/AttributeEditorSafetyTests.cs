@@ -199,6 +199,58 @@ public class AttributeEditorSafetyTests : IDisposable
     }
 
     [Fact]
+    public async Task SettingsViewModel_TestConnection_WarnsOnMissingSecret()
+    {
+        var settings = new SettingsService();
+        var jira = new JiraService(settings);
+        var vm = new ViewModels.SettingsViewModel(settings, jira);
+
+        vm.JiraBaseUrl = "https://jira.company.local";
+        vm.JiraDeploymentMode = "DataCenter";
+        vm.JiraPatSecret = "";
+        await vm.TestJiraConnectionCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsJiraTestStatusOpen);
+        Assert.Equal(Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning, vm.JiraTestStatusSeverity);
+    }
+
+    [Fact]
+    public async Task SettingsViewModel_TestConnection_WarnsOnCloudMissingEmail()
+    {
+        var settings = new SettingsService();
+        var jira = new JiraService(settings);
+        var vm = new ViewModels.SettingsViewModel(settings, jira);
+
+        vm.JiraBaseUrl = "https://company.atlassian.net";
+        vm.JiraDeploymentMode = "Cloud";
+        vm.JiraCloudEmail = "";
+        vm.JiraCloudTokenSecret = "some-token";
+        await vm.TestJiraConnectionCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsJiraTestStatusOpen);
+        Assert.Equal(Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning, vm.JiraTestStatusSeverity);
+    }
+
+    [Fact]
+    public async Task JiraService_TestConnectionAsync_ReturnsFalseForInvalidUrlOrEmptySecret()
+    {
+        var settings = new SettingsService();
+        var jira = new JiraService(settings);
+
+        // Empty secret
+        bool res1 = await jira.TestConnectionAsync("https://jira.example.com", "DataCenter", "", "");
+        Assert.False(res1);
+
+        // Invalid non-HTTP URL
+        bool res2 = await jira.TestConnectionAsync("not-a-valid-url", "DataCenter", "", "secret");
+        Assert.False(res2);
+
+        // Cloud missing email
+        bool res3 = await jira.TestConnectionAsync("https://company.atlassian.net", "Cloud", "", "secret");
+        Assert.False(res3);
+    }
+
+    [Fact]
     public void ComputerServiceInfo_AvailableStartModes_HasAllThreeOptions()
     {
         var info = new Models.ComputerServiceInfo { StartMode = "Auto" };

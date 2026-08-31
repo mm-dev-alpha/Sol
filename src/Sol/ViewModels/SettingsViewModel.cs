@@ -120,10 +120,33 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (IsTestingJira) return;
 
-        // Validation guard
-        if (string.IsNullOrWhiteSpace(JiraBaseUrl))
+        string baseUrl = (JiraBaseUrl ?? string.Empty).Trim();
+        string secretToUse = (IsJiraCloud ? JiraCloudTokenSecret : JiraPatSecret) ?? string.Empty;
+        string email = (JiraCloudEmail ?? string.Empty).Trim();
+
+        // 1. Validation guard: Base URL format
+        if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedUri) ||
+            (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
         {
             JiraTestStatusMessage = Strings.S.JiraUrlRequiredPrompt;
+            JiraTestStatusSeverity = InfoBarSeverity.Warning;
+            IsJiraTestStatusOpen = true;
+            return;
+        }
+
+        // 2. Validation guard: Atlassian Cloud email requirement
+        if (IsJiraCloud && string.IsNullOrWhiteSpace(email))
+        {
+            JiraTestStatusMessage = Strings.S.JiraEmailRequiredPrompt;
+            JiraTestStatusSeverity = InfoBarSeverity.Warning;
+            IsJiraTestStatusOpen = true;
+            return;
+        }
+
+        // 3. Validation guard: Access Token / PAT requirement
+        if (string.IsNullOrWhiteSpace(secretToUse.Trim()))
+        {
+            JiraTestStatusMessage = Strings.S.JiraSecretRequiredPrompt;
             JiraTestStatusSeverity = InfoBarSeverity.Warning;
             IsJiraTestStatusOpen = true;
             return;
@@ -133,12 +156,11 @@ public partial class SettingsViewModel : ObservableObject
         IsJiraTestStatusOpen = false;
         try
         {
-            string secretToUse = IsJiraCloud ? JiraCloudTokenSecret : JiraPatSecret;
             bool success = await _jiraService.TestConnectionAsync(
-                overrideBaseUrl: JiraBaseUrl,
+                overrideBaseUrl: baseUrl,
                 overrideMode: JiraDeploymentMode,
-                overrideEmail: JiraCloudEmail,
-                overrideSecret: secretToUse);
+                overrideEmail: email,
+                overrideSecret: secretToUse.Trim());
 
             if (success)
             {

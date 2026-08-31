@@ -1011,7 +1011,7 @@ public class ComputerDiagnosticServiceTests
     }
 
     [Fact]
-    public async Task JiraService_TestConnection_DemoMode_Succeeds()
+    public async Task JiraService_TestConnection_WithoutSecret_Fails()
     {
         var mockSettings = new MockSettingsService
         {
@@ -1022,7 +1022,7 @@ public class ComputerDiagnosticServiceTests
         var service = new JiraService(mockSettings);
 
         bool success = await service.TestConnectionAsync();
-        Assert.True(success);
+        Assert.False(success);
     }
 
     [Fact]
