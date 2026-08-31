@@ -14,7 +14,7 @@
         <!-- Loading Overlay -->
         <Grid Canvas.ZIndex="100" Background="{ThemeResource SmokeFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-                <ProgressRing IsActive="True" Width="48" Height="48"/>
+                <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="48" Height="48"/>
                 <TextBlock Text="{x:Bind S.LoadingUserData}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
             </StackPanel>
         </Grid>
@@ -158,7 +158,7 @@
                                     VerticalAlignment="Center"
                                     Visibility="{x:Bind ViewModel.IsDiagnosticsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <ProgressRing IsActive="True" Width="12" Height="12" VerticalAlignment="Center"/>
+                                    <ProgressRing IsActive="{x:Bind ViewModel.IsDiagnosticsLoading, Mode=OneWay}" Width="12" Height="12" VerticalAlignment="Center"/>
                                     <TextBlock Text="{x:Bind S.DiagnosticsQuerying}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
@@ -458,7 +458,7 @@
                                 <controls:SettingsCard Visibility="{x:Bind ViewModel.IsSessionsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
                                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <ProgressRing IsActive="{x:Bind ViewModel.IsSessionsLoading, Mode=OneWay}" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind S.FetchingSessionData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </controls:SettingsCard.Header>
@@ -593,7 +593,7 @@
                                 <controls:SettingsCard Visibility="{x:Bind ViewModel.IsHardwareLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <ProgressRing IsActive="{x:Bind ViewModel.IsHardwareLoading, Mode=OneWay}" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind S.FetchingHardwareData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </controls:SettingsCard.Header>
@@ -783,7 +783,7 @@
                                 <controls:SettingsCard Visibility="{x:Bind ViewModel.IsDiskLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
                                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <ProgressRing IsActive="{x:Bind ViewModel.IsDiskLoading, Mode=OneWay}" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind S.FetchingDrivesData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </controls:SettingsCard.Header>
@@ -1007,7 +1007,7 @@
                                 <controls:SettingsCard Visibility="{x:Bind ViewModel.IsBatteryLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
                                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <ProgressRing IsActive="{x:Bind ViewModel.IsBatteryLoading, Mode=OneWay}" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind S.FetchingBatteryData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </controls:SettingsCard.Header>
@@ -1161,7 +1161,7 @@
                                 <controls:SettingsCard Visibility="{x:Bind ViewModel.IsBitLockerLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
                                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                            <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <ProgressRing IsActive="{x:Bind ViewModel.IsBitLockerLoading, Mode=OneWay}" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind S.FetchingBitLockerData}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </controls:SettingsCard.Header>

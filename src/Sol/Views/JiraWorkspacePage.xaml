@@ -143,7 +143,7 @@
                     <controls:SettingsCard Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <controls:SettingsCard.Header>
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>
+                                <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="16" Height="16" VerticalAlignment="Center"/>
                                 <TextBlock Text="{x:Bind S.FetchingJiraTickets}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </controls:SettingsCard.Header>

@@ -701,27 +701,44 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
         if (string.IsNullOrWhiteSpace(targetHost)) return;
 
-        IsBatteryLoading = true;
-        NotifyBatteryPropertiesChanged();
+        RunOnUIThread(() =>
+        {
+            IsBatteryLoading = true;
+            NotifyBatteryPropertiesChanged();
+        });
 
         try
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
-            BatterySnapshot = await _diagnosticService.GetBatterySnapshotAsync(targetHost, cts.Token);
+            var snapshot = await _diagnosticService.GetBatterySnapshotAsync(targetHost, cts.Token);
+            RunOnUIThread(() =>
+            {
+                BatterySnapshot = snapshot;
+                IsBatteryLoading = false;
+                NotifyBatteryPropertiesChanged();
+            });
         }
         catch (Exception ex)
         {
-            BatterySnapshot = new ComputerBatterySnapshot
+            RunOnUIThread(() =>
             {
-                Hostname = targetHost,
-                IsSuccess = false,
-                ErrorMessage = ex.Message
-            };
+                BatterySnapshot = new ComputerBatterySnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                IsBatteryLoading = false;
+                NotifyBatteryPropertiesChanged();
+            });
         }
         finally
         {
-            IsBatteryLoading = false;
-            NotifyBatteryPropertiesChanged();
+            RunOnUIThread(() =>
+            {
+                IsBatteryLoading = false;
+                NotifyBatteryPropertiesChanged();
+            });
         }
     }
 
@@ -729,36 +746,56 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public async Task RefreshSessionsSnapshotAsync()
     {
         if (CurrentComputer == null) return;
-        IsSessionsLoading = true;
-        NotifySessionPropertiesChanged();
-
         string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
         if (string.IsNullOrWhiteSpace(targetHost))
         {
-            IsSessionsLoading = false;
-            NotifySessionPropertiesChanged();
+            RunOnUIThread(() =>
+            {
+                IsSessionsLoading = false;
+                NotifySessionPropertiesChanged();
+            });
             return;
         }
+
+        RunOnUIThread(() =>
+        {
+            IsSessionsLoading = true;
+            NotifySessionPropertiesChanged();
+        });
 
         try
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
-            SessionSnapshot = await _diagnosticService.GetSessionSnapshotAsync(targetHost, cts.Token);
-            RefreshSessionsCollection();
+            var snapshot = await _diagnosticService.GetSessionSnapshotAsync(targetHost, cts.Token);
+            RunOnUIThread(() =>
+            {
+                SessionSnapshot = snapshot;
+                IsSessionsLoading = false;
+                RefreshSessionsCollection();
+                NotifySessionPropertiesChanged();
+            });
         }
         catch (Exception ex)
         {
-            SessionSnapshot = new ComputerSessionSnapshot
+            RunOnUIThread(() =>
             {
-                Hostname = targetHost,
-                IsSuccess = false,
-                ErrorMessage = ex.Message
-            };
+                SessionSnapshot = new ComputerSessionSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                IsSessionsLoading = false;
+                NotifySessionPropertiesChanged();
+            });
         }
         finally
         {
-            IsSessionsLoading = false;
-            NotifySessionPropertiesChanged();
+            RunOnUIThread(() =>
+            {
+                IsSessionsLoading = false;
+                NotifySessionPropertiesChanged();
+            });
         }
     }
 
@@ -806,34 +843,41 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public async Task RefreshProcessesAsync()
     {
         if (CurrentComputer == null) return;
-        IsProcessesLoading = true;
+        RunOnUIThread(() => IsProcessesLoading = true);
 
         string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
         if (string.IsNullOrWhiteSpace(targetHost))
         {
-            IsProcessesLoading = false;
+            RunOnUIThread(() => IsProcessesLoading = false);
             return;
         }
 
         try
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
-            ProcessSnapshot = await _diagnosticService.GetProcessesSnapshotAsync(targetHost, cts.Token);
-            ApplyProcessFilterAndSort();
+            var snapshot = await _diagnosticService.GetProcessesSnapshotAsync(targetHost, cts.Token);
+            RunOnUIThread(() =>
+            {
+                ProcessSnapshot = snapshot;
+                ApplyProcessFilterAndSort();
+            });
         }
         catch (Exception ex)
         {
-            ProcessSnapshot = new ComputerProcessSnapshot
+            RunOnUIThread(() =>
             {
-                Hostname = targetHost,
-                IsSuccess = false,
-                ErrorMessage = ex.Message
-            };
-            FilteredProcesses.Clear();
+                ProcessSnapshot = new ComputerProcessSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                FilteredProcesses.Clear();
+            });
         }
         finally
         {
-            IsProcessesLoading = false;
+            RunOnUIThread(() => IsProcessesLoading = false);
         }
     }
 
@@ -945,15 +989,18 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 
     private static void RunOnUIThread(Action action)
     {
-        var dq = App.MainWindow?.DispatcherQueue;
-        if (dq != null && !dq.HasThreadAccess)
+        try
         {
-            dq.TryEnqueue(() => action());
+            var dq = App.MainWindow?.DispatcherQueue;
+            if (dq != null && !dq.HasThreadAccess)
+            {
+                dq.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () => action());
+                return;
+            }
         }
-        else
-        {
-            action();
-        }
+        catch { }
+
+        action();
     }
 
     public async Task FetchDiagnosticsAsync(AdComputer computer)
@@ -966,26 +1013,29 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         string targetHost = !string.IsNullOrWhiteSpace(computer.DnsHostName) ? computer.DnsHostName : computer.Name;
         if (string.IsNullOrWhiteSpace(targetHost)) return;
 
-        IsHardwareLoading = true;
-        IsUptimeLoading = true;
-        IsDiskLoading = true;
-        IsBatteryLoading = true;
-        IsSessionsLoading = true;
-        IsBitLockerLoading = true;
-        HardwareSnapshot = null;
-        UptimeSnapshot = null;
-        DiskSnapshot = null;
-        BatterySnapshot = null;
-        SessionSnapshot = null;
-        BitLockerSnapshot = null;
-        Drives.Clear();
-        Sessions.Clear();
-        NotifyHardwarePropertiesChanged();
-        NotifyUptimePropertiesChanged();
-        NotifyDiskPropertiesChanged();
-        NotifyBatteryPropertiesChanged();
-        NotifySessionPropertiesChanged();
-        NotifyBitLockerPropertiesChanged();
+        RunOnUIThread(() =>
+        {
+            IsHardwareLoading = true;
+            IsUptimeLoading = true;
+            IsDiskLoading = true;
+            IsBatteryLoading = true;
+            IsSessionsLoading = true;
+            IsBitLockerLoading = true;
+            HardwareSnapshot = null;
+            UptimeSnapshot = null;
+            DiskSnapshot = null;
+            BatterySnapshot = null;
+            SessionSnapshot = null;
+            BitLockerSnapshot = null;
+            Drives.Clear();
+            Sessions.Clear();
+            NotifyHardwarePropertiesChanged();
+            NotifyUptimePropertiesChanged();
+            NotifyDiskPropertiesChanged();
+            NotifyBatteryPropertiesChanged();
+            NotifySessionPropertiesChanged();
+            NotifyBitLockerPropertiesChanged();
+        });
 
         var hwTask = Task.Run(async () =>
         {
@@ -1362,25 +1412,43 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
         if (string.IsNullOrWhiteSpace(targetHost)) return;
 
-        IsBitLockerLoading = true;
-        NotifyBitLockerPropertiesChanged();
+        RunOnUIThread(() =>
+        {
+            IsBitLockerLoading = true;
+            NotifyBitLockerPropertiesChanged();
+        });
+
         try
         {
-            BitLockerSnapshot = await _diagnosticService.GetBitLockerStatusAsync(targetHost);
+            var snapshot = await _diagnosticService.GetBitLockerStatusAsync(targetHost);
+            RunOnUIThread(() =>
+            {
+                BitLockerSnapshot = snapshot;
+                IsBitLockerLoading = false;
+                NotifyBitLockerPropertiesChanged();
+            });
         }
         catch (Exception ex)
         {
-            BitLockerSnapshot = new ComputerBitLockerSnapshot
+            RunOnUIThread(() =>
             {
-                Hostname = targetHost,
-                IsSuccess = false,
-                ErrorMessage = ex.Message
-            };
+                BitLockerSnapshot = new ComputerBitLockerSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                IsBitLockerLoading = false;
+                NotifyBitLockerPropertiesChanged();
+            });
         }
         finally
         {
-            IsBitLockerLoading = false;
-            NotifyBitLockerPropertiesChanged();
+            RunOnUIThread(() =>
+            {
+                IsBitLockerLoading = false;
+                NotifyBitLockerPropertiesChanged();
+            });
         }
     }
 
@@ -1481,34 +1549,41 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public async Task RefreshServicesAsync()
     {
         if (CurrentComputer == null) return;
-        IsServicesLoading = true;
+        RunOnUIThread(() => IsServicesLoading = true);
 
         string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
         if (string.IsNullOrWhiteSpace(targetHost))
         {
-            IsServicesLoading = false;
+            RunOnUIThread(() => IsServicesLoading = false);
             return;
         }
 
         try
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
-            ServicesSnapshot = await _diagnosticService.GetServicesSnapshotAsync(targetHost, cts.Token);
-            ApplyServiceFilterAndSort();
+            var snapshot = await _diagnosticService.GetServicesSnapshotAsync(targetHost, cts.Token);
+            RunOnUIThread(() =>
+            {
+                ServicesSnapshot = snapshot;
+                ApplyServiceFilterAndSort();
+            });
         }
         catch (Exception ex)
         {
-            ServicesSnapshot = new ComputerServicesSnapshot
+            RunOnUIThread(() =>
             {
-                Hostname = targetHost,
-                IsSuccess = false,
-                ErrorMessage = ex.Message
-            };
-            FilteredServices.Clear();
+                ServicesSnapshot = new ComputerServicesSnapshot
+                {
+                    Hostname = targetHost,
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+                FilteredServices.Clear();
+            });
         }
         finally
         {
-            IsServicesLoading = false;
+            RunOnUIThread(() => IsServicesLoading = false);
         }
     }
 

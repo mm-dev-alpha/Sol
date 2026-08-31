@@ -293,7 +293,7 @@
                         CornerRadius="8"
                         Visibility="{x:Bind ViewModel.ServicesLoadingVisibility, Mode=OneWay}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                        <ProgressRing IsActive="True" Width="36" Height="36"/>
+                        <ProgressRing IsActive="{x:Bind ViewModel.IsServicesLoading, Mode=OneWay}" Width="36" Height="36"/>
                         <TextBlock Text="{x:Bind helpers:Strings.S.FetchingServicesData}"
                                    Style="{ThemeResource BodyStrongTextBlockStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
