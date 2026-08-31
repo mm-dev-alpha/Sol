@@ -45,9 +45,5 @@ jobs:
           files: |
             ${{ env.ZIP_NAME }}
             checksums.sha256
-          generate_release_notes: true
-          body: |
-            ### 📦 Release Verification
-            | File | SHA-256 Checksum |
-            |---|---|
-            | `${{ env.ZIP_NAME }}` | `${{ env.SHA256_HASH }}` |
+          body_path: RELEASE_NOTES_v3.6.0.md
+          generate_release_notes: false
