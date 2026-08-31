@@ -144,24 +144,19 @@ public class AttributeEditorSafetyTests : IDisposable
     }
 
     [Fact]
-    public void SettingsViewModel_NegativeIndex_DoesNotCorruptLanguageOrMode()
+    public void SettingsViewModel_NegativeIndex_DoesNotCorruptDeploymentMode()
     {
         var settings = new SettingsService();
-        settings.AppLanguage = "de";
         settings.JiraDeploymentMode = "Cloud";
         var jira = new JiraService(settings);
         var vm = new ViewModels.SettingsViewModel(settings, jira);
 
-        Assert.Equal("de", vm.AppLanguage);
-        Assert.Equal(1, vm.AppLanguageIndex);
         Assert.Equal("Cloud", vm.JiraDeploymentMode);
         Assert.Equal(1, vm.JiraDeploymentModeIndex);
 
         // Simulate WinUI 3 transient unselected -1 on visual layout
-        vm.AppLanguageIndex = -1;
         vm.JiraDeploymentModeIndex = -1;
 
-        Assert.Equal("de", vm.AppLanguage);
         Assert.Equal("Cloud", vm.JiraDeploymentMode);
     }
 

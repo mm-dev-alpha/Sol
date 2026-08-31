@@ -18,10 +18,8 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty] public partial string Version { get; set; } = typeof(SettingsViewModel).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "3.6.1";
     [ObservableProperty] public partial string AdDomain { get; set; } = string.Empty;
-    [ObservableProperty] public partial string AppLanguage { get; set; } = "en";
-    [ObservableProperty] public partial int AppLanguageIndex { get; set; }
+    public string AppLanguage => "en";
 
-    public string[] AvailableLanguages { get; } = ["English", "Deutsch"];
     public string[] JiraDeploymentModes => [Strings.S.JiraDataCenterOption, Strings.S.JiraCloudOption];
 
     // JIRA Integration
@@ -58,8 +56,6 @@ public partial class SettingsViewModel : ObservableObject
     public void LoadSettings()
     {
         AdDomain = _settings.AdDomain;
-        AppLanguage = _settings.AppLanguage;
-        AppLanguageIndex = string.Equals(AppLanguage, "de", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 
         IsJiraEnabled = _settings.IsJiraEnabled;
         JiraDeploymentMode = _settings.JiraDeploymentMode ?? "DataCenter";
@@ -73,21 +69,6 @@ public partial class SettingsViewModel : ObservableObject
 
         OnPropertyChanged(nameof(IsJiraDataCenter));
         OnPropertyChanged(nameof(IsJiraCloud));
-    }
-
-    partial void OnAppLanguageIndexChanged(int value)
-    {
-        if (value < 0) return; // Ignore transient unselected index during ComboBox layout
-        AppLanguage = value == 1 ? "de" : "en";
-    }
-
-    partial void OnAppLanguageChanged(string value)
-    {
-        int newIndex = string.Equals(value, "de", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        if (AppLanguageIndex != newIndex)
-        {
-            AppLanguageIndex = newIndex;
-        }
     }
 
     partial void OnIsJiraEnabledChanged(bool value)

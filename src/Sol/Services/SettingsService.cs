@@ -11,7 +11,7 @@ public class SettingsService : ISettingsService
     private readonly string _settingsPath;
 
     public string AdDomain { get; set; } = string.Empty;
-    public string AppLanguage { get; set; } = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("de", StringComparison.OrdinalIgnoreCase) ? "de" : "en";
+    public string AppLanguage { get; set; } = "en";
 
     public bool IsJiraEnabled { get; set; } = false;
     public string JiraDeploymentMode { get; set; } = "DataCenter";

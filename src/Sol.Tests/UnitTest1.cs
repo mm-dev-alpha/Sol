@@ -54,24 +54,22 @@ public class UserWorkspaceEnhancementsTests
     }
 
     [Fact]
-    public void Strings_GermanTerminology_ConformsToMicrosoftStandard()
+    public void Strings_EnglishTerminology_ConformsToMicrosoftStandard()
     {
-        Strings.CurrentLanguage = "de";
-
-        Assert.Equal("Kennwort zurücksetzen", Strings.S.ResetPasswordBtn);
-        Assert.Equal("Kennwort bei nächster Anmeldung ändern", Strings.S.MustChangePasswordCheckbox);
-        Assert.Equal("Konto entsperren, falls gesperrt", Strings.S.UnlockAccountCheckbox);
-        Assert.Equal("Gruppenmitgliedschaften", Strings.S.GroupsTitle);
-        Assert.Equal("Startseite", Strings.S.NavHome);
-        Assert.Equal("Benutzer-Arbeitsbereich", Strings.S.NavUserWorkspace);
-        Assert.Equal("Computer-Arbeitsbereich", Strings.S.NavComputerWorkspace);
-        Assert.Equal("Sicherheitskennung (SID)", Strings.S.SidLabel);
-        Assert.Equal("BitLocker-Wiederherstellungsschlüssel", Strings.S.BitLockerKeysTitle);
-        Assert.Equal("Wiederherstellungsschlüssel in die Zwischenablage kopiert.", Strings.S.BitLockerKeyCopiedSuccess);
-        Assert.Equal("Startseite", Strings.S.HomeBtn);
-        Assert.Equal("Einstellungen", Strings.S.SettingsTitle);
-
         Strings.CurrentLanguage = "en";
+
+        Assert.Equal("Reset Password", Strings.S.ResetPasswordBtn);
+        Assert.Equal("User must change password at next logon", Strings.S.MustChangePasswordCheckbox);
+        Assert.Equal("Unlock account if locked out", Strings.S.UnlockAccountCheckbox);
+        Assert.Equal("Group Memberships", Strings.S.GroupsTitle);
+        Assert.Equal("Home", Strings.S.NavHome);
+        Assert.Equal("User Workspace", Strings.S.NavUserWorkspace);
+        Assert.Equal("Computer Workspace", Strings.S.NavComputerWorkspace);
+        Assert.Equal("Security Identifier (SID)", Strings.S.SidLabel);
+        Assert.Equal("BitLocker Recovery Keys", Strings.S.BitLockerKeysTitle);
+        Assert.Equal("Recovery key copied to clipboard.", Strings.S.BitLockerKeyCopiedSuccess);
+        Assert.Equal("Home", Strings.S.HomeBtn);
+        Assert.Equal("Settings", Strings.S.SettingsTitle);
     }
 
     [Fact]

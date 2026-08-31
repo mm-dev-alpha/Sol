@@ -73,8 +73,7 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
-        var settings = GetService<Sol.Services.ISettingsService>();
-        Sol.Helpers.Strings.CurrentLanguage = settings.AppLanguage;
+        Sol.Helpers.Strings.CurrentLanguage = "en";
 
         MainWindow = new MainWindow();
         MainWindow.Activate();

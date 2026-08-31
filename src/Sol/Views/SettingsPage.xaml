@@ -15,20 +15,6 @@
             
             <TextBlock Text="{x:Bind S.SettingsTitle}" Style="{ThemeResource TitleLargeTextBlockStyle}" Margin="0,0,0,8"/>
 
-            <!-- General Settings Section -->
-            <StackPanel Spacing="12">
-                <TextBlock Text="{x:Bind S.GeneralSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                
-                <controls:SettingsCard Header="{x:Bind S.AppLanguageLabel}" Description="{x:Bind S.RestartRequiredDesc}">
-                    <controls:SettingsCard.HeaderIcon>
-                        <SymbolIcon Symbol="Character"/>
-                    </controls:SettingsCard.HeaderIcon>
-                    <ComboBox ItemsSource="{x:Bind ViewModel.AvailableLanguages}"
-                              SelectedIndex="{x:Bind ViewModel.AppLanguageIndex, Mode=TwoWay}" 
-                              Width="160" />
-                </controls:SettingsCard>
-            </StackPanel>
-
             <!-- Active Directory Configuration Section -->
             <StackPanel Spacing="12">
                 <TextBlock Text="{x:Bind S.AdSettings}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
