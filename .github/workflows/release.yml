@@ -39,11 +39,20 @@ jobs:
           echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
           echo "SHA256_HASH=$hash" >> $env:GITHUB_ENV
 
+          $notesPath = "RELEASE_NOTES_$tag.md"
+          if (-not (Test-Path $notesPath)) {
+            $notesPath = "RELEASE_NOTES.md"
+          }
+          if (-not (Test-Path $notesPath)) {
+            $notesPath = "RELEASE_NOTES_v3.6.1.md"
+          }
+          echo "NOTES_PATH=$notesPath" >> $env:GITHUB_ENV
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             ${{ env.ZIP_NAME }}
             checksums.sha256
-          body_path: RELEASE_NOTES_v3.6.0.md
+          body_path: ${{ env.NOTES_PATH }}
           generate_release_notes: false

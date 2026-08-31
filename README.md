@@ -83,8 +83,8 @@
 ### 📋 100% Comprehensive "Copy All" Export
 - One-click copy on both User and Computer workspaces exports 100% of all loaded Active Directory properties, metadata, and diagnostic modules into clean, human-readable sections with aligned key-value pairs.
 
-### 🌍 Dual-Language Localization
-- Full bilingual support (**English** and **German**) with zero hardcoded strings.
+### 🌐 Clean & Centralized String Architecture
+- Strict English-only interface adhering to standard Microsoft Windows Server & Active Directory terminology with 100% centralized resource strings.
 
 ---
 
