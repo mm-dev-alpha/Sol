@@ -90,14 +90,38 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(StoppedServicesCountBadge))]
     public partial ComputerServicesSnapshot? ServicesSnapshot { get; set; }
 
-    [ObservableProperty] public partial bool IsHardwareLoading { get; set; }
-    [ObservableProperty] public partial bool IsUptimeLoading { get; set; }
-    [ObservableProperty] public partial bool IsDiskLoading { get; set; }
-    [ObservableProperty] public partial bool IsBatteryLoading { get; set; }
-    [ObservableProperty] public partial bool IsSessionsLoading { get; set; }
-    [ObservableProperty] public partial bool IsProcessesLoading { get; set; }
-    [ObservableProperty] public partial bool IsBitLockerLoading { get; set; }
-    [ObservableProperty] public partial bool IsServicesLoading { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
+    public partial bool IsHardwareLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
+    public partial bool IsUptimeLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
+    public partial bool IsDiskLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
+    [NotifyPropertyChangedFor(nameof(BatterySectionVisibility))]
+    public partial bool IsBatteryLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
+    public partial bool IsSessionsLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProcessesLoadingVisibility))]
+    public partial bool IsProcessesLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
+    public partial bool IsBitLockerLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ServicesLoadingVisibility))]
+    public partial bool IsServicesLoading { get; set; }
     [ObservableProperty] public partial string ServiceFilterQuery { get; set; } = string.Empty;
     [ObservableProperty] public partial string ServiceStatusFilter { get; set; } = "All";
     [ObservableProperty] public partial string ServiceSortColumn { get; set; } = "DisplayName";
@@ -111,6 +135,9 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [ObservableProperty] public partial string GroupFilterQuery { get; set; } = string.Empty;
     [ObservableProperty] public partial string CenterSearchQuery { get; set; } = string.Empty;
     [ObservableProperty] public partial string NewGroupName { get; set; } = string.Empty;
+
+    public Visibility ProcessesLoadingVisibility => IsProcessesLoading ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ServicesLoadingVisibility => IsServicesLoading ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility ComputerContentVisibility => CurrentComputer != null ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyStateVisibility => CurrentComputer == null && SearchResults.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -916,6 +943,19 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 
     public async Task FetchHardwareSnapshotAsync(AdComputer computer) => await FetchDiagnosticsAsync(computer);
 
+    private static void RunOnUIThread(Action action)
+    {
+        var dq = App.MainWindow?.DispatcherQueue;
+        if (dq != null && !dq.HasThreadAccess)
+        {
+            dq.TryEnqueue(() => action());
+        }
+        else
+        {
+            action();
+        }
+    }
+
     public async Task FetchDiagnosticsAsync(AdComputer computer)
     {
         _diagnosticCts?.Cancel();
@@ -947,90 +987,217 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         NotifySessionPropertiesChanged();
         NotifyBitLockerPropertiesChanged();
 
+        var hwTask = Task.Run(async () =>
+        {
+            try
+            {
+                var snap = await _diagnosticService.GetHardwareSnapshotAsync(targetHost, token);
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        HardwareSnapshot = snap;
+                        IsHardwareLoading = false;
+                        NotifyHardwarePropertiesChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        HardwareSnapshot = new ComputerHardwareSnapshot { Hostname = targetHost, IsSuccess = false, ErrorMessage = ex.Message };
+                        IsHardwareLoading = false;
+                        NotifyHardwarePropertiesChanged();
+                    });
+                }
+            }
+            finally
+            {
+                RunOnUIThread(() => { IsHardwareLoading = false; NotifyHardwarePropertiesChanged(); });
+            }
+        }, token);
+
+        var uptimeTask = Task.Run(async () =>
+        {
+            try
+            {
+                var snap = await _diagnosticService.GetUptimeSnapshotAsync(targetHost, token);
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        UptimeSnapshot = snap;
+                        IsUptimeLoading = false;
+                        NotifyUptimePropertiesChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        UptimeSnapshot = new ComputerUptimeSnapshot { Hostname = targetHost, IsSuccess = false, ErrorMessage = ex.Message };
+                        IsUptimeLoading = false;
+                        NotifyUptimePropertiesChanged();
+                    });
+                }
+            }
+            finally
+            {
+                RunOnUIThread(() => { IsUptimeLoading = false; NotifyUptimePropertiesChanged(); });
+            }
+        }, token);
+
+        var diskTask = Task.Run(async () =>
+        {
+            try
+            {
+                var snap = await _diagnosticService.GetDiskSnapshotAsync(targetHost, token);
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        DiskSnapshot = snap;
+                        IsDiskLoading = false;
+                        RefreshDrivesCollection();
+                        NotifyDiskPropertiesChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        DiskSnapshot = new ComputerDiskSnapshot { Hostname = targetHost, IsSuccess = false, ErrorMessage = ex.Message };
+                        IsDiskLoading = false;
+                        NotifyDiskPropertiesChanged();
+                    });
+                }
+            }
+            finally
+            {
+                RunOnUIThread(() => { IsDiskLoading = false; NotifyDiskPropertiesChanged(); });
+            }
+        }, token);
+
+        var batteryTask = Task.Run(async () =>
+        {
+            try
+            {
+                var snap = await _diagnosticService.GetBatterySnapshotAsync(targetHost, token);
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        BatterySnapshot = snap;
+                        IsBatteryLoading = false;
+                        NotifyBatteryPropertiesChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        BatterySnapshot = new ComputerBatterySnapshot { Hostname = targetHost, IsSuccess = false, ErrorMessage = ex.Message };
+                        IsBatteryLoading = false;
+                        NotifyBatteryPropertiesChanged();
+                    });
+                }
+            }
+            finally
+            {
+                RunOnUIThread(() => { IsBatteryLoading = false; NotifyBatteryPropertiesChanged(); });
+            }
+        }, token);
+
+        var sessionTask = Task.Run(async () =>
+        {
+            try
+            {
+                var snap = await _diagnosticService.GetSessionSnapshotAsync(targetHost, token);
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        SessionSnapshot = snap;
+                        IsSessionsLoading = false;
+                        RefreshSessionsCollection();
+                        NotifySessionPropertiesChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        SessionSnapshot = new ComputerSessionSnapshot { Hostname = targetHost, IsSuccess = false, ErrorMessage = ex.Message };
+                        IsSessionsLoading = false;
+                        NotifySessionPropertiesChanged();
+                    });
+                }
+            }
+            finally
+            {
+                RunOnUIThread(() => { IsSessionsLoading = false; NotifySessionPropertiesChanged(); });
+            }
+        }, token);
+
+        var bitLockerTask = Task.Run(async () =>
+        {
+            try
+            {
+                var snap = await _diagnosticService.GetBitLockerStatusAsync(targetHost, token);
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        BitLockerSnapshot = snap;
+                        IsBitLockerLoading = false;
+                        NotifyBitLockerPropertiesChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() =>
+                    {
+                        BitLockerSnapshot = new ComputerBitLockerSnapshot { Hostname = targetHost, IsSuccess = false, ErrorMessage = ex.Message };
+                        IsBitLockerLoading = false;
+                        NotifyBitLockerPropertiesChanged();
+                    });
+                }
+            }
+            finally
+            {
+                RunOnUIThread(() => { IsBitLockerLoading = false; NotifyBitLockerPropertiesChanged(); });
+            }
+        }, token);
+
         try
         {
-            var hwTask = _diagnosticService.GetHardwareSnapshotAsync(targetHost, token);
-            var uptimeTask = _diagnosticService.GetUptimeSnapshotAsync(targetHost, token);
-            var diskTask = _diagnosticService.GetDiskSnapshotAsync(targetHost, token);
-            var batteryTask = _diagnosticService.GetBatterySnapshotAsync(targetHost, token);
-            var sessionTask = _diagnosticService.GetSessionSnapshotAsync(targetHost, token);
-            var bitLockerTask = _diagnosticService.GetBitLockerStatusAsync(targetHost, token);
-
             await Task.WhenAll(hwTask, uptimeTask, diskTask, batteryTask, sessionTask, bitLockerTask);
-
-            if (!token.IsCancellationRequested)
-            {
-                HardwareSnapshot = await hwTask;
-                UptimeSnapshot = await uptimeTask;
-                DiskSnapshot = await diskTask;
-                BatterySnapshot = await batteryTask;
-                SessionSnapshot = await sessionTask;
-                BitLockerSnapshot = await bitLockerTask;
-                RefreshDrivesCollection();
-                RefreshSessionsCollection();
-            }
         }
-        catch (OperationCanceledException)
-        {
-            // Cancelled
-        }
-        catch (Exception ex)
-        {
-            if (!token.IsCancellationRequested)
-            {
-                HardwareSnapshot ??= new ComputerHardwareSnapshot
-                {
-                    Hostname = targetHost,
-                    IsSuccess = false,
-                    ErrorMessage = ex.Message
-                };
-                UptimeSnapshot ??= new ComputerUptimeSnapshot
-                {
-                    Hostname = targetHost,
-                    IsSuccess = false,
-                    ErrorMessage = ex.Message
-                };
-                DiskSnapshot ??= new ComputerDiskSnapshot
-                {
-                    Hostname = targetHost,
-                    IsSuccess = false,
-                    ErrorMessage = ex.Message
-                };
-                BatterySnapshot ??= new ComputerBatterySnapshot
-                {
-                    Hostname = targetHost,
-                    IsSuccess = false,
-                    ErrorMessage = ex.Message
-                };
-                SessionSnapshot ??= new ComputerSessionSnapshot
-                {
-                    Hostname = targetHost,
-                    IsSuccess = false,
-                    ErrorMessage = ex.Message
-                };
-                BitLockerSnapshot ??= new ComputerBitLockerSnapshot
-                {
-                    Hostname = targetHost,
-                    IsSuccess = false,
-                    ErrorMessage = ex.Message
-                };
-            }
-        }
-        finally
-        {
-            IsHardwareLoading = false;
-            IsUptimeLoading = false;
-            IsDiskLoading = false;
-            IsBatteryLoading = false;
-            IsSessionsLoading = false;
-            IsBitLockerLoading = false;
-            NotifyHardwarePropertiesChanged();
-            NotifyUptimePropertiesChanged();
-            NotifyDiskPropertiesChanged();
-            NotifyBatteryPropertiesChanged();
-            NotifySessionPropertiesChanged();
-            NotifyBitLockerPropertiesChanged();
-        }
+        catch { }
     }
 
     private void RefreshDrivesCollection()

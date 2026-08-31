@@ -211,4 +211,40 @@ public class AttributeEditorSafetyTests : IDisposable
         var disabledInfo = new Models.ComputerServiceInfo { StartMode = "Disabled" };
         Assert.Equal(2, disabledInfo.StartModeIndex);
     }
+
+    [Fact]
+    public void ComputerWorkspaceViewModel_IsDiagnosticsLoading_EvaluatesAccurately()
+    {
+        var vm = new ViewModels.ComputerWorkspaceViewModel(null!, null!, null!);
+        Assert.False(vm.IsDiagnosticsLoading);
+
+        vm.IsHardwareLoading = true;
+        Assert.True(vm.IsDiagnosticsLoading);
+
+        vm.IsHardwareLoading = false;
+        Assert.False(vm.IsDiagnosticsLoading);
+
+        vm.IsDiskLoading = true;
+        Assert.True(vm.IsDiagnosticsLoading);
+        vm.IsDiskLoading = false;
+
+        vm.IsProcessesLoading = true;
+        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.ProcessesLoadingVisibility);
+        vm.IsProcessesLoading = false;
+        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, vm.ProcessesLoadingVisibility);
+
+        vm.IsServicesLoading = true;
+        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.ServicesLoadingVisibility);
+        vm.IsServicesLoading = false;
+        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, vm.ServicesLoadingVisibility);
+    }
+
+    [Fact]
+    public void DiagnosticsQuerying_String_IsLocalizedProperly()
+    {
+        var s = Helpers.Strings.S;
+        Assert.False(string.IsNullOrWhiteSpace(s.DiagnosticsQuerying));
+        Assert.False(string.IsNullOrWhiteSpace(s.FetchingProcessData));
+        Assert.False(string.IsNullOrWhiteSpace(s.FetchingServicesData));
+    }
 }

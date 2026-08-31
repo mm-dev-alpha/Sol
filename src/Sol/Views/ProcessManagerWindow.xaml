@@ -145,63 +145,79 @@
                 </Grid>
             </Border>
 
-            <!-- 3. Process Items ListView -->
-            <Border Grid.Row="2"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                <ListView ItemsSource="{x:Bind ViewModel.FilteredProcesses, Mode=OneWay}"
-                          SelectionMode="None"
-                          Padding="0,4">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:ComputerProcessInfo">
-                            <Grid Padding="8,5" HorizontalAlignment="Stretch">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70" />
-                                    <ColumnDefinition Width="2.4*" />
-                                    <ColumnDefinition Width="1.6*" />
-                                    <ColumnDefinition Width="90" />
-                                    <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="100" />
-                                    <ColumnDefinition Width="50" />
-                                </Grid.ColumnDefinitions>
+            <!-- 3. Process Items ListView & Loading State -->
+            <Grid Grid.Row="2">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                    <ListView ItemsSource="{x:Bind ViewModel.FilteredProcesses, Mode=OneWay}"
+                              SelectionMode="None"
+                              Padding="0,4">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ComputerProcessInfo">
+                                <Grid Padding="8,5" HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="2.4*" />
+                                        <ColumnDefinition Width="1.6*" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="50" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- PID -->
-                                <TextBlock Grid.Column="0" Text="{x:Bind ProcessId}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource CodeFontFamily}" />
+                                    <!-- PID -->
+                                    <TextBlock Grid.Column="0" Text="{x:Bind ProcessId}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource CodeFontFamily}" />
 
-                                <!-- Process Name -->
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE9D9;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-                                </StackPanel>
+                                    <!-- Process Name -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE9D9;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                                    </StackPanel>
 
-                                <!-- User -->
-                                <TextBlock Grid.Column="2" Text="{x:Bind DisplayOwner}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                    <!-- User -->
+                                    <TextBlock Grid.Column="2" Text="{x:Bind DisplayOwner}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
 
-                                <!-- CPU -->
-                                <TextBlock Grid.Column="3" Text="{x:Bind FormattedCpu}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <!-- CPU -->
+                                    <TextBlock Grid.Column="3" Text="{x:Bind FormattedCpu}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-                                <!-- Memory -->
-                                <TextBlock Grid.Column="4" Text="{x:Bind FormattedMemory}" VerticalAlignment="Center" HorizontalAlignment="Right" FontWeight="SemiBold" />
+                                    <!-- Memory -->
+                                    <TextBlock Grid.Column="4" Text="{x:Bind FormattedMemory}" VerticalAlignment="Center" HorizontalAlignment="Right" FontWeight="SemiBold" />
 
-                                <!-- Network -->
-                                <TextBlock Grid.Column="5" Text="{x:Bind FormattedNetwork}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <!-- Network -->
+                                    <TextBlock Grid.Column="5" Text="{x:Bind FormattedNetwork}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-                                <!-- Terminate Button -->
-                                <Button Grid.Column="6"
-                                        Tag="{x:Bind}"
-                                        IsEnabled="{x:Bind CanTerminate}"
-                                        Style="{StaticResource SubtleIconButtonStyle}"
-                                        HorizontalAlignment="Center"
-                                        Click="TerminateProcess_Click">
-                                    <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                                </Button>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </Border>
+                                    <!-- Terminate Button -->
+                                    <Button Grid.Column="6"
+                                            Tag="{x:Bind}"
+                                            IsEnabled="{x:Bind CanTerminate}"
+                                            Style="{StaticResource SubtleIconButtonStyle}"
+                                            HorizontalAlignment="Center"
+                                            Click="TerminateProcess_Click">
+                                        <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Border>
+
+                <!-- Loading Overlay -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Visibility="{x:Bind ViewModel.ProcessesLoadingVisibility, Mode=OneWay}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                        <ProgressRing IsActive="True" Width="36" Height="36"/>
+                        <TextBlock Text="{x:Bind helpers:Strings.S.FetchingProcessData}"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

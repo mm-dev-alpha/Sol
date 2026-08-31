@@ -185,6 +185,7 @@ public class Strings
     public string ObjectCreatedLabel => IsDe ? "Objekt erstellt am" : "Object Created";
     public string ObjectModifiedLabel => IsDe ? "Objekt geändert am" : "Object Modified";
     public string QuickDiagnosticTitle => IsDe ? "Diagnose & Fernwartung" : "Diagnostics & Remote Tools";
+    public string DiagnosticsQuerying => IsDe ? "Diagnosedaten werden abgefragt..." : "Querying diagnostics...";
     public string PingBtn => IsDe ? "Erreichbarkeit prüfen (Ping)" : "Test Connection (Ping)";
     public string RemotePsBtn => IsDe ? "Remote PowerShell starten" : "Launch Remote PowerShell";
     public string RdpBtn => IsDe ? "Remotedesktop (RDP)" : "Remote Desktop (RDP)";

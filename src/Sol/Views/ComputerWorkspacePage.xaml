@@ -142,10 +142,26 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Account Status Badge -->
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay, Converter={StaticResource AccountStatusBrushConverter}}"/>
-                            <TextBlock Text="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <!-- Account Status Badge & Live Diagnostic Indicator -->
+                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay, Converter={StaticResource AccountStatusBrushConverter}}"/>
+                                <TextBlock Text="{x:Bind ViewModel.CurrentComputer.AccountStatus, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Diagnostics Querying Pill -->
+                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="10" 
+                                    Padding="8,2"
+                                    VerticalAlignment="Center"
+                                    Visibility="{x:Bind ViewModel.IsDiagnosticsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <ProgressRing IsActive="True" Width="12" Height="12" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Bind S.DiagnosticsQuerying}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </StackPanel>
 
@@ -574,7 +590,7 @@
                             </Grid>
                             <StackPanel Spacing="4">
                                 <!-- Loading State -->
-                                <controls:SettingsCard Visibility="{x:Bind ViewModel.IsDiagnosticsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <controls:SettingsCard Visibility="{x:Bind ViewModel.IsHardwareLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <controls:SettingsCard.Header>
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <ProgressRing IsActive="True" Width="16" Height="16" VerticalAlignment="Center"/>

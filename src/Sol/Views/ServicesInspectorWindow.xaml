@@ -97,7 +97,7 @@
             </Grid>
 
             <!-- 2. Interactive Column Headers (Clickable for Sorting) -->
-            <!-- Order: Display Name (2.2*), Service Name (1.3*), Status (110), Startup Type (140), Log On As (1.3*), Actions (130) -->
+            <!-- Order: Display Name (2.1*), Service Name (1.2*), Status (150), Startup Type (135), Log On As (1.2*), Actions (130) -->
             <Border Grid.Row="1"
                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -106,11 +106,11 @@
                     Padding="8,4">
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="2.2*" />
-                        <ColumnDefinition Width="1.3*" />
-                        <ColumnDefinition Width="110" />
-                        <ColumnDefinition Width="140" />
-                        <ColumnDefinition Width="1.3*" />
+                        <ColumnDefinition Width="2.1*" />
+                        <ColumnDefinition Width="1.2*" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="135" />
+                        <ColumnDefinition Width="1.2*" />
                         <ColumnDefinition Width="130" />
                     </Grid.ColumnDefinitions>
 
@@ -159,132 +159,148 @@
                 </Grid>
             </Border>
 
-            <!-- 3. Services Items ListView -->
-            <Border Grid.Row="2"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                <ListView ItemsSource="{x:Bind ViewModel.FilteredServices, Mode=OneWay}"
-                          SelectionMode="None"
-                          Padding="0,4">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:ComputerServiceInfo">
-                            <Grid Padding="8,4" HorizontalAlignment="Stretch">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2.2*" />
-                                    <ColumnDefinition Width="1.3*" />
-                                    <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="140" />
-                                    <ColumnDefinition Width="1.3*" />
-                                    <ColumnDefinition Width="130" />
-                                </Grid.ColumnDefinitions>
+            <!-- 3. Services Items ListView & Loading State -->
+            <Grid Grid.Row="2">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                    <ListView ItemsSource="{x:Bind ViewModel.FilteredServices, Mode=OneWay}"
+                              SelectionMode="None"
+                              Padding="0,4">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ComputerServiceInfo">
+                                <Grid Padding="8,4" HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2.1*" />
+                                        <ColumnDefinition Width="1.2*" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="135" />
+                                        <ColumnDefinition Width="1.2*" />
+                                        <ColumnDefinition Width="130" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Column 0: Display Name + Description Tooltip -->
-                                <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center" ToolTipService.ToolTip="{x:Bind Description}">
-                                    <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-                                    <TextBlock Text="{x:Bind PathName}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
+                                    <!-- Column 0: Display Name + Description Tooltip -->
+                                    <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center" ToolTipService.ToolTip="{x:Bind Description}">
+                                        <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind PathName}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
 
-                                <!-- Column 1: Service Name -->
-                                <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource CodeFontFamily}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                    <!-- Column 1: Service Name -->
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource CodeFontFamily}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
 
-                                <!-- Column 2: Status Pill -->
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <!-- Running State Pill -->
-                                    <Border Visibility="{x:Bind RunningVisibility}"
-                                            Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                                            BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="8,2">
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <FontIcon Glyph="&#xE73E;" FontSize="10" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{x:Bind StatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                    </Border>
+                                    <!-- Column 2: Status Pill -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- Running State Pill -->
+                                        <Border Visibility="{x:Bind RunningVisibility}"
+                                                Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                                                BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="8,2">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE73E;" FontSize="10" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind StatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Border>
 
-                                    <!-- Stopped State Pill -->
-                                    <Border Visibility="{x:Bind StoppedVisibility}"
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="8,2">
-                                        <TextBlock Text="{x:Bind StatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    </Border>
+                                        <!-- Stopped State Pill -->
+                                        <Border Visibility="{x:Bind StoppedVisibility}"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="8,2">
+                                            <TextBlock Text="{x:Bind StatusDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </Border>
 
-                                    <!-- Pending / Other State Pill -->
-                                    <Border Visibility="{x:Bind PendingVisibility}"
-                                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                                            BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="8,2">
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <FontIcon Glyph="&#xE712;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{x:Bind State}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
+                                        <!-- Pending / Other State Pill -->
+                                        <Border Visibility="{x:Bind PendingVisibility}"
+                                                Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                                                BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="8,2">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE712;" FontSize="10" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind State}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
 
-                                <!-- Column 3: Startup Type ComboBox -->
-                                <ComboBox Grid.Column="3"
-                                          Tag="{x:Bind}"
-                                          ItemsSource="{x:Bind AvailableStartModes}"
-                                          SelectedIndex="{x:Bind StartModeIndex}"
-                                          IsEnabled="{x:Bind CanChangeStartMode}"
-                                          DropDownClosed="StartModeCombo_DropDownClosed"
-                                          Width="125"
-                                          VerticalAlignment="Center"/>
+                                    <!-- Column 3: Startup Type ComboBox -->
+                                    <ComboBox Grid.Column="3"
+                                              Tag="{x:Bind}"
+                                              ItemsSource="{x:Bind AvailableStartModes}"
+                                              SelectedIndex="{x:Bind StartModeIndex}"
+                                              IsEnabled="{x:Bind CanChangeStartMode}"
+                                              DropDownClosed="StartModeCombo_DropDownClosed"
+                                              Width="125"
+                                              VerticalAlignment="Center"/>
 
-                                <!-- Column 4: Log On As -->
-                                <TextBlock Grid.Column="4" Text="{x:Bind DisplayStartName}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                    <!-- Column 4: Log On As -->
+                                    <TextBlock Grid.Column="4" Text="{x:Bind DisplayStartName}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
 
-                                <!-- Column 5: Action Buttons (Start, Stop, Restart) -->
-                                <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <!-- Start Button -->
-                                    <Button Tag="{x:Bind}"
-                                            IsEnabled="{x:Bind CanStart}"
-                                            Style="{StaticResource SubtleIconButtonStyle}"
-                                            ToolTipService.ToolTip="{x:Bind StartTooltip}"
-                                            Click="StartService_Click"
-                                            Padding="6,4">
-                                        <FontIcon Glyph="&#xE768;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                                    </Button>
+                                    <!-- Column 5: Action Buttons (Start, Stop, Restart) -->
+                                    <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <!-- Start Button -->
+                                        <Button Tag="{x:Bind}"
+                                                IsEnabled="{x:Bind CanStart}"
+                                                Style="{StaticResource SubtleIconButtonStyle}"
+                                                ToolTipService.ToolTip="{x:Bind StartTooltip}"
+                                                Click="StartService_Click"
+                                                Padding="6,4">
+                                            <FontIcon Glyph="&#xE768;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                                        </Button>
 
-                                    <!-- Stop Button -->
-                                    <Button Tag="{x:Bind}"
-                                            IsEnabled="{x:Bind CanStop}"
-                                            Style="{StaticResource SubtleIconButtonStyle}"
-                                            ToolTipService.ToolTip="{x:Bind StopTooltip}"
-                                            Click="StopService_Click"
-                                            Padding="6,4">
-                                        <FontIcon Glyph="&#xE71A;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                                    </Button>
+                                        <!-- Stop Button -->
+                                        <Button Tag="{x:Bind}"
+                                                IsEnabled="{x:Bind CanStop}"
+                                                Style="{StaticResource SubtleIconButtonStyle}"
+                                                ToolTipService.ToolTip="{x:Bind StopTooltip}"
+                                                Click="StopService_Click"
+                                                Padding="6,4">
+                                            <FontIcon Glyph="&#xE71A;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                        </Button>
 
-                                    <!-- Restart Button -->
-                                    <Button Tag="{x:Bind}"
-                                            IsEnabled="{x:Bind CanRestart}"
-                                            Style="{StaticResource SubtleIconButtonStyle}"
-                                            ToolTipService.ToolTip="{x:Bind RestartTooltip}"
-                                            Click="RestartService_Click"
-                                            Padding="6,4">
-                                        <FontIcon Glyph="&#xE72C;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    </Button>
+                                        <!-- Restart Button -->
+                                        <Button Tag="{x:Bind}"
+                                                IsEnabled="{x:Bind CanRestart}"
+                                                Style="{StaticResource SubtleIconButtonStyle}"
+                                                ToolTipService.ToolTip="{x:Bind RestartTooltip}"
+                                                Click="RestartService_Click"
+                                                Padding="6,4">
+                                            <FontIcon Glyph="&#xE72C;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                        </Button>
 
-                                    <!-- Shield icon indicator for Critical Services -->
-                                    <Border Visibility="{x:Bind CriticalVisibility}"
-                                            ToolTipService.ToolTip="{x:Bind CriticalProtectedTooltip}"
-                                            Padding="4,2">
-                                        <FontIcon Glyph="&#xEA18;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </Border>
+                                        <!-- Shield icon indicator for Critical Services -->
+                                        <Border Visibility="{x:Bind CriticalVisibility}"
+                                                ToolTipService.ToolTip="{x:Bind CriticalProtectedTooltip}"
+                                                Padding="4,2">
+                                            <FontIcon Glyph="&#xEA18;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Border>
+
+                <!-- Loading Overlay -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Visibility="{x:Bind ViewModel.ServicesLoadingVisibility, Mode=OneWay}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                        <ProgressRing IsActive="True" Width="36" Height="36"/>
+                        <TextBlock Text="{x:Bind helpers:Strings.S.FetchingServicesData}"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
