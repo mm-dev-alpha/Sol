@@ -102,7 +102,7 @@ public class JiraService : IJiraService
 
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            request.Headers.UserAgent.ParseAdd("Sol-Desktop-App/3.6.0");
+            request.Headers.UserAgent.ParseAdd("Sol-Desktop-App/3.6.1");
 
             if (isCloud)
             {
