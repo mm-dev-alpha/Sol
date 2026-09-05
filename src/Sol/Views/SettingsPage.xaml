@@ -92,13 +92,137 @@
                         </controls:SettingsCard>
                     </controls:SettingsExpander.Items>
                 </controls:SettingsExpander>
+            </StackPanel>
 
-                <!-- Inline Feedback InfoBar -->
-                <InfoBar IsOpen="{x:Bind ViewModel.IsJiraTestStatusOpen, Mode=TwoWay}"
-                         Severity="{x:Bind ViewModel.JiraTestStatusSeverity, Mode=OneWay}"
-                         Message="{x:Bind ViewModel.JiraTestStatusMessage, Mode=OneWay}"
-                         IsClosable="True"
-                         Margin="0,0,0,0"/>
+            <!-- Tools Configuration Section -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind S.ToolsSettingsSection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <!-- Awake Expander -->
+                <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsAwakeHeader}"
+                                           Description="{x:Bind S.ToolsSettingsAwakeDesc}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE708;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsAwakeDisplayLabel}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.AwakeKeepDisplayOnDefault, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsAwakeDurationLabel}">
+                            <ComboBox ItemsSource="{x:Bind ViewModel.AwakeDurationOptions}"
+                                      SelectedIndex="{x:Bind ViewModel.AwakeDefaultTimeIndex, Mode=TwoWay}"
+                                      Width="180"/>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!-- MMC Administrative Consoles Expander -->
+                <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsMmcHeader}"
+                                           Description="{x:Bind S.ToolsSettingsMmcDesc}"
+                                           IsExpanded="{x:Bind ViewModel.IsMmcLookupEnabled, Mode=TwoWay}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE74C;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsMmcLookupEnabled, Mode=TwoWay}"/>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsMmcHotkeyCardHeader}"
+                                               Description="{x:Bind S.ToolsSettingsMmcHotkeyCardDesc}"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!-- Shortcut Guide Expander -->
+                <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsShortcutGuideHeader}"
+                                           Description="{x:Bind S.ToolsSettingsShortcutGuideDesc}"
+                                           IsExpanded="{x:Bind ViewModel.IsShortcutGuideEnabled, Mode=TwoWay}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE765;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsShortcutGuideEnabled, Mode=TwoWay}"/>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsShortcutGuideHotkeyCardHeader}"
+                                               Description="{x:Bind S.ToolsSettingsShortcutGuideHotkeyCardDesc}"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!-- File Locksmith Expander -->
+                <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsFileLocksmithHeader}"
+                                           Description="{x:Bind S.ToolsSettingsFileLocksmithDesc}"
+                                           IsExpanded="True">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE72E;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsFileLocksmithToggleLabel}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.IsFileLocksmithShellIntegrationEnabled, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!-- Daily Admin Commands Expander -->
+                <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsAdminCommandsHeader}"
+                                           Description="{x:Bind S.ToolsSettingsAdminCommandsDesc}"
+                                           IsExpanded="{x:Bind ViewModel.IsAdminCommandsEnabled, Mode=TwoWay}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE756;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsAdminCommandsEnabled, Mode=TwoWay}"/>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsAdminCommandsHotkeyCardHeader}"
+                                               Description="{x:Bind S.ToolsSettingsAdminCommandsHotkeyCardDesc}"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!-- Grab Frame Settings -->
+                <controls:SettingsExpander Header="{x:Bind S.GrabFrameSettingsHeader}"
+                                           Description="{x:Bind S.GrabFrameSettingsDescription}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE790;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsGrabFrameEnabled, Mode=TwoWay}"/>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.GrabFrameSettingsAutoOcr}"
+                                               Description="{x:Bind S.GrabFrameSettingsAutoOcrDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.GrabFrameAutoOcr, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="{x:Bind S.GrabFrameSettingsAlwaysOnTop}"
+                                               Description="{x:Bind S.GrabFrameSettingsAlwaysOnTopDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.GrabFrameAlwaysOnTop, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="{x:Bind S.GrabFrameSettingsSingleLine}"
+                                               Description="{x:Bind S.GrabFrameSettingsSingleLineDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.GrabFrameSingleLine, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="{x:Bind S.GrabFrameSettingsTableMode}"
+                                               Description="{x:Bind S.GrabFrameSettingsTableModeDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.GrabFrameTableMode, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="{x:Bind S.GrabFrameSettingsAutoPaste}"
+                                               Description="{x:Bind S.GrabFrameSettingsAutoPasteDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.GrabFrameAutoPaste, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!-- Edit Text Window Settings -->
+                <controls:SettingsExpander Header="{x:Bind S.EditTextSettingsHeader}"
+                                           Description="{x:Bind S.EditTextSettingsDescription}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE70F;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsEditTextWindowEnabled, Mode=TwoWay}"/>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="{x:Bind S.EditTextHotkey}"
+                                               Description="{x:Bind S.ToolEditTextDesc}"/>
+                        <controls:SettingsCard Header="{x:Bind S.EditTextSettingsWordWrap}"
+                                               Description="{x:Bind S.EditTextSettingsWordWrapDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.EditTextWindowWordWrap, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="{x:Bind S.EditTextSettingsAlwaysOnTop}"
+                                               Description="{x:Bind S.EditTextSettingsAlwaysOnTopDesc}">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.EditTextWindowAlwaysOnTop, Mode=TwoWay}"/>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
             </StackPanel>
 
             <!-- About Section -->

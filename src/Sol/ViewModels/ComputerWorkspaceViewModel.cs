@@ -512,6 +512,14 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void OpenCompareWith()
+    {
+        if (CurrentComputer == null) return;
+        WeakReferenceMessenger.Default.Send(new InitiateComparisonMessage(ComparisonMode.Computers, CurrentComputer));
+        _navigationService.NavigateTo("CompareWorkspacePage");
+    }
+
+    [RelayCommand]
     public void CopyAllDetails()
     {
         if (CurrentComputer == null) return;

@@ -1,0 +1,204 @@
+<Window
+    x:Class="Sol.Views.FileLocksmithWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:Sol.Models"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:local="using:Sol.Helpers"
+    mc:Ignorable="d"
+    Title="Sol">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base" />
+    </Window.SystemBackdrop>
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom App TitleBar -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44" Padding="16,0" VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE72D;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock x:Name="TitleTextBlock" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,140,0">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="10,3"
+                        Visibility="{x:Bind ViewModel.ResultsVisibility, Mode=OneWay}">
+                    <TextBlock Text="{x:Bind ViewModel.ResultCountBadge, Mode=OneWay}"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1" Padding="20,10,20,20" RowSpacing="14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- 1. Target Path Bar -->
+            <Grid Grid.Row="0" ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="PathTextBox"
+                         Grid.Column="0"
+                         PlaceholderText="{x:Bind S.FileLocksmithTargetPathPlaceholder}"
+                         Text="{x:Bind ViewModel.TargetPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         KeyDown="PathTextBox_KeyDown"
+                         HorizontalAlignment="Stretch" />
+
+                <Button Grid.Column="1"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        Click="InspectButton_Click"
+                        IsEnabled="{x:Bind ViewModel.IsNotLoading, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE721;" FontSize="14" />
+                        <TextBlock Text="{x:Bind S.FileLocksmithInspectBtn}" />
+                    </StackPanel>
+                </Button>
+
+                <Button Grid.Column="2" Click="BrowseFileButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8A5;" FontSize="14" />
+                        <TextBlock Text="{x:Bind S.ToolBrowseFileBtn}" />
+                    </StackPanel>
+                </Button>
+
+                <Button Grid.Column="3" Click="BrowseFolderButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xED25;" FontSize="14" />
+                        <TextBlock Text="{x:Bind S.ToolBrowseFolderBtn}" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- 2. Action Header Bar (when results exist) -->
+            <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.ResultsVisibility, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{x:Bind ViewModel.ResultCountBadge, Mode=OneWay}" 
+                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                           VerticalAlignment="Center" />
+
+                <Button Grid.Column="1" 
+                        Click="EndAllButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                        <TextBlock Text="{x:Bind S.FileLocksmithEndAllBtn}"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- 3. Results / States List -->
+            <Grid Grid.Row="2">
+                <!-- Loading State -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12"
+                            Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}">
+                    <ProgressRing IsActive="True" Width="36" Height="36" />
+                    <TextBlock Text="{x:Bind S.FileLocksmithInspectBtn}" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+
+                <!-- No Locks Found Empty State -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="32"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        MaxWidth="480"
+                        Visibility="{x:Bind ViewModel.NoResultsVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE73E;" FontSize="32" Foreground="{ThemeResource SystemFillColorSuccessBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind S.FileLocksmithNoLocksFound}" 
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}" 
+                                   TextAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Process List Results -->
+                <ListView ItemsSource="{x:Bind ViewModel.LockingProcesses, Mode=OneWay}"
+                          SelectionMode="None"
+                          Visibility="{x:Bind ViewModel.ResultsVisibility, Mode=OneWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:LockingProcessInfo">
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Padding="16,12"
+                                    Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Process Icon -->
+                                    <FontIcon Grid.Column="0" Glyph="&#xE9D9;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,16,0" VerticalAlignment="Center" />
+
+                                    <!-- Details -->
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{x:Bind ProcessName}" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,1">
+                                                <TextBlock Text="{x:Bind ProcessId}" Style="{ThemeResource CaptionTextBlockStyle}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind ApplicationPath}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="500"/>
+                                    </StackPanel>
+
+                                    <!-- User Account -->
+                                    <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center" Margin="16,0,24,0">
+                                        <TextBlock Text="{x:Bind local:Strings.S.FileLocksmithUserHeader}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <TextBlock Text="{x:Bind User}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- End Task Button -->
+                                    <Button Grid.Column="3" 
+                                            Click="EndTaskButton_Click"
+                                            Tag="{x:Bind}"
+                                            VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                            <TextBlock Text="{x:Bind local:Strings.S.FileLocksmithEndTaskBtn}" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

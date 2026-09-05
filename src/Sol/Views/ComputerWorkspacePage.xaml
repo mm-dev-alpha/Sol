@@ -104,6 +104,13 @@
                 <!-- Quick Command Bar -->
                 <CommandBar DefaultLabelPosition="Right" Background="Transparent">
                     <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllDetailsCommand}" />
+                    <AppBarButton Label="{x:Bind S.CompareWithAction}" 
+                                  ToolTipService.ToolTip="{x:Bind S.CompareWithAction}" 
+                                  Command="{x:Bind ViewModel.OpenCompareWithCommand}">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8AB;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarSeparator/>
                     <AppBarButton Icon="Play" Label="{x:Bind S.PingBtn}" Click="Ping_Click"/>
                     <AppBarButton Icon="Remote" Label="{x:Bind S.RdpBtn}" Click="Rdp_Click"/>

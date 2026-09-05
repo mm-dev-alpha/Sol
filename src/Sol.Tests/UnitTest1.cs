@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Sol.Helpers;
 using Sol.Models;
+using Sol.Services;
 using Sol.ViewModels;
 using Xunit;
 
@@ -105,3 +106,4 @@ public class UserWorkspaceEnhancementsTests
         Assert.Equal(2, computer.Groups.Count);
     }
 }
+

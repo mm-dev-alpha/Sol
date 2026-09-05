@@ -709,6 +709,14 @@ public partial class UserWorkspaceViewModel : ObservableObject
     // --- CLIPBOARD & QUICK ACTIONS ---
 
     [RelayCommand]
+    private void OpenCompareWith()
+    {
+        if (CurrentUser == null) return;
+        WeakReferenceMessenger.Default.Send(new InitiateComparisonMessage(ComparisonMode.Users, CurrentUser));
+        _navigationService.NavigateTo("CompareWorkspacePage");
+    }
+
+    [RelayCommand]
     private void CopyPowerShell()
     {
         if (CurrentUser == null) return;

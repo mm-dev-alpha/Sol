@@ -697,6 +697,31 @@ public class ComputerDiagnosticServiceTests
     }
 
     [Fact]
+    public void QueryLocalSessionsWts_ExecutesSafelyAndDisposesMemoryCleanly()
+    {
+        var sessions = ComputerDiagnosticService.QueryLocalSessionsWts();
+        Assert.NotNull(sessions);
+        // On any interactive Windows station running tests, sessions list should be valid and without system accounts
+        Assert.All(sessions, s =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(s.Username));
+            Assert.NotEqual("SYSTEM", s.Username, StringComparer.OrdinalIgnoreCase);
+            Assert.NotEqual("LOCAL SERVICE", s.Username, StringComparer.OrdinalIgnoreCase);
+            Assert.NotEqual("NETWORK SERVICE", s.Username, StringComparer.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
+    public async Task GetSessionSnapshotAsync_Localhost_ReturnsSuccessfulSnapshot()
+    {
+        var service = new ComputerDiagnosticService();
+        var snapshot = await service.GetSessionSnapshotAsync("127.0.0.1");
+
+        Assert.True(snapshot.IsSuccess);
+        Assert.Equal("127.0.0.1", snapshot.Hostname);
+    }
+
+    [Fact]
     public void ComputerProcessInfo_PropertiesAndFormatters_EvaluateCorrectly()
     {
         var testDate = new DateTime(2026, 8, 30, 8, 0, 0);
@@ -1292,6 +1317,22 @@ public class ComputerDiagnosticServiceTests
         public string JiraDeploymentMode { get; set; } = "DataCenter";
         public string JiraBaseUrl { get; set; } = "https://jira.corp.contoso.com";
         public string JiraCloudEmail { get; set; } = string.Empty;
+        public bool AwakeKeepDisplayOnDefault { get; set; } = false;
+        public int AwakeDefaultTimeMinutes { get; set; } = 30;
+        public bool IsShortcutGuideEnabled { get; set; } = true;
+        public bool IsFileLocksmithShellIntegrationEnabled { get; set; } = false;
+        public bool IsMmcLookupEnabled { get; set; } = true;
+        public bool IsAdminCommandsEnabled { get; set; } = true;
+        public bool IsGrabFrameEnabled { get; set; } = true;
+        public bool GrabFrameAutoOcr { get; set; } = false;
+        public bool GrabFrameAlwaysOnTop { get; set; } = true;
+        public bool GrabFrameSingleLine { get; set; } = false;
+        public bool GrabFrameTableMode { get; set; } = false;
+        public bool GrabFrameAutoPaste { get; set; } = false;
+        public string GrabFrameDefaultLanguage { get; set; } = "en-US";
+        public bool IsEditTextWindowEnabled { get; set; } = true;
+        public bool EditTextWindowWordWrap { get; set; } = true;
+        public bool EditTextWindowAlwaysOnTop { get; set; } = false;
         public void Load() { }
         public void Save() { }
     }

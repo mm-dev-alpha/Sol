@@ -1,0 +1,123 @@
+<Window
+    x:Class="Sol.Views.ShortcutGuideOverlayWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:Sol.Models"
+    xmlns:local="using:Sol.Helpers"
+    mc:Ignorable="d"
+    Title="Shortcut Guide">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base" />
+    </Window.SystemBackdrop>
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom App TitleBar Area -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44" Padding="16,0" VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE765;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock Text="{x:Bind S.ShortcutGuideTitle}" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,140,0">
+                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                        CornerRadius="12"
+                        Padding="10,3">
+                    <TextBlock Text="{x:Bind S.ShortcutGuideDismissHint}"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- Search Bar Header -->
+        <Grid Grid.Row="1" Padding="24,8,24,12" ColumnSpacing="12">
+            <TextBox x:Name="SearchBox"
+                     PlaceholderText="{x:Bind S.ShortcutGuideSearchPlaceholder}"
+                     TextChanged="SearchBox_TextChanged"
+                     HorizontalAlignment="Stretch" />
+        </Grid>
+
+        <!-- Shortcut Categories View -->
+        <ScrollViewer Grid.Row="2" Padding="24,0,24,24" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="CategoriesItemsControl">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:ShortcutCategory">
+                        <StackPanel Spacing="10" Margin="0,0,0,24">
+                            <!-- Category Header -->
+                            <TextBlock Text="{x:Bind Name}" 
+                                       Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+
+                            <!-- Shortcuts In Category -->
+                            <ItemsControl ItemsSource="{x:Bind Shortcuts}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:ShortcutItem">
+                                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{ThemeResource ControlCornerRadius}"
+                                                Padding="14,10"
+                                                Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="220" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Key Chips Combination -->
+                                                <ItemsControl Grid.Column="0" ItemsSource="{x:Bind Keys}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="x:String">
+                                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="4"
+                                                                    Padding="7,2">
+                                                                <TextBlock Text="{x:Bind}" 
+                                                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                                           FontWeight="SemiBold" 
+                                                                           FontFamily="{StaticResource CodeFontFamily}" 
+                                                                           VerticalAlignment="Center" />
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <!-- Description -->
+                                                <TextBlock Grid.Column="1" 
+                                                           Text="{x:Bind Description}" 
+                                                           Style="{ThemeResource BodyTextBlockStyle}" 
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Window>

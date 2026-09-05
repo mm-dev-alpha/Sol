@@ -14,6 +14,24 @@ public interface ISettingsService
     string JiraBaseUrl { get; set; }
     string JiraCloudEmail { get; set; }
 
+    // Tools Configuration
+    bool AwakeKeepDisplayOnDefault { get; set; }
+    int AwakeDefaultTimeMinutes { get; set; }
+    bool IsMmcLookupEnabled { get; set; }
+    bool IsAdminCommandsEnabled { get; set; }
+    bool IsShortcutGuideEnabled { get; set; }
+    bool IsFileLocksmithShellIntegrationEnabled { get; set; }
+    bool IsGrabFrameEnabled { get; set; }
+    bool GrabFrameAutoOcr { get; set; }
+    bool GrabFrameAlwaysOnTop { get; set; }
+    bool GrabFrameSingleLine { get; set; }
+    bool GrabFrameTableMode { get; set; }
+    bool GrabFrameAutoPaste { get; set; }
+    string GrabFrameDefaultLanguage { get; set; }
+    bool IsEditTextWindowEnabled { get; set; }
+    bool EditTextWindowWordWrap { get; set; }
+    bool EditTextWindowAlwaysOnTop { get; set; }
+
     void Load();
     void Save();
 }

@@ -1,0 +1,367 @@
+<Window
+    x:Class="Sol.Views.EditTextWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:helpers="using:Sol.Helpers"
+    Title="Edit Text"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="38" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom TitleBar -->
+        <Grid
+            x:Name="AppTitleBar"
+            Grid.Row="0"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="12,0,4,0"
+            PointerPressed="AppTitleBar_PointerPressed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Icon and Title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE70F;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock
+                    Text="{x:Bind S.EditTextWindowTitle}"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    FontWeight="SemiBold"
+                    VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Status Badge / Message -->
+            <Border
+                x:Name="StatusPill"
+                Grid.Column="1"
+                Margin="12,0,0,0"
+                Padding="8,2"
+                CornerRadius="10"
+                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                VerticalAlignment="Center"
+                Visibility="Collapsed">
+                <TextBlock
+                    x:Name="StatusPillText"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    FontSize="11"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Border>
+
+            <!-- TitleBar Window Controls -->
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <!-- Word Wrap Toggle -->
+                <ToggleButton
+                    x:Name="WordWrapToggle"
+                    ToolTipService.ToolTip="{x:Bind S.EditTextToggleWordWrap}"
+                    Width="30"
+                    Height="28"
+                    Padding="0"
+                    Click="WordWrapToggle_Click">
+                    <FontIcon Glyph="&#xE8AB;" FontSize="12" />
+                </ToggleButton>
+
+                <!-- Calc Pane Toggle -->
+                <ToggleButton
+                    x:Name="CalcPaneToggle"
+                    ToolTipService.ToolTip="{x:Bind S.EditTextToggleCalcPane}"
+                    Width="30"
+                    Height="28"
+                    Padding="0"
+                    Click="CalcPaneToggle_Click">
+                    <FontIcon Glyph="&#xE8EF;" FontSize="12" />
+                </ToggleButton>
+
+                <!-- Table Mode Toggle -->
+                <ToggleButton
+                    x:Name="TableModeToggle"
+                    ToolTipService.ToolTip="{x:Bind S.EditTextModeTable}"
+                    Width="30"
+                    Height="28"
+                    Padding="0"
+                    Click="TableModeToggle_Click">
+                    <FontIcon Glyph="&#xE80A;" FontSize="12" />
+                </ToggleButton>
+
+                <!-- Always On Top Pin -->
+                <ToggleButton
+                    x:Name="AlwaysOnTopToggle"
+                    ToolTipService.ToolTip="{x:Bind S.EditTextAlwaysOnTop}"
+                    Width="30"
+                    Height="28"
+                    Padding="0"
+                    Click="AlwaysOnTopToggle_Click">
+                    <FontIcon Glyph="&#xE718;" FontSize="12" />
+                </ToggleButton>
+
+                <!-- Vertical Divider -->
+                <Border Width="1" Height="16" Background="{ThemeResource CardStrokeColorDefaultBrush}" Margin="2,0" />
+
+                <!-- Custom Close Button -->
+                <Button
+                    x:Name="CloseWindowButton"
+                    ToolTipService.ToolTip="{x:Bind S.EditTextCloseTooltip}"
+                    Width="30"
+                    Height="28"
+                    Padding="0"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="CloseWindowButton_Click">
+                    <FontIcon Glyph="&#xE711;" FontSize="10" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Menu / Command Bar -->
+        <MenuBar Grid.Row="1" Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <!-- File Menu -->
+            <MenuBarItem Title="{x:Bind S.EditTextMenuFile}">
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuNew}" Click="MenuFileNew_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7C3;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuOpen}" Click="MenuFileOpen_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8E5;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuSave}" Click="MenuFileSave_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74E;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuSaveAs}" Click="MenuFileSaveAs_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE792;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuCopyClose}" Click="MenuFileCopyClose_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C8;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuCloseInsert}" Click="MenuFileCloseInsert_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74E;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuClose}" Click="MenuFileClose_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE711;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+            </MenuBarItem>
+
+            <!-- Edit Menu -->
+            <MenuBarItem Title="{x:Bind S.EditTextMenuEdit}">
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuUndo}" Click="MenuEditUndo_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7A7;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuRedo}" Click="MenuEditRedo_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7A6;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuCut}" Click="MenuEditCut_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C6;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuCopy}" Click="MenuEditCopy_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C8;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuPaste}" Click="MenuEditPaste_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE77F;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuOcrPaste}" Click="MenuEditOcrPaste_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8AC;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuSelectAll}" Click="MenuEditSelectAll_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8B3;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="{x:Bind S.EditTextMenuClear}" Click="MenuEditClear_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74D;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+            </MenuBarItem>
+
+            <!-- Transform Menu -->
+            <MenuBarItem Title="{x:Bind S.EditTextMenuTransform}">
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformSingleLine}" Click="TransformSingleLine_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformTrim}" Click="TransformTrim_Click" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformNumbers}" Click="TransformMakeNumbers_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformLetters}" Click="TransformMakeLetters_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformFixGuid}" Click="TransformFixGuid_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformToggleCase}" Click="TransformToggleCase_Click" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformRemoveDuplicates}" Click="TransformRemoveDuplicates_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformShuffle}" Click="TransformShuffle_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformReplaceReserved}" Click="TransformReplaceReserved_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformUnstack}" Click="TransformUnstack_Click" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformSortAsc}" Click="TransformSortAsc_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformSortDesc}" Click="TransformSortDesc_Click" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformExtractEmails}" Click="TransformExtractEmails_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformExtractUrls}" Click="TransformExtractUrls_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTransformExtractNumbers}" Click="TransformExtractNumbers_Click" />
+            </MenuBarItem>
+
+            <!-- Table Menu -->
+            <MenuBarItem Title="{x:Bind S.EditTextModeTable}">
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableTranspose}" Click="TableTranspose_Click">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8CB;" /></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableAddRow}" Click="TableAddRow_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableAddColumn}" Click="TableAddColumn_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableDeleteRow}" Click="TableDeleteRow_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableDeleteColumn}" Click="TableDeleteColumn_Click" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableCopyTsv}" Click="TableCopyTsv_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableCopyCsv}" Click="TableCopyCsv_Click" />
+                <MenuFlyoutItem Text="{x:Bind S.EditTextTableCopyMarkdown}" Click="TableCopyMarkdown_Click" />
+            </MenuBarItem>
+        </MenuBar>
+
+        <!-- Main Workspace Area -->
+        <Grid Grid.Row="2">
+            <!-- Text Mode Workspace -->
+            <Grid x:Name="TextModeContainer" Visibility="Visible">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Primary Text Box -->
+                <TextBox
+                    x:Name="TextEditor"
+                    Grid.Column="0"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    FontFamily="Consolas, Cascadia Code, Segoe UI"
+                    FontSize="14"
+                    BorderThickness="0"
+                    Padding="12"
+                    VerticalAlignment="Stretch"
+                    HorizontalAlignment="Stretch"
+                    TextChanged="TextEditor_TextChanged" />
+
+                <!-- Calculation Side Pane -->
+                <Grid
+                    x:Name="CalcResultsPane"
+                    Grid.Column="1"
+                    Width="190"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,0,0,0"
+                    Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="32" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Padding="8,6">
+                        <TextBlock
+                            Text="{x:Bind S.EditTextToggleCalcPane}"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Border>
+
+                    <TextBox
+                        x:Name="CalcResultsEditor"
+                        Grid.Row="1"
+                        IsReadOnly="True"
+                        AcceptsReturn="True"
+                        TextWrapping="NoWrap"
+                        FontFamily="Consolas, Cascadia Code, Segoe UI"
+                        FontSize="14"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        Padding="8,12" />
+                </Grid>
+            </Grid>
+
+            <!-- Table Mode Workspace -->
+            <Grid x:Name="TableModeContainer" Visibility="Collapsed" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="TableContainerPanel" Spacing="2" Padding="12" />
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- Bottom Status Bar -->
+        <Grid
+            Grid.Row="3"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="12,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: Line / Word / Char Counts -->
+            <TextBlock
+                x:Name="TextStatsTextBlock"
+                Grid.Column="0"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                VerticalAlignment="Center" />
+
+            <!-- Center: Calculation Summary -->
+            <TextBlock
+                x:Name="CalcStatsTextBlock"
+                Grid.Column="1"
+                Margin="16,0,0,0"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                FontWeight="SemiBold"
+                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                VerticalAlignment="Center"
+                Visibility="Collapsed" />
+
+            <!-- Right: Quick Action Buttons -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <!-- OCR Paste -->
+                <Button
+                    ToolTipService.ToolTip="{x:Bind S.EditTextMenuOcrPaste}"
+                    Style="{ThemeResource DefaultButtonStyle}"
+                    Height="28"
+                    Padding="8,0"
+                    Click="MenuEditOcrPaste_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8AC;" FontSize="12" />
+                        <TextBlock Text="{x:Bind S.EditTextMenuOcrPaste}" FontSize="12" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Copy & Close -->
+                <Button
+                    ToolTipService.ToolTip="{x:Bind S.EditTextMenuCopyClose}"
+                    Style="{ThemeResource DefaultButtonStyle}"
+                    Height="28"
+                    Padding="8,0"
+                    Click="MenuFileCopyClose_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8C8;" FontSize="12" />
+                        <TextBlock Text="{x:Bind S.EditTextMenuCopyClose}" FontSize="12" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Close & Insert -->
+                <Button
+                    ToolTipService.ToolTip="{x:Bind S.EditTextMenuCloseInsert}"
+                    Style="{ThemeResource AccentButtonStyle}"
+                    Height="28"
+                    Padding="8,0"
+                    Click="MenuFileCloseInsert_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE74E;" FontSize="12" />
+                        <TextBlock Text="{x:Bind S.EditTextMenuCloseInsert}" FontSize="12" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

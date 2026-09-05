@@ -1,0 +1,452 @@
+<Page
+    x:Class="Sol.Views.ToolsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:viewmodels="using:Sol.ViewModels"
+    xmlns:local="using:Sol.Helpers"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <ScrollViewer Padding="24" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="24" MaxWidth="1100" HorizontalAlignment="Stretch">
+            
+            <!-- Page Header -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="{x:Bind S.ToolsPageTitle}" 
+                           Style="{ThemeResource TitleLargeTextBlockStyle}" 
+                           FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Bind S.ToolsPageSubtitle}" 
+                           Style="{ThemeResource BodyTextBlockStyle}" 
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- Tools Dashboard 2-Column Responsive Grid -->
+            <Grid ColumnSpacing="20" RowSpacing="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="340"/>
+                    <ColumnDefinition Width="*" MinWidth="340"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Tool 1: Awake Card -->
+                <Border Grid.Row="0" Grid.Column="0"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xEC46;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolAwakeTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.AwakeStatusBadge, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolAwakeDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <!-- Inline Awake Controls -->
+                        <StackPanel Spacing="12">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.IsAwakeActive, Mode=TwoWay}"
+                                          OnContent="{x:Bind S.ToolStatusActive}"
+                                          OffContent="{x:Bind S.ToolStatusInactive}"/>
+
+                            <ComboBox Header="{x:Bind S.ToolAwakeModeLabel}"
+                                      ItemsSource="{x:Bind ViewModel.AwakeModes}"
+                                      SelectedIndex="{x:Bind ViewModel.AwakeModeIndex, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch"/>
+
+                            <CheckBox IsChecked="{x:Bind ViewModel.KeepScreenOn, Mode=TwoWay}" 
+                                      Content="{x:Bind S.ToolAwakeKeepScreenOn}"/>
+
+                            <TextBlock Text="{x:Bind ViewModel.AwakeCountdownText, Mode=OneWay}" 
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}" 
+                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                       Visibility="{x:Bind ViewModel.AwakeCountdownText, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tool 2: File Locksmith Card -->
+                <Border Grid.Row="0" Grid.Column="1"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE72D;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolFileLocksmithTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.FileLocksmithStatusBadge, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolFileLocksmithDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <!-- Drop Zone Target -->
+                        <Border x:Name="LocksmithDropZone"
+                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{ThemeResource ControlCornerRadius}"
+                                Padding="16"
+                                HorizontalAlignment="Stretch"
+                                AllowDrop="True"
+                                DragOver="LocksmithDropZone_DragOver"
+                                Drop="LocksmithDropZone_Drop">
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xED43;" FontSize="24" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind S.ToolDropZonePlaceholder}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                           TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="LocksmithBrowseFile_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE8A5;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolBrowseFileBtn}"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{ThemeResource AccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.OpenFileLocksmithWindowCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE78B;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolOpenWindowBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tool 3: Shortcut Guide Card -->
+                <Border Grid.Row="1" Grid.Column="0"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE765;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolShortcutGuideTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Hotkey Badge -->
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.ShortcutGuideHotkeyText, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolShortcutGuideDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Style="{ThemeResource AccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.OpenShortcutGuideCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE765;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolLaunchBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tool 4: MMC Administrative Consoles Card -->
+                <Border Grid.Row="1" Grid.Column="1"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE74C;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolMmcTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Hotkey Badge -->
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.MmcHotkeyText, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolMmcDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Style="{ThemeResource AccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.LaunchMmcLookupCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE74C;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolLaunchBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tool 5: Daily Admin Commands Card -->
+                <Border Grid.Row="2" Grid.Column="0"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE756;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolAdminCommandsTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Hotkey Badge -->
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.AdminCommandsHotkeyText, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolAdminCommandsDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Style="{ThemeResource AccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.LaunchAdminCommandsCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE756;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolLaunchBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tool 6: Grab Frame Card -->
+                <Border Grid.Row="2" Grid.Column="1"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE790;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolGrabFrameTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Hotkey Badge -->
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.GrabFrameHotkeyText, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolGrabFrameDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Style="{ThemeResource AccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.LaunchGrabFrameCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE790;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolLaunchBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tool 7: Edit Text Window Card -->
+                <Border Grid.Row="3" Grid.Column="0"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Header & Status Pill -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE70F;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="{x:Bind S.ToolEditTextTitle}" 
+                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Hotkey Badge -->
+                            <Border Grid.Column="2" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="12" 
+                                    Padding="8,2" 
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.EditTextHotkeyText, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="{x:Bind S.ToolEditTextDesc}" 
+                                   Style="{ThemeResource BodyTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Style="{ThemeResource AccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.LaunchEditTextWindowCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                                    <TextBlock Text="{x:Bind S.ToolLaunchBtn}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

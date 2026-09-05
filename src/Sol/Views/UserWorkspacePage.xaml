@@ -117,6 +117,13 @@
                         </AppBarButton.Icon>
                     </AppBarButton>
                     <AppBarButton Icon="Copy" Label="{x:Bind S.CopyAllBtn}" Command="{x:Bind ViewModel.CopyAllCommand}" />
+                    <AppBarButton Label="{x:Bind S.CompareWithAction}" 
+                                  ToolTipService.ToolTip="{x:Bind S.CompareWithAction}" 
+                                  Command="{x:Bind ViewModel.OpenCompareWithCommand}">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8AB;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton Label="{x:Bind S.ViewJiraTicketsBtn}" 
                                   ToolTipService.ToolTip="{x:Bind S.ViewJiraTicketsTooltip}" 
                                   Command="{x:Bind ViewModel.NavigateToJiraCommand}" 

@@ -18,6 +18,7 @@
             <converters:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
             <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
             <converters:AccountStatusBrushConverter x:Key="AccountStatusBrushConverter"/>
+            <converters:ObjectToVisibilityConverter x:Key="ObjectToVisibilityConverter"/>
             
             <!-- Fluent 2 Geometry &amp; Corner Radii (DESIGN_PHILOSOPHY.md §2.2) -->
             <CornerRadius x:Key="ControlCornerRadius">4,4,4,4</CornerRadius>

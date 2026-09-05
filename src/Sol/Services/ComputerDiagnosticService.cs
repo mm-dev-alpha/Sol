@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1167,6 +1168,25 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
         }
         catch (Exception ex)
         {
+            if (IsLocalHost(cleanHost))
+            {
+                try
+                {
+                    var wtsSessions = QueryLocalSessionsWts();
+                    if (wtsSessions.Count > 0)
+                    {
+                        return new ComputerSessionSnapshot
+                        {
+                            Hostname = cleanHost,
+                            Sessions = wtsSessions,
+                            IsSuccess = true,
+                            QueriedAt = DateTime.Now
+                        };
+                    }
+                }
+                catch { }
+            }
+
             return GetFallbackSessionSnapshot(cleanHost, ex.Message);
         }
     }
@@ -1644,7 +1664,12 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
                         string dependent = obj["Dependent"]?.ToString() ?? string.Empty;
 
                         string logonId = string.Empty;
-                        var matchLogon = Regex.Match(antecedent, @"LogonId=""?(\d+)""?", RegexOptions.IgnoreCase);
+                        var matchLogon = Regex.Match(dependent, @"LogonId=""?(\d+)""?", RegexOptions.IgnoreCase);
+                        if (!matchLogon.Success)
+                        {
+                            matchLogon = Regex.Match(antecedent, @"LogonId=""?(\d+)""?", RegexOptions.IgnoreCase);
+                        }
+
                         if (matchLogon.Success)
                         {
                             logonId = matchLogon.Groups[1].Value;
@@ -1658,10 +1683,18 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
                         string domain = string.Empty;
                         string name = string.Empty;
 
-                        var matchDomain = Regex.Match(dependent, @"Domain=""([^""]+)""", RegexOptions.IgnoreCase);
+                        var matchDomain = Regex.Match(antecedent, @"Domain=""([^""]+)""", RegexOptions.IgnoreCase);
+                        if (!matchDomain.Success)
+                        {
+                            matchDomain = Regex.Match(dependent, @"Domain=""([^""]+)""", RegexOptions.IgnoreCase);
+                        }
                         if (matchDomain.Success) domain = matchDomain.Groups[1].Value;
 
-                        var matchName = Regex.Match(dependent, @"Name=""([^""]+)""", RegexOptions.IgnoreCase);
+                        var matchName = Regex.Match(antecedent, @"Name=""([^""]+)""", RegexOptions.IgnoreCase);
+                        if (!matchName.Success)
+                        {
+                            matchName = Regex.Match(dependent, @"Name=""([^""]+)""", RegexOptions.IgnoreCase);
+                        }
                         if (matchName.Success) name = matchName.Groups[1].Value;
 
                         if (string.IsNullOrWhiteSpace(name)) continue;
@@ -1701,6 +1734,52 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
             }
             catch { }
 
+            // Step 2b: Fallback to Win32_ComputerSystem.UserName
+            if (sessions.Count == 0)
+            {
+                try
+                {
+                    using var csSearcher = new ManagementObjectSearcher(wmiScope, new ObjectQuery("SELECT UserName FROM Win32_ComputerSystem"));
+                    using var csResults = csSearcher.Get();
+                    foreach (ManagementObject csObj in csResults)
+                    {
+                        using (csObj)
+                        {
+                            string rawUser = csObj["UserName"]?.ToString() ?? string.Empty;
+                            if (!string.IsNullOrWhiteSpace(rawUser))
+                            {
+                                string dom = string.Empty;
+                                string usr = rawUser.Trim();
+                                int slashIdx = usr.IndexOf('\\');
+                                if (slashIdx >= 0)
+                                {
+                                    dom = usr.Substring(0, slashIdx);
+                                    usr = usr.Substring(slashIdx + 1);
+                                }
+
+                                string key = $"{dom}\\{usr}";
+                                if (!string.IsNullOrWhiteSpace(usr) && !seenUsers.Contains(key))
+                                {
+                                    seenUsers.Add(key);
+                                    sessions.Add(new ComputerSessionInfo
+                                    {
+                                        SessionId = 1,
+                                        Username = usr,
+                                        Domain = dom,
+                                        SamAccountName = usr,
+                                        DisplayName = usr,
+                                        SessionType = ComputerSessionType.Console,
+                                        LogonTime = DateTime.Now,
+                                        IsActive = true
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
             // Step 3: Fallback query via explorer.exe process owners
             if (sessions.Count == 0)
             {
@@ -1738,6 +1817,21 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
                     }
                 }
                 catch { }
+            }
+
+            // Step 4: For local host, complement with native WTS enumeration
+            if (IsLocalHost(cleanHost) && sessions.Count == 0)
+            {
+                var wtsSessions = QueryLocalSessionsWts();
+                foreach (var ws in wtsSessions)
+                {
+                    string key = $"{ws.Domain}\\{ws.Username}";
+                    if (!string.IsNullOrWhiteSpace(ws.Username) && !seenUsers.Contains(key))
+                    {
+                        seenUsers.Add(key);
+                        sessions.Add(ws);
+                    }
+                }
             }
 
             return new ComputerSessionSnapshot
@@ -2795,4 +2889,131 @@ public class ComputerDiagnosticService : IComputerDiagnosticService
         };
     }
 
+    #region Win32 WTS Session Enumeration
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WTS_SESSION_INFO
+    {
+        public int SessionId;
+        public IntPtr pWinStationName;
+        public int State;
+    }
+
+    private enum WTS_INFO_CLASS
+    {
+        WTSUserName = 5,
+        WTSDomainName = 7
+    }
+
+    [DllImport("wtsapi32.dll", EntryPoint = "WTSEnumerateSessionsW", SetLastError = true)]
+    private static extern bool WTSEnumerateSessions(
+        IntPtr hServer,
+        int reserved,
+        int version,
+        out IntPtr ppSessionInfo,
+        out int pCount);
+
+    [DllImport("wtsapi32.dll", EntryPoint = "WTSQuerySessionInformationW", SetLastError = true)]
+    private static extern bool WTSQuerySessionInformation(
+        IntPtr hServer,
+        int sessionId,
+        WTS_INFO_CLASS wtsInfoClass,
+        out IntPtr ppBuffer,
+        out int pBytesReturned);
+
+    [DllImport("wtsapi32.dll")]
+    private static extern void WTSFreeMemory(IntPtr pMemory);
+
+    public static List<ComputerSessionInfo> QueryLocalSessionsWts()
+    {
+        var list = new List<ComputerSessionInfo>();
+        IntPtr pSessionInfo = IntPtr.Zero;
+        int count = 0;
+
+        if (!WTSEnumerateSessions(IntPtr.Zero, 0, 1, out pSessionInfo, out count))
+        {
+            return list;
+        }
+
+        try
+        {
+            int structSize = Marshal.SizeOf<WTS_SESSION_INFO>();
+            for (int i = 0; i < count; i++)
+            {
+                IntPtr current = IntPtr.Add(pSessionInfo, i * structSize);
+                var sessionInfo = Marshal.PtrToStructure<WTS_SESSION_INFO>(current);
+
+                string stationName = sessionInfo.pWinStationName != IntPtr.Zero
+                    ? Marshal.PtrToStringUni(sessionInfo.pWinStationName) ?? string.Empty
+                    : string.Empty;
+
+                string userName = QueryWtsString(sessionInfo.SessionId, WTS_INFO_CLASS.WTSUserName);
+                string domain = QueryWtsString(sessionInfo.SessionId, WTS_INFO_CLASS.WTSDomainName);
+
+                if (string.IsNullOrWhiteSpace(userName) ||
+                    userName.Equals("SYSTEM", StringComparison.OrdinalIgnoreCase) ||
+                    userName.Equals("LOCAL SERVICE", StringComparison.OrdinalIgnoreCase) ||
+                    userName.Equals("NETWORK SERVICE", StringComparison.OrdinalIgnoreCase) ||
+                    userName.StartsWith("DWM-", StringComparison.OrdinalIgnoreCase) ||
+                    userName.StartsWith("UMFD-", StringComparison.OrdinalIgnoreCase) ||
+                    userName.Equals("ANONYMOUS LOGON", StringComparison.OrdinalIgnoreCase) ||
+                    userName.StartsWith("Font Driver Host", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var sessType = sessionInfo.State == 4
+                    ? ComputerSessionType.Disconnected
+                    : (stationName.Equals("Console", StringComparison.OrdinalIgnoreCase)
+                        ? ComputerSessionType.Console
+                        : ComputerSessionType.RemoteDesktop);
+
+                list.Add(new ComputerSessionInfo
+                {
+                    SessionId = (uint)sessionInfo.SessionId,
+                    Username = userName,
+                    Domain = domain,
+                    SamAccountName = userName,
+                    DisplayName = userName,
+                    SessionType = sessType,
+                    LogonTime = DateTime.Now,
+                    IsActive = sessionInfo.State == 0
+                });
+            }
+        }
+        catch { }
+        finally
+        {
+            if (pSessionInfo != IntPtr.Zero)
+            {
+                WTSFreeMemory(pSessionInfo);
+            }
+        }
+
+        return list;
+    }
+
+    private static string QueryWtsString(int sessionId, WTS_INFO_CLASS infoClass)
+    {
+        if (WTSQuerySessionInformation(IntPtr.Zero, sessionId, infoClass, out IntPtr pBuffer, out int bytesReturned))
+        {
+            try
+            {
+                if (pBuffer != IntPtr.Zero && bytesReturned > 0)
+                {
+                    return Marshal.PtrToStringUni(pBuffer) ?? string.Empty;
+                }
+            }
+            finally
+            {
+                if (pBuffer != IntPtr.Zero)
+                {
+                    WTSFreeMemory(pBuffer);
+                }
+            }
+        }
+        return string.Empty;
+    }
+
+    #endregion
 }

@@ -77,11 +77,21 @@
                         <FontIcon Glyph="&#xE7F8;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="{x:Bind S.NavCompareWorkspace}" Tag="CompareWorkspacePage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8AB;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="{x:Bind S.NavJiraWorkspace}" 
                                     Tag="JiraWorkspacePage"
                                     Visibility="{x:Bind ViewModel.JiraNavVisibility, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <BitmapIcon UriSource="ms-appx:///Assets/JiraLogo.png" ShowAsMonochrome="False"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="{x:Bind S.NavTools}" Tag="ToolsPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEC7A;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
