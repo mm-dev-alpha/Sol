@@ -28,8 +28,5 @@ jobs:
       - name: Build Sol (Release)
         run: dotnet build src/Sol/Sol.csproj -c Release -r win-x64 --no-restore /warnaserror
 
-      - name: Build Tests (Release)
-        run: dotnet build src/Sol.Tests/Sol.Tests.csproj -c Release -r win-x64 --no-restore /warnaserror
-
       - name: Run Unit Tests
-        run: dotnet test src/Sol.Tests/Sol.Tests.csproj -c Release --no-build --verbosity normal
+        run: dotnet test src/Sol.Tests/Sol.Tests.csproj -c Release --verbosity normal
