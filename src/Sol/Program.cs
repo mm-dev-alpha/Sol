@@ -20,9 +20,11 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        Helpers.AppLog.Write($"Program.Main started. PID={Environment.ProcessId}, Path={Environment.ProcessPath}");
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
         var mainInstance = AppInstance.FindOrRegisterForKey(AppKey);
+        Helpers.AppLog.Write($"Program.Main: mainInstance.IsCurrent = {mainInstance.IsCurrent}");
 
         if (!mainInstance.IsCurrent)
         {
@@ -61,7 +63,9 @@ public static class Program
 
         Microsoft.UI.Xaml.Application.Start((p) =>
         {
-            var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+            var dq = DispatcherQueue.GetForCurrentThread();
+            dq.EnsureSystemDispatcherQueue();
+            var context = new DispatcherQueueSynchronizationContext(dq);
             SynchronizationContext.SetSynchronizationContext(context);
             new App();
         });

@@ -39,6 +39,7 @@ public sealed partial class GrabFrameWindow : Window
     private readonly IntPtr _hwnd;
     private readonly AppWindow? _appWindow;
     private OverlappedPresenter? _presenter;
+    private TransparentTintBackdrop? _backdrop;
 
     private readonly DispatcherTimer _autoOcrTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private readonly DispatcherTimer _statusPillTimer = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -111,7 +112,8 @@ public sealed partial class GrabFrameWindow : Window
         // Apply custom transparent backdrop
         try
         {
-            this.SystemBackdrop = new TransparentTintBackdrop(this);
+            _backdrop = new TransparentTintBackdrop(this);
+            this.SystemBackdrop = _backdrop;
         }
         catch (Exception ex)
         {
@@ -133,6 +135,14 @@ public sealed partial class GrabFrameWindow : Window
 
         TopBarGrid.PointerPressed += TopBarGrid_PointerPressed;
         RootGrid.SizeChanged += RootGrid_SizeChanged;
+
+        Activated += (s, e) =>
+        {
+            if (_hwnd != IntPtr.Zero)
+            {
+                TransparentTintBackdrop.ConfigureDwm(_hwnd);
+            }
+        };
 
         Closed += GrabFrameWindow_Closed;
 
@@ -744,6 +754,8 @@ public sealed partial class GrabFrameWindow : Window
         _statusPillTimer.Stop();
         _ocrCts?.Cancel();
         _ocrCts?.Dispose();
+        this.SystemBackdrop = null;
+        _backdrop = null;
 
         if (CurrentInstance == this)
         {

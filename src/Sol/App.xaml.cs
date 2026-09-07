@@ -149,10 +149,15 @@ public partial class App : Application
 
         try
         {
-            var unlockPath = CommandLineHelper.TryGetUnlockPath(Environment.GetCommandLineArgs());
+            var argsList = Environment.GetCommandLineArgs();
+            var unlockPath = CommandLineHelper.TryGetUnlockPath(argsList);
             if (!string.IsNullOrWhiteSpace(unlockPath))
             {
                 OpenOrActivateLocksmith(unlockPath);
+            }
+            else if (argsList.Any(a => string.Equals(a, "--grab-frame", StringComparison.OrdinalIgnoreCase)))
+            {
+                GetService<ViewModels.ToolsViewModel>().LaunchGrabFrame();
             }
         }
         catch { }
@@ -218,6 +223,12 @@ public partial class App : Application
                 if (!string.IsNullOrWhiteSpace(unlockPath))
                 {
                     OpenOrActivateLocksmith(unlockPath);
+                }
+                else if (args.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Launch
+                    && args.Data is ILaunchActivatedEventArgs launchArgs
+                    && launchArgs.Arguments?.Contains("--grab-frame", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    GetService<ViewModels.ToolsViewModel>().LaunchGrabFrame();
                 }
                 else
                 {
