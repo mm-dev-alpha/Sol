@@ -44,7 +44,7 @@ jobs:
             $notesPath = "RELEASE_NOTES.md"
           }
           if (-not (Test-Path $notesPath)) {
-            $notesPath = "RELEASE_NOTES_v3.6.1.md"
+            $notesPath = "RELEASE_NOTES_v4.0.0.md"
           }
           echo "NOTES_PATH=$notesPath" >> $env:GITHUB_ENV
 

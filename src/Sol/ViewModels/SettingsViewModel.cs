@@ -17,7 +17,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IJiraService _jiraService;
     private readonly IFileLocksmithService? _fileLocksmithService;
 
-    [ObservableProperty] public partial string Version { get; set; } = typeof(SettingsViewModel).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "3.6.1";
+    [ObservableProperty] public partial string Version { get; set; } = typeof(SettingsViewModel).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "4.0.0";
     [ObservableProperty] public partial string AdDomain { get; set; } = string.Empty;
     public string AppLanguage => "en";
 
@@ -60,7 +60,7 @@ public partial class SettingsViewModel : ObservableObject
     public bool IsJiraDataCenter => string.Equals(JiraDeploymentMode, "DataCenter", StringComparison.OrdinalIgnoreCase);
     public bool IsJiraCloud => string.Equals(JiraDeploymentMode, "Cloud", StringComparison.OrdinalIgnoreCase);
 
-    public string AppVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "3.6.1.0";
+    public string AppVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "4.0.0.0";
 
     public SettingsViewModel(ISettingsService settings, IJiraService jiraService, IFileLocksmithService? fileLocksmithService = null)
     {
