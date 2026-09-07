@@ -430,14 +430,45 @@ FodyWeavers.xsd
 
 # Sol Project Specific
 publish/
-publish_final/
-publish_final_2/
-publish_fix/
+publish*/
 releases/
 samples/
+*.zip
+checksums.sha256
+*.sha256
+
+# Windows OS artifacts
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# IDE & Editor artifacts (JetBrains Rider, Fleet, AI assistants)
+.idea/
+*.sln.iml
+.fleet/
+.claude/
+.cursor/
+
+# MSIX and Windows Package artifacts
+*.msixbundle
+*.msixupload
+*.appinstaller
+
+# Certificates and signing keys
+*.cer
+*.crt
+*.pem
+*.pfx
+*.p12
 
 # Internal dev docs & AI agent config (local only)
+.agent/
 .agents/
+.audit/
+.planning/
 .antigravity/
 docs/
 GEMINI.md
