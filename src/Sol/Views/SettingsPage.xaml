@@ -23,7 +23,7 @@
                     <controls:SettingsCard.HeaderIcon>
                         <SymbolIcon Symbol="ContactInfo"/>
                     </controls:SettingsCard.HeaderIcon>
-                    <TextBox PlaceholderText="e.g. contoso.local" Text="{x:Bind ViewModel.AdDomain, Mode=TwoWay}" Width="320"/>
+                    <TextBox PlaceholderText="{x:Bind S.DomainNamePlaceholder}" Text="{x:Bind ViewModel.AdDomain, Mode=TwoWay}" Width="320"/>
                 </controls:SettingsCard>
             </StackPanel>
 
@@ -49,13 +49,13 @@
 
                         <!-- Base URL -->
                         <controls:SettingsCard Header="{x:Bind S.JiraBaseUrlLabel}">
-                            <TextBox PlaceholderText="https://jira.company.com" Text="{x:Bind ViewModel.JiraBaseUrl, Mode=TwoWay}" Width="320"/>
+                            <TextBox PlaceholderText="{x:Bind S.JiraBaseUrlPlaceholder}" Text="{x:Bind ViewModel.JiraBaseUrl, Mode=TwoWay}" Width="320"/>
                         </controls:SettingsCard>
 
                         <!-- Cloud Email (Cloud only) -->
                         <controls:SettingsCard Header="{x:Bind S.JiraCloudEmailLabel}"
                                                Visibility="{x:Bind ViewModel.IsJiraCloud, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBox PlaceholderText="user@company.com" Text="{x:Bind ViewModel.JiraCloudEmail, Mode=TwoWay}" Width="320"/>
+                            <TextBox PlaceholderText="{x:Bind S.JiraCloudEmailPlaceholder}" Text="{x:Bind ViewModel.JiraCloudEmail, Mode=TwoWay}" Width="320"/>
                         </controls:SettingsCard>
 
                         <!-- PAT (Data Center only) -->
@@ -97,24 +97,6 @@
             <!-- Tools Configuration Section -->
             <StackPanel Spacing="12">
                 <TextBlock Text="{x:Bind S.ToolsSettingsSection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-
-                <!-- Awake Expander -->
-                <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsAwakeHeader}"
-                                           Description="{x:Bind S.ToolsSettingsAwakeDesc}">
-                    <controls:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE708;"/>
-                    </controls:SettingsExpander.HeaderIcon>
-                    <controls:SettingsExpander.Items>
-                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsAwakeDisplayLabel}">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.AwakeKeepDisplayOnDefault, Mode=TwoWay}"/>
-                        </controls:SettingsCard>
-                        <controls:SettingsCard Header="{x:Bind S.ToolsSettingsAwakeDurationLabel}">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.AwakeDurationOptions}"
-                                      SelectedIndex="{x:Bind ViewModel.AwakeDefaultTimeIndex, Mode=TwoWay}"
-                                      Width="180"/>
-                        </controls:SettingsCard>
-                    </controls:SettingsExpander.Items>
-                </controls:SettingsExpander>
 
                 <!-- MMC Administrative Consoles Expander -->
                 <controls:SettingsExpander Header="{x:Bind S.ToolsSettingsMmcHeader}"
@@ -240,8 +222,8 @@
                                          VerticalAlignment="Center"/>
                     </controls:SettingsCard.Header>
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <TextBlock Text="Sol" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                        <TextBlock Text="|" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind S.AppName}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="{x:Bind S.PipeSeparator}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <TextBlock Text="{x:Bind S.VersionLabel}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <TextBlock Text="{x:Bind ViewModel.Version, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>

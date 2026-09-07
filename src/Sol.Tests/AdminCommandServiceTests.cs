@@ -208,4 +208,28 @@ public class AdminCommandServiceTests : IDisposable
         service.Dispose(); // idempotent
         Assert.True(true);
     }
+
+    [Fact]
+    public void AdminCommandService_FeatureAvailability_EvaluatesPlatformPrerequisites()
+    {
+        var service = new AdminCommandService(_tempFavoritesPath);
+        var commands = service.GetAllCommands();
+
+        var bitlockerCmd = commands.FirstOrDefault(c => c.Id == "sec-bitlocker-status");
+        Assert.NotNull(bitlockerCmd);
+        Assert.Equal("BitLocker (manage-bde.exe)", bitlockerCmd.RequiredFeature);
+        bool expectedBitLocker = File.Exists(Path.Combine(Environment.SystemDirectory, "manage-bde.exe"));
+        Assert.Equal(expectedBitLocker, bitlockerCmd.IsAvailable);
+        Assert.Equal(expectedBitLocker, service.IsCommandAvailable("sec-bitlocker-status"));
+
+        var batteryCmd = commands.FirstOrDefault(c => c.Id == "sys-battery-report");
+        Assert.NotNull(batteryCmd);
+        Assert.Equal("Battery / powercfg.exe", batteryCmd.RequiredFeature);
+        bool expectedBattery = File.Exists(Path.Combine(Environment.SystemDirectory, "powercfg.exe"));
+        Assert.Equal(expectedBattery, batteryCmd.IsAvailable);
+        Assert.Equal(expectedBattery, service.IsCommandAvailable("sys-battery-report"));
+
+        Assert.True(service.IsCommandAvailable("sys-sfc-scan"));
+        Assert.True(service.IsCommandAvailable("nonexistent-command"));
+    }
 }

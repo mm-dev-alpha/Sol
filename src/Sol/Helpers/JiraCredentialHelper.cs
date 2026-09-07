@@ -73,13 +73,9 @@ public static class JiraCredentialHelper
             else
                 _testDataCenterPat = null;
         }
-        catch
+        catch (Exception ex)
         {
-            // If PasswordVault is unavailable (e.g. unit test harness), preserve in-memory fallback
-            if (string.Equals(deploymentMode, "Cloud", StringComparison.OrdinalIgnoreCase))
-                _testCloudToken = secret;
-            else
-                _testDataCenterPat = secret;
+            throw new InvalidOperationException($"Windows Credential Locker (PasswordVault) unavailable: {ex.Message}", ex);
         }
     }
 

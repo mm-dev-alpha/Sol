@@ -92,3 +92,15 @@ public sealed record GrabFrameTableResult(
     IReadOnlyList<IReadOnlyList<string>> Rows,
     string FormattedText
 );
+
+/// <summary>
+/// State defining visibility of Grab Frame toolbar controls based on viewport width.
+/// </summary>
+public readonly record struct GrabFrameToolbarState(
+    bool IsLanguageSelectorVisible,
+    bool AreModeButtonsVisible,
+    bool AreSecondaryButtonsVisible,
+    bool IsMatchCountVisible,
+    bool IsGrabTextVisible,
+    bool IsTitleTextVisible);
+

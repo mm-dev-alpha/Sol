@@ -226,16 +226,16 @@ public class ComputerDiagnosticServiceTests
         Assert.True(vm.HasManager);
         Assert.True(vm.HasDirectReports);
         Assert.Equal("2", vm.DirectReportsCountBadge);
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.ManagerDisplayVisibility);
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, vm.NoManagerDisplayVisibility);
+        Assert.True(vm.IsManagerDisplayVisible);
+        Assert.False(vm.IsNoManagerDisplayVisible);
 
         // When no manager
         vm.CurrentUser = vm.CurrentUser with { Manager = string.Empty, DirectReports = [] };
         Assert.False(vm.HasManager);
         Assert.False(vm.HasDirectReports);
         Assert.Equal("0", vm.DirectReportsCountBadge);
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, vm.ManagerDisplayVisibility);
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.NoManagerDisplayVisibility);
+        Assert.False(vm.IsManagerDisplayVisible);
+        Assert.True(vm.IsNoManagerDisplayVisible);
     }
 
     [Fact]
@@ -1309,16 +1309,60 @@ public class ComputerDiagnosticServiceTests
         Assert.True(vm.ServiceSortAscending);
     }
 
+    [Fact]
+    public async Task RunScCommandAsync_QueryNonExistentService_CompletesQuicklyWithoutDeadlock()
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var (exitCode, stdout, stderr) = await ComputerDiagnosticService.RunScCommandAsync(
+            "localhost",
+            ["query", "NonExistentService_XYZ_9999"],
+            timeoutMs: 5000);
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds < 4000);
+        // sc.exe returns non-zero when service not found
+        Assert.NotEqual(0, exitCode);
+        Assert.True(stderr.Contains("1060") || stdout.Contains("1060"));
+    }
+
+    [Fact]
+    public async Task RunScCommandAsync_ConfigArguments_FormatsTokensWithSpace()
+    {
+        // When args are ["config", "NonExistentService", "start=", "demand"],
+        // sc.exe must receive "start=" followed by a space and "demand".
+        // It will fail with error 1060 (service does not exist) rather than a syntax error.
+        var (exitCode, stdout, stderr) = await ComputerDiagnosticService.RunScCommandAsync(
+            "localhost",
+            ["config", "NonExistentService_XYZ_9999", "start=", "demand"],
+            timeoutMs: 5000);
+
+        Assert.NotEqual(0, exitCode);
+        Assert.True(stderr.Contains("1060") || stdout.Contains("1060"));
+    }
+
+    [Fact]
+    public async Task RunScCommandAsync_Timeout_TerminatesProcessGracefully()
+    {
+        using var cts = new CancellationTokenSource();
+        var (exitCode, stdout, stderr) = await ComputerDiagnosticService.RunScCommandAsync(
+            "localhost",
+            ["query"],
+            timeoutMs: 1,
+            cancellationToken: cts.Token);
+
+        Assert.True(exitCode == 0 || stderr == "Execution timed out." || stderr == "Operation cancelled.");
+    }
+
     private class MockSettingsService : ISettingsService
     {
+        public int SchemaVersion => 1;
+        public bool IsDemoMode { get; set; } = false;
         public string AdDomain { get; set; } = "contoso.local";
         public string AppLanguage { get; set; } = "en";
         public bool IsJiraEnabled { get; set; } = false;
         public string JiraDeploymentMode { get; set; } = "DataCenter";
         public string JiraBaseUrl { get; set; } = "https://jira.corp.contoso.com";
         public string JiraCloudEmail { get; set; } = string.Empty;
-        public bool AwakeKeepDisplayOnDefault { get; set; } = false;
-        public int AwakeDefaultTimeMinutes { get; set; } = 30;
         public bool IsShortcutGuideEnabled { get; set; } = true;
         public bool IsFileLocksmithShellIntegrationEnabled { get; set; } = false;
         public bool IsMmcLookupEnabled { get; set; } = true;

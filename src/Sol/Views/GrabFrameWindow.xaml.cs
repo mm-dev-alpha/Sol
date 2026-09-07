@@ -74,8 +74,13 @@ public sealed partial class GrabFrameWindow : Window
     [DllImport("user32.dll")]
     private static extern bool ReleaseCapture();
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+
     private const uint WM_NCLBUTTONDOWN = 0x00A1;
     private const int HTCAPTION = 0x2;
+    private const uint WDA_NONE = 0x00000000;
+    private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
 
     public GrabFrameWindow(
         IScreenCaptureService screenCaptureService,
@@ -97,6 +102,9 @@ public sealed partial class GrabFrameWindow : Window
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(_hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
 
+        // Exclude viewfinder window from screen capture so it never captures its own UI
+        SetWindowDisplayAffinity(_hwnd, WDA_EXCLUDEFROMCAPTURE);
+
         ExtendsContentIntoTitleBar = true;
         Title = S.ToolGrabFrameTitle;
 
@@ -113,6 +121,8 @@ public sealed partial class GrabFrameWindow : Window
         ConfigureWindowFrame();
         LoadSettings();
         InitializeLanguages();
+
+        UpdateResponsiveToolbar(650);
 
         _autoOcrTimer.Tick += AutoOcrTimer_Tick;
         _statusPillTimer.Tick += (s, e) =>
@@ -137,6 +147,42 @@ public sealed partial class GrabFrameWindow : Window
             await Task.Delay(300);
             await RunOcrAsync();
         });
+    }
+
+    private void UpdateResponsiveToolbar(double width)
+    {
+        if (width <= 0) return;
+
+        var state = _grabFrameService.CalculateToolbarState(width);
+
+        LanguageComboBox.Visibility = state.IsLanguageSelectorVisible ? Visibility.Visible : Visibility.Collapsed;
+        SingleLineToggleButton.Visibility = state.AreModeButtonsVisible ? Visibility.Visible : Visibility.Collapsed;
+        TableToggleButton.Visibility = state.AreModeButtonsVisible ? Visibility.Visible : Visibility.Collapsed;
+        FreezeToggleButton.Visibility = state.AreSecondaryButtonsVisible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshButton.Visibility = state.AreSecondaryButtonsVisible ? Visibility.Visible : Visibility.Collapsed;
+        MatchCountTextBlock.Visibility = state.IsMatchCountVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        GrabButtonTextBlock.Visibility = state.IsGrabTextVisible ? Visibility.Visible : Visibility.Collapsed;
+        GrabActionButton.Padding = state.IsGrabTextVisible ? new Thickness(12, 0, 12, 0) : new Thickness(8, 0, 8, 0);
+
+        WindowTitleTextBlock.Visibility = state.IsTitleTextVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        if (width < 260)
+        {
+            SearchTextBox.Width = double.NaN;
+            SearchTextBox.MinWidth = 50;
+        }
+        else
+        {
+            SearchTextBox.Width = 140;
+            SearchTextBox.MinWidth = 80;
+        }
+    }
+
+    private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateResponsiveToolbar(e.NewSize.Width);
+        OnWindowMovedOrResized();
     }
 
     private void ConfigureWindowFrame()
@@ -209,11 +255,6 @@ public sealed partial class GrabFrameWindow : Window
             SendMessage(_hwnd, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
             OnWindowMovedOrResized();
         }
-    }
-
-    private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        OnWindowMovedOrResized();
     }
 
     private void OnWindowMovedOrResized()
@@ -422,7 +463,6 @@ public sealed partial class GrabFrameWindow : Window
         }
 
         CopyTextToClipboard(outputText);
-        ShowStatus(S.GrabFrameStatusCopied, isTemporary: true);
 
         if (_settingsService?.GrabFrameAutoPaste == true)
         {
@@ -433,15 +473,13 @@ public sealed partial class GrabFrameWindow : Window
 
     private void CopyTextToClipboard(string text)
     {
-        try
+        if (SafeClipboard.TrySetText(text))
         {
-            var dataPackage = new DataPackage();
-            dataPackage.SetText(text);
-            Clipboard.SetContent(dataPackage);
+            ShowStatus(S.GrabFrameStatusCopied, isTemporary: true);
         }
-        catch (Exception ex)
+        else
         {
-            AppLog.Write($"GrabFrameWindow.CopyTextToClipboard failed: {ex}");
+            ShowStatus(S.ClipboardBusy, isTemporary: true);
         }
     }
 
@@ -701,6 +739,7 @@ public sealed partial class GrabFrameWindow : Window
     private void GrabFrameWindow_Closed(object sender, WindowEventArgs args)
     {
         AppLog.Write("GrabFrameWindow Closed event fired");
+        SetWindowDisplayAffinity(_hwnd, WDA_NONE);
         _autoOcrTimer.Stop();
         _statusPillTimer.Stop();
         _ocrCts?.Cancel();

@@ -48,10 +48,10 @@
     <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.4.4" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="System.DirectoryServices" Version="9.0.5" />
-    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="9.0.5" />
+    <PackageReference Include="System.DirectoryServices" Version="10.0.11" />
+    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="10.0.11" />
     <PackageReference Include="System.Management" Version="10.0.11" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.5" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.11" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
@@ -66,7 +66,12 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
   <PropertyGroup>
-    <XamlCompilerUILanguage>en-US</XamlCompilerUILanguage>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 </Project>

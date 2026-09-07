@@ -32,8 +32,6 @@ public class ToolsNavigationTests
     {
         var vm = new ToolsViewModel();
 
-        Assert.False(vm.IsAwakeActive);
-        Assert.Equal(Strings.S.ToolStatusInactive, vm.AwakeStatusBadge);
         Assert.Equal(Strings.S.ToolStatusReady, vm.FileLocksmithStatusBadge);
         Assert.Equal(Strings.S.ToolStatusReady, vm.ShortcutGuideStatusBadge);
         Assert.Equal(Strings.S.ToolStatusReady, vm.MmcStatusBadge);
@@ -45,8 +43,6 @@ public class ToolsNavigationTests
         Assert.Equal("Win + Shift + C", vm.AdminCommandsHotkeyText);
         Assert.Equal("Win + Shift + G", vm.GrabFrameHotkeyText);
         Assert.Equal("Win + Shift + E", vm.EditTextHotkeyText);
-        Assert.False(vm.KeepScreenOn);
-        Assert.Equal(0, vm.AwakeModeIndex);
         Assert.NotNull(vm.LaunchMmcLookupCommand);
         Assert.NotNull(vm.LaunchAdminCommandsCommand);
         Assert.NotNull(vm.LaunchGrabFrameCommand);
@@ -61,8 +57,6 @@ public class ToolsNavigationTests
         Assert.False(string.IsNullOrWhiteSpace(s.NavTools));
         Assert.False(string.IsNullOrWhiteSpace(s.ToolsPageTitle));
         Assert.False(string.IsNullOrWhiteSpace(s.ToolsPageSubtitle));
-        Assert.False(string.IsNullOrWhiteSpace(s.ToolAwakeTitle));
-        Assert.False(string.IsNullOrWhiteSpace(s.ToolAwakeDesc));
         Assert.False(string.IsNullOrWhiteSpace(s.ToolFileLocksmithTitle));
         Assert.False(string.IsNullOrWhiteSpace(s.ToolFileLocksmithDesc));
         Assert.False(string.IsNullOrWhiteSpace(s.ToolShortcutGuideTitle));

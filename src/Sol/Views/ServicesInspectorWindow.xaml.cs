@@ -13,6 +13,8 @@ public sealed partial class ServicesInspectorWindow : Window
     public ComputerWorkspaceViewModel ViewModel { get; }
     public Strings S => Strings.S;
 
+    public Visibility GetLoadingVisibility(bool isLoading) => isLoading ? Visibility.Visible : Visibility.Collapsed;
+
     public ServicesInspectorWindow(ComputerWorkspaceViewModel viewModel)
     {
         ViewModel = viewModel;

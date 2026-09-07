@@ -13,6 +13,7 @@ public interface IAdminCommandService : IDisposable
     IReadOnlyList<AdminCommandItem> SearchCommands(string? query = null, AdminCommandCategory? category = null, AdminShellType? shellType = null);
     void ToggleFavorite(string id);
     bool IsFavorite(string id);
+    bool IsCommandAvailable(string id);
     string CopyCommand(AdminCommandItem item);
     void RequestOpen();
 

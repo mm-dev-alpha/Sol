@@ -32,30 +32,33 @@ public partial class GlobalSearchViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
+            _searchCts?.Cancel();
             Suggestions.Clear();
+            IsLoading = false;
             return;
         }
 
         // Cancel any pending search
         _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = new CancellationTokenSource();
-        var token = _searchCts.Token;
+        var currentCts = new CancellationTokenSource();
+        _searchCts = currentCts;
+        var token = currentCts.Token;
 
         try
         {
             // Debounce delay
             await Task.Delay(300, token);
 
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested || SearchQuery != value) return;
 
             IsLoading = true;
             var results = await _searchService.SearchUsersAsync(value, token);
 
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested || SearchQuery != value) return;
 
             App.MainWindow?.DispatcherQueue.TryEnqueue(() =>
             {
+                if (token.IsCancellationRequested || SearchQuery != value) return;
                 Suggestions.Clear();
                 foreach (var user in results)
                 {
@@ -66,12 +69,17 @@ public partial class GlobalSearchViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            App.MainWindow?.DispatcherQueue.TryEnqueue(() => IsLoading = false);
+            if (_searchCts == currentCts)
+            {
+                App.MainWindow?.DispatcherQueue.TryEnqueue(() => IsLoading = false);
+            }
         }
         catch (Exception)
         {
-            // Optionally log error
-            App.MainWindow?.DispatcherQueue.TryEnqueue(() => IsLoading = false);
+            if (_searchCts == currentCts)
+            {
+                App.MainWindow?.DispatcherQueue.TryEnqueue(() => IsLoading = false);
+            }
         }
     }
 

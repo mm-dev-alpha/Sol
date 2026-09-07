@@ -24,7 +24,7 @@
         </Grid>
 
         <!-- Empty State Hero Card (When no user is loaded) -->
-        <Grid Visibility="{x:Bind ViewModel.EmptyStateVisibility, Mode=OneWay}"
+        <Grid Visibility="{x:Bind ViewModel.IsEmptyState, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               VerticalAlignment="Center" HorizontalAlignment="Center"
               MaxWidth="720" Margin="24">
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -71,7 +71,7 @@
         </Grid>
 
         <!-- Multiple Matches Selection State -->
-        <Grid Visibility="{x:Bind ViewModel.MultipleMatchesVisibility, Mode=OneWay}"
+        <Grid Visibility="{x:Bind ViewModel.HasMultipleMatches, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               VerticalAlignment="Center" HorizontalAlignment="Center"
               MaxWidth="640" Padding="24">
             <StackPanel Spacing="16">
@@ -97,11 +97,12 @@
         </Grid>
 
         <!-- Active User Workspace Content -->
-        <ScrollViewer Visibility="{x:Bind ViewModel.UserContentVisibility, Mode=OneWay}"
-                      Padding="24,16,32,24"
-                      VerticalScrollBarVisibility="Auto">
-            
-            <StackPanel Spacing="20" HorizontalAlignment="Stretch">
+        <Grid Visibility="{x:Bind ViewModel.HasUser, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <!-- Profile View (Scrollable Cards) -->
+            <ScrollViewer Visibility="{x:Bind ViewModel.IsAdvancedEditorOpen, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}"
+                          Padding="24,16,32,24"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20" HorizontalAlignment="Stretch">
                 
                 <!-- Quick Command Bar -->
                 <CommandBar DefaultLabelPosition="Right" Background="Transparent">
@@ -389,6 +390,7 @@
                                     <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}"
                                               MaxHeight="260"
                                               SelectionMode="None"
+                                              ScrollViewer.IsVerticalScrollChainingEnabled="True"
                                               Padding="0,4">
                                         <ListView.ItemTemplate>
                                             <DataTemplate x:DataType="sys:String">
@@ -460,7 +462,7 @@
                                         </AutoSuggestBox>
 
                                         <!-- Manager Display Button (Avatar + Name + Open icon) -->
-                                        <Button Grid.Column="0" Style="{StaticResource SubtleIconButtonStyle}" Click="ManagerLink_Click" ToolTipService.ToolTip="{x:Bind S.OpenUserWorkspaceTooltip}" HorizontalAlignment="Right" Visibility="{x:Bind ViewModel.ManagerDisplayVisibility, Mode=OneWay}">
+                                        <Button Grid.Column="0" Style="{StaticResource SubtleIconButtonStyle}" Click="ManagerLink_Click" ToolTipService.ToolTip="{x:Bind S.OpenUserWorkspaceTooltip}" HorizontalAlignment="Right" Visibility="{x:Bind ViewModel.IsManagerDisplayVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <PersonPicture DisplayName="{x:Bind ViewModel.CurrentUser.Manager, Mode=OneWay}" Width="24" Height="24"/>
                                                 <TextBlock Text="{x:Bind ViewModel.CurrentUser.Manager, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
@@ -469,7 +471,7 @@
                                         </Button>
 
                                         <!-- No Manager Assigned Fallback -->
-                                        <TextBlock Grid.Column="0" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind ViewModel.NoManagerDisplayVisibility, Mode=OneWay}"/>
+                                        <TextBlock Grid.Column="0" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind ViewModel.IsNoManagerDisplayVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                     </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.TitleLabel}">
@@ -501,7 +503,7 @@
                                         </StackPanel>
 
                                         <!-- Direct Reports List with PersonPicture & link glyph -->
-                                        <ListView ItemsSource="{x:Bind ViewModel.CurrentUser.DirectReports, Mode=OneWay}" SelectionMode="None" MaxHeight="250">
+                                        <ListView ItemsSource="{x:Bind ViewModel.CurrentUser.DirectReports, Mode=OneWay}" SelectionMode="None" MaxHeight="250" ScrollViewer.IsVerticalScrollChainingEnabled="True">
                                             <ListView.ItemTemplate>
                                                 <DataTemplate x:DataType="sys:String">
                                                     <Button Style="{StaticResource SubtleIconButtonStyle}" Click="DirectReport_Click" ToolTipService.ToolTip="{x:Bind local:Strings.S.OpenUserWorkspaceTooltip}" Tag="{x:Bind}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,6" Margin="0,0,0,4">
@@ -574,59 +576,66 @@
                         </StackPanel>
                     </StackPanel>
                 </Grid>
-
-                <!-- ADVANCED ATTRIBUTE INSPECTOR & SAFE EDITOR -->
-                <Grid Visibility="{x:Bind ViewModel.IsAdvancedEditorOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel Spacing="16">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Spacing="4">
-                                <TextBlock Text="{x:Bind S.AttributeEditorTitle}" Style="{ThemeResource TitleTextBlockStyle}"/>
-                                <TextBlock Text="{x:Bind S.AttributeEditorDesc}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-                            <Button Grid.Column="1" VerticalAlignment="Center" Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE72B;" FontSize="12"/>
-                                    <TextBlock Text="{x:Bind S.BackToProfileBtn}"/>
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-
-                        <!-- Search / Filter Bar -->
-                        <Grid>
-                            <TextBox x:Name="AttributeFilterBox" PlaceholderText="{x:Bind S.FilterAttributesPlaceholder}" TextChanged="AttributeFilterBox_TextChanged" MaxWidth="400" HorizontalAlignment="Left"/>
-                        </Grid>
-                        
-                        <!-- Virtualized Attributes Table -->
-                        <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                            <ListView ItemsSource="{x:Bind ViewModel.AdvancedAttributes, Mode=OneWay}" MaxHeight="600" SelectionMode="None">
-                                <ListView.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <ItemsStackPanel AreStickyGroupHeadersEnabled="True" ItemsUpdatingScrollMode="KeepItemsInView"/>
-                                    </ItemsPanelTemplate>
-                                </ListView.ItemsPanel>
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:AdAttributeItem">
-                                        <Grid Padding="16,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="260"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind Key}" FontWeight="SemiBold" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Value}" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="8,0" FontFamily="{StaticResource CodeFontFamily}"/>
-                                            <Button Grid.Column="2" Content="{x:Bind local:Strings.S.EditBtn}" Click="EditAttribute_Click" Tag="{x:Bind}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </Border>
-                    </StackPanel>
-                </Grid>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- ADVANCED ATTRIBUTE INSPECTOR & SAFE EDITOR (Full Viewport Virtualized Table) -->
+        <Grid Visibility="{x:Bind ViewModel.IsAdvancedEditorOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+              Padding="24,16,32,24"
+              RowSpacing="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="{x:Bind S.AttributeEditorTitle}" Style="{ThemeResource TitleTextBlockStyle}"/>
+                    <TextBlock Text="{x:Bind S.AttributeEditorDesc}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <Button Grid.Column="1" VerticalAlignment="Center" Command="{x:Bind ViewModel.ToggleAdvancedEditorCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="12"/>
+                        <TextBlock Text="{x:Bind S.BackToProfileBtn}"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Search / Filter Bar -->
+            <Grid Grid.Row="1">
+                <TextBox x:Name="AttributeFilterBox" PlaceholderText="{x:Bind S.FilterAttributesPlaceholder}" TextChanged="AttributeFilterBox_TextChanged" MaxWidth="400" HorizontalAlignment="Left"/>
+            </Grid>
+            
+            <!-- Virtualized Attributes Table -->
+            <Border Grid.Row="2" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource CardCornerRadius}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <ListView ItemsSource="{x:Bind ViewModel.AdvancedAttributes, Mode=OneWay}" SelectionMode="None">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsStackPanel AreStickyGroupHeadersEnabled="True" ItemsUpdatingScrollMode="KeepItemsInView"/>
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:AdAttributeItem">
+                            <Grid Padding="16,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="260"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{x:Bind Key}" FontWeight="SemiBold" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                <TextBlock Grid.Column="1" Text="{x:Bind Value}" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="8,0" FontFamily="{StaticResource CodeFontFamily}"/>
+                                <Button Grid.Column="2" Content="{x:Bind local:Strings.S.EditBtn}" Click="EditAttribute_Click" Tag="{x:Bind}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+        </Grid>
     </Grid>
+</Grid>
 </Page>

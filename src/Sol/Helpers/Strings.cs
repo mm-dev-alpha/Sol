@@ -35,6 +35,7 @@ public class Strings
     public string HomeBtn => "Home";
     public string LoadingUserData => "Loading data...";
     public string CopiedToClipboard => "Copied to clipboard.";
+    public string ClipboardBusy => "Clipboard is currently locked by another application.";
 
     // MainWindow
     public string NavHome => "Home";
@@ -190,6 +191,7 @@ public class Strings
     public string RemotePsBtn => "Launch Remote PowerShell";
     public string RdpBtn => "Remote Desktop (RDP)";
     public string DateLabel => "Created:";
+    public string InvalidHostNameError => "Invalid hostname or IP address format.";
 
     // Computer Workspace - Hardware & Asset Diagnostics
     public string HardwareDiagnosticsTitle => "Hardware & Diagnostics";
@@ -411,7 +413,9 @@ public class Strings
     public string JiraDataCenterOption => "Jira Data Center / Server";
     public string JiraCloudOption => "Jira Cloud (Atlassian)";
     public string JiraBaseUrlLabel => "Base URL";
+    public string JiraBaseUrlPlaceholder => "https://jira.company.com";
     public string JiraCloudEmailLabel => "Atlassian Account Email";
+    public string JiraCloudEmailPlaceholder => "user@company.com";
     public string JiraPatLabel => "Personal Access Token (PAT)";
     public string JiraPatPlaceholder => "Enter Personal Access Token...";
     public string JiraApiTokenLabel => "Atlassian API Token";
@@ -424,6 +428,10 @@ public class Strings
     public string JiraSecretRequiredPrompt => "Please enter a valid access token (PAT or API token).";
     public string JiraEmailRequiredPrompt => "Please enter your Atlassian account email address.";
     public string JiraCredentialsSavedPrompt => "JIRA credentials securely saved in Windows Credential Locker.";
+    public string JiraHttpsRequiredPrompt => "JIRA base URL must use secure HTTPS protocol.";
+    public string JiraUnauthorizedError => "JIRA authentication failed (HTTP 401 Unauthorized). Please verify your access token or credentials.";
+    public string JiraForbiddenError => "JIRA access forbidden (HTTP 403 Forbidden). Insufficient permissions to access this resource.";
+    public string JiraHttpErrorFormat => "JIRA request failed with HTTP {0} ({1}).";
 
     // Feature 10: Remote Windows Services Inspector & Controller
     public string ServicesInspectorTitle => "Remote Services Manager";
@@ -486,8 +494,6 @@ public class Strings
     public string NavTools => "Tools";
     public string ToolsPageTitle => "Tools";
     public string ToolsPageSubtitle => "Power utilities and system diagnostic tools integrated seamlessly within Sol.";
-    public string ToolAwakeTitle => "Awake";
-    public string ToolAwakeDesc => "Keep your computer awake on demand without altering Windows power plan settings.";
     public string ToolFileLocksmithTitle => "File Locksmith";
     public string ToolFileLocksmithDesc => "Inspect which processes are locking specific files or directories and terminate them cleanly.";
     public string ToolShortcutGuideTitle => "Shortcut Guide";
@@ -504,14 +510,6 @@ public class Strings
     public string ToolBrowseFileBtn => "Browse File...";
     public string ToolBrowseFolderBtn => "Browse Folder...";
     public string ToolDropZonePlaceholder => "Drag and drop any file or folder here to check for locks";
-    public string ToolAwakeKeepScreenOn => "Keep screen on";
-    public string ToolAwakeModeIndefinite => "Keep awake indefinitely";
-    public string ToolAwakeMode30m => "Keep awake for 30 minutes";
-    public string ToolAwakeMode1h => "Keep awake for 1 hour";
-    public string ToolAwakeMode2h => "Keep awake for 2 hours";
-    public string ToolAwakeRemainingTime => "Remaining time: ";
-    public string ToolAwakeExpiredNotification => "Awake timed session completed. Normal sleep behavior restored.";
-    public string ToolAwakeModeLabel => "Awake Mode";
     public string ToolHotKeyLabel => "Hotkey: ";
 
     // File Locksmith Strings
@@ -683,27 +681,24 @@ public class Strings
     public string SettingsTitle => "Settings";
     public string AdSettings => "Active Directory";
     public string DomainNameLabel => "Domain Name";
+    public string DomainNamePlaceholder => "e.g. contoso.local";
     
     public string SaveSettingsBtn => "Save Settings";
     public string TestAdBtn => "Test AD Connection";
     public string SettingsSavedPrompt => "Settings saved successfully.";
     public string SettingsSaveErrorPrompt => "Error saving settings or credentials.";
+    public string SettingsSavedCredentialFailed => "Settings saved, but credential storage failed";
     public string TestingConnection => "Testing connection...";
 
     public string AboutSettings => "About";
+    public string AppName => "Sol";
+    public string PipeSeparator => "|";
     public string VersionLabel => "Version";
     public string DeveloperLabel => "Developer";
     public string GitHubProfileLabel => "GitHub (@mm-dev-alpha)";
 
     // Tools Configuration Settings
     public string ToolsSettingsSection => "Tools Configuration";
-    public string ToolsSettingsAwakeHeader => "Awake Configuration";
-    public string ToolsSettingsAwakeDesc => "Configure default behavior for the Awake screen and sleep management tool.";
-    public string ToolsSettingsAwakeDisplayLabel => "Keep display turned on by default";
-    public string ToolsSettingsAwakeDurationLabel => "Default timed session duration";
-    public string ToolsSettingsDuration30Min => "30 Minutes";
-    public string ToolsSettingsDuration1Hour => "1 Hour";
-    public string ToolsSettingsDuration2Hours => "2 Hours";
 
     public string ToolsSettingsRunHeader => "Sol Run Launcher";
     public string ToolsSettingsRunDesc => "Quick application launcher, calculator, and system command runner (Alt + Space).";

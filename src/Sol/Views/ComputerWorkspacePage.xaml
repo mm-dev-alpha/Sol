@@ -20,7 +20,7 @@
         </Grid>
 
         <!-- Empty State Hero Card (When no computer is loaded) -->
-        <Grid Visibility="{x:Bind ViewModel.EmptyStateVisibility, Mode=OneWay}"
+        <Grid Visibility="{x:Bind ViewModel.IsEmptyState, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               VerticalAlignment="Center" HorizontalAlignment="Center"
               MaxWidth="720" Margin="24">
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -66,7 +66,7 @@
         </Grid>
 
         <!-- Multiple Matches Selection State -->
-        <Grid Visibility="{x:Bind ViewModel.MultipleMatchesVisibility, Mode=OneWay}"
+        <Grid Visibility="{x:Bind ViewModel.HasMultipleMatches, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               VerticalAlignment="Center" HorizontalAlignment="Center"
               MaxWidth="640" Padding="24">
             <StackPanel Spacing="16">
@@ -95,7 +95,7 @@
         </Grid>
 
         <!-- Active Computer Workspace Content -->
-        <ScrollViewer Visibility="{x:Bind ViewModel.ComputerContentVisibility, Mode=OneWay}"
+        <ScrollViewer Visibility="{x:Bind ViewModel.HasComputer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                       Padding="24,16,32,24"
                       VerticalScrollBarVisibility="Auto">
             
@@ -361,6 +361,7 @@
                                     <ListView ItemsSource="{x:Bind ViewModel.FilteredGroups, Mode=OneWay}"
                                               MaxHeight="260"
                                               SelectionMode="None"
+                                              ScrollViewer.IsVerticalScrollChainingEnabled="True"
                                               Padding="0,4">
                                         <ListView.ItemTemplate>
                                             <DataTemplate x:DataType="sys:String">
@@ -488,15 +489,24 @@
                                 </controls:SettingsCard>
 
                                 <!-- Sessions List -->
-                                <ItemsControl ItemsSource="{x:Bind ViewModel.Sessions, Mode=OneWay}">
-                                    <ItemsControl.ItemTemplate>
+                                <ListView ItemsSource="{x:Bind ViewModel.Sessions, Mode=OneWay}"
+                                          SelectionMode="None"
+                                          MaxHeight="360"
+                                          ScrollViewer.IsVerticalScrollChainingEnabled="True"
+                                          Padding="0">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="0,0,0,4"/>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="models:ComputerSessionInfo">
                                             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                                     BorderThickness="1"
                                                     CornerRadius="8"
-                                                    Padding="14,10"
-                                                    Margin="0,0,0,4">
+                                                    Padding="14,10">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
@@ -570,14 +580,14 @@
                                                                 Click="DisconnectSession_Click"
                                                                 Tag="{x:Bind}"
                                                                 ToolTipService.ToolTip="{x:Bind local:Strings.S.DisconnectSessionTooltip}">
-                                                            <FontIcon Glyph="&#xF3B1;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                            <FontIcon Glyph="&#xF3B1;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
                                                         </Button>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                         </DataTemplate>
+                                     </ListView.ItemTemplate>
+                                 </ListView>
                             </StackPanel>
                         </StackPanel>
 
@@ -937,7 +947,7 @@
                         </StackPanel>
 
                         <!-- Battery & Power Section -->
-                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.BatterySectionVisibility, Mode=OneWay}">
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.HasBatterySection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>

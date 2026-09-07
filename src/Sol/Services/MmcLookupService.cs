@@ -184,7 +184,7 @@ public class MmcLookupService : IMmcLookupService
                 UseShellExecute = true
             };
 
-            Process.Start(psi);
+            using var process = Process.Start(psi);
             return true;
         }
         catch (Exception ex)

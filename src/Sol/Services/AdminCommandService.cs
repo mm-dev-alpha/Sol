@@ -62,7 +62,7 @@ public class AdminCommandService : IAdminCommandService
         new() { Id = "sys-systeminfo", Title = "Display Full System Configuration", Command = "systeminfo", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Diagnostics, Description = "Display detailed configuration information about the computer, OS, hotfixes, and BIOS." },
         new() { Id = "sys-tasklist-users", Title = "List Processes with User Accounts", Command = "tasklist /v", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Diagnostics, Description = "List active running processes with user context, session ID, and CPU execution time." },
         new() { Id = "sys-driver-query", Title = "List Installed Device Drivers", Command = "driverquery /v", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Diagnostics, Description = "List installed hardware device drivers, driver types, and memory addresses." },
-        new() { Id = "sys-battery-report", Title = "Generate Battery Health Report", Command = "powercfg /batteryreport", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Diagnostics, Description = "Create a detailed HTML report analyzing battery discharge history and wear capacity." },
+        new() { Id = "sys-battery-report", Title = "Generate Battery Health Report", Command = "powercfg /batteryreport", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Diagnostics, Description = "Create a detailed HTML report analyzing battery discharge history and wear capacity.", RequiredFeature = "Battery / powercfg.exe" },
 
         // Security
         new() { Id = "sec-domain-user-info", Title = "Query Domain User Account Properties", Command = "net user <username> /domain", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "View password expiry, logon hours, workstation limits, and domain group memberships." },
@@ -72,8 +72,8 @@ public class AdminCommandService : IAdminCommandService
         new() { Id = "sec-klist-purge", Title = "Purge Kerberos Ticket Cache", Command = "klist purge", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "Purge all cached Kerberos ticket-granting tickets (TGT) and service tickets." },
         new() { Id = "sec-cert-verify", Title = "Verify Certificate Chain and CRL Revocation", Command = "certutil -verify -urlfetch \"<certificate.cer>\"", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "Verify X.509 certificate chain, AIA certificate discovery, and CRL revocation status." },
         new() { Id = "sec-tls-ciphers", Title = "List Enabled TLS Cipher Suites", Command = "Get-TlsCipherSuite | Select-Object Name", ShellType = AdminShellType.PowerShell, Category = AdminCommandCategory.Security, Description = "List all enabled SSL/TLS cryptographic cipher suites configured in the Schannel provider." },
-        new() { Id = "sec-bitlocker-status", Title = "Check BitLocker Volume Encryption Status", Command = "manage-bde -status", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "Check BitLocker drive encryption state, protection status, and encryption methods." },
-        new() { Id = "sec-bitlocker-key", Title = "Retrieve BitLocker Volume Recovery Key", Command = "manage-bde -protectors -get C:", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "Display numerical password recovery identifiers and secrets for the specified volume." },
+        new() { Id = "sec-bitlocker-status", Title = "Check BitLocker Volume Encryption Status", Command = "manage-bde -status", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "Check BitLocker drive encryption state, protection status, and encryption methods.", RequiredFeature = "BitLocker (manage-bde.exe)" },
+        new() { Id = "sec-bitlocker-key", Title = "Retrieve BitLocker Volume Recovery Key", Command = "manage-bde -protectors -get C:", ShellType = AdminShellType.Cmd, Category = AdminCommandCategory.Security, Description = "Display numerical password recovery identifiers and secrets for the specified volume.", RequiredFeature = "BitLocker (manage-bde.exe)" },
 
         // Remote Management
         new() { Id = "rem-enter-session", Title = "Start Interactive Remote PowerShell Session", Command = "Enter-PSSession -ComputerName \"<hostname>\"", ShellType = AdminShellType.PowerShell, Category = AdminCommandCategory.RemoteManagement, Description = "Establish an interactive remote management shell via WinRM PowerShell remoting." },
@@ -197,6 +197,25 @@ public class AdminCommandService : IAdminCommandService
         OpenRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    public bool IsCommandAvailable(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return true;
+
+        if (id is "sec-bitlocker-status" or "sec-bitlocker-key")
+        {
+            string system32 = Environment.SystemDirectory;
+            return File.Exists(Path.Combine(system32, "manage-bde.exe"));
+        }
+
+        if (id is "sys-battery-report")
+        {
+            string system32 = Environment.SystemDirectory;
+            return File.Exists(Path.Combine(system32, "powercfg.exe"));
+        }
+
+        return true;
+    }
+
     private AdminCommandItem CloneWithFavoriteStatus(AdminCommandItem source)
     {
         return new AdminCommandItem
@@ -208,7 +227,9 @@ public class AdminCommandService : IAdminCommandService
             Category = source.Category,
             Description = source.Description,
             RequiresElevation = source.RequiresElevation,
-            IsFavorite = _favoriteIds.Contains(source.Id)
+            IsFavorite = _favoriteIds.Contains(source.Id),
+            RequiredFeature = source.RequiredFeature,
+            IsAvailable = IsCommandAvailable(source.Id)
         };
     }
 

@@ -352,25 +352,34 @@ public sealed partial class EditTextWindow : Window
     {
         if (TextEditor.SelectionLength > 0)
         {
-            var package = new DataPackage();
-            package.SetText(TextEditor.SelectedText);
-            Clipboard.SetContent(package);
-            InsertTextAtCursor(string.Empty);
+            if (SafeClipboard.TrySetText(TextEditor.SelectedText))
+            {
+                InsertTextAtCursor(string.Empty);
+            }
+            else
+            {
+                ShowStatusPill(S.ClipboardBusy);
+            }
         }
     }
 
     private void MenuEditCopy_Click(object sender, RoutedEventArgs e)
     {
-        CopyActiveContentToClipboard();
-        ShowStatusPill(S.EditTextStatusCopied);
+        if (SafeClipboard.TrySetText(GetActiveContent()))
+        {
+            ShowStatusPill(S.EditTextStatusCopied);
+        }
+        else
+        {
+            ShowStatusPill(S.ClipboardBusy);
+        }
     }
 
     private async void MenuEditPaste_Click(object sender, RoutedEventArgs e)
     {
-        var data = Clipboard.GetContent();
-        if (data.Contains(StandardDataFormats.Text))
+        var text = await SafeClipboard.TryGetTextAsync();
+        if (!string.IsNullOrEmpty(text))
         {
-            string text = await data.GetTextAsync();
             InsertTextAtCursor(text);
         }
     }
@@ -384,15 +393,9 @@ public sealed partial class EditTextWindow : Window
     {
         try
         {
-            var dataPackageView = Clipboard.GetContent();
-            if (dataPackageView.Contains(StandardDataFormats.Bitmap))
+            var imageBytes = await SafeClipboard.TryGetBitmapBytesAsync();
+            if (imageBytes != null && imageBytes.Length > 0)
             {
-                var streamRef = await dataPackageView.GetBitmapAsync();
-                using var stream = await streamRef.OpenReadAsync();
-                using var memStream = new MemoryStream();
-                await stream.AsStreamForRead().CopyToAsync(memStream);
-                byte[] imageBytes = memStream.ToArray();
-
                 ShowStatusPill(S.OcrProcessing);
                 var result = await _ocrService.RecognizeAsync(imageBytes);
                 if (result != null && !string.IsNullOrWhiteSpace(result.Text))
@@ -572,10 +575,10 @@ public sealed partial class EditTextWindow : Window
     {
         if (_currentTable != null)
         {
-            var pkg = new DataPackage();
-            pkg.SetText(_currentTable.SerializeToText());
-            Clipboard.SetContent(pkg);
-            ShowStatusPill(S.EditTextStatusCopied);
+            if (SafeClipboard.TrySetText(_currentTable.SerializeToText()))
+                ShowStatusPill(S.EditTextStatusCopied);
+            else
+                ShowStatusPill(S.ClipboardBusy);
         }
     }
 
@@ -588,10 +591,10 @@ public sealed partial class EditTextWindow : Window
             string csv = _currentTable.SerializeToText();
             _currentTable.Format = oldFormat;
 
-            var pkg = new DataPackage();
-            pkg.SetText(csv);
-            Clipboard.SetContent(pkg);
-            ShowStatusPill(S.EditTextStatusCopied);
+            if (SafeClipboard.TrySetText(csv))
+                ShowStatusPill(S.EditTextStatusCopied);
+            else
+                ShowStatusPill(S.ClipboardBusy);
         }
     }
 
@@ -600,10 +603,10 @@ public sealed partial class EditTextWindow : Window
         if (_currentTable != null)
         {
             string md = _currentTable.SerializeToMarkdown();
-            var pkg = new DataPackage();
-            pkg.SetText(md);
-            Clipboard.SetContent(pkg);
-            ShowStatusPill(S.EditTextStatusCopied);
+            if (SafeClipboard.TrySetText(md))
+                ShowStatusPill(S.EditTextStatusCopied);
+            else
+                ShowStatusPill(S.ClipboardBusy);
         }
     }
 
@@ -687,9 +690,7 @@ public sealed partial class EditTextWindow : Window
     private void CopyActiveContentToClipboard()
     {
         string text = GetActiveContent();
-        var pkg = new DataPackage();
-        pkg.SetText(text);
-        Clipboard.SetContent(pkg);
+        SafeClipboard.TrySetText(text);
     }
 
     private const int WM_NCLBUTTONDOWN = 0x00A1;

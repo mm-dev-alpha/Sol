@@ -45,6 +45,11 @@ public interface IGrabFrameService : System.IDisposable
     string FormatExtractedText(string rawText, GrabFrameMode mode);
 
     /// <summary>
+    /// Calculates the adaptive responsive visibility state of toolbar controls for the specified window width.
+    /// </summary>
+    GrabFrameToolbarState CalculateToolbarState(double windowWidth);
+
+    /// <summary>
     /// Registers the global hotkey (Win + Shift + G) targeting the specified window handle.
     /// </summary>
     bool RegisterGlobalHotkey(System.IntPtr hWnd);

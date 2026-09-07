@@ -56,10 +56,29 @@ public static class TimeHelper
 
         if (distinguishedName.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
         {
-            var commaIndex = distinguishedName.IndexOf(',');
-            return commaIndex > 3
-                ? distinguishedName[3..commaIndex]
-                : distinguishedName[3..];
+            int i = 3;
+            var sb = new System.Text.StringBuilder();
+            while (i < distinguishedName.Length)
+            {
+                char c = distinguishedName[i];
+                if (c == '\\' && i + 1 < distinguishedName.Length)
+                {
+                    // Escaped character: unescape and append
+                    sb.Append(distinguishedName[i + 1]);
+                    i += 2;
+                }
+                else if (c == ',')
+                {
+                    // Unescaped delimiter found
+                    break;
+                }
+                else
+                {
+                    sb.Append(c);
+                    i++;
+                }
+            }
+            return sb.ToString();
         }
 
         return distinguishedName;

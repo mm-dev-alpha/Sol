@@ -33,73 +33,10 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Tool 1: Awake Card -->
+                <!-- Tool 1: File Locksmith Card -->
                 <Border Grid.Row="0" Grid.Column="0"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1"
-                        CornerRadius="{ThemeResource OverlayCornerRadius}"
-                        Padding="20">
-                    <StackPanel Spacing="16">
-                        <!-- Header & Status Pill -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xEC46;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                <TextBlock Text="{x:Bind S.ToolAwakeTitle}" 
-                                           Style="{ThemeResource SubtitleTextBlockStyle}" 
-                                           FontWeight="SemiBold" 
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-
-                            <Border Grid.Column="2" 
-                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
-                                    CornerRadius="12" 
-                                    Padding="8,2" 
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind ViewModel.AwakeStatusBadge, Mode=OneWay}" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </Border>
-                        </Grid>
-
-                        <TextBlock Text="{x:Bind S.ToolAwakeDesc}" 
-                                   Style="{ThemeResource BodyTextBlockStyle}" 
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                   TextWrapping="Wrap"/>
-
-                        <!-- Inline Awake Controls -->
-                        <StackPanel Spacing="12">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.IsAwakeActive, Mode=TwoWay}"
-                                          OnContent="{x:Bind S.ToolStatusActive}"
-                                          OffContent="{x:Bind S.ToolStatusInactive}"/>
-
-                            <ComboBox Header="{x:Bind S.ToolAwakeModeLabel}"
-                                      ItemsSource="{x:Bind ViewModel.AwakeModes}"
-                                      SelectedIndex="{x:Bind ViewModel.AwakeModeIndex, Mode=TwoWay}"
-                                      HorizontalAlignment="Stretch"/>
-
-                            <CheckBox IsChecked="{x:Bind ViewModel.KeepScreenOn, Mode=TwoWay}" 
-                                      Content="{x:Bind S.ToolAwakeKeepScreenOn}"/>
-
-                            <TextBlock Text="{x:Bind ViewModel.AwakeCountdownText, Mode=OneWay}" 
-                                       Style="{ThemeResource BodyStrongTextBlockStyle}" 
-                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                       Visibility="{x:Bind ViewModel.AwakeCountdownText, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- Tool 2: File Locksmith Card -->
-                <Border Grid.Row="0" Grid.Column="1"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -176,8 +113,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Tool 3: Shortcut Guide Card -->
-                <Border Grid.Row="1" Grid.Column="0"
+                <!-- Tool 2: Shortcut Guide Card -->
+                <Border Grid.Row="0" Grid.Column="1"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -230,8 +167,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Tool 4: MMC Administrative Consoles Card -->
-                <Border Grid.Row="1" Grid.Column="1"
+                <!-- Tool 3: MMC Administrative Consoles Card -->
+                <Border Grid.Row="1" Grid.Column="0"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -284,8 +221,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Tool 5: Daily Admin Commands Card -->
-                <Border Grid.Row="2" Grid.Column="0"
+                <!-- Tool 4: Daily Admin Commands Card -->
+                <Border Grid.Row="1" Grid.Column="1"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -338,8 +275,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Tool 6: Grab Frame Card -->
-                <Border Grid.Row="2" Grid.Column="1"
+                <!-- Tool 5: Grab Frame Card -->
+                <Border Grid.Row="2" Grid.Column="0"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -392,8 +329,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Tool 7: Edit Text Window Card -->
-                <Border Grid.Row="3" Grid.Column="0"
+                <!-- Tool 6: Edit Text Window Card -->
+                <Border Grid.Row="2" Grid.Column="1"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"

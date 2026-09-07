@@ -80,4 +80,54 @@ public class CommandLineHelperTests
         Assert.Null(CommandLineHelper.TryGetUnlockPath((string?)null));
         Assert.Null(CommandLineHelper.TryGetUnlockPath(""));
     }
+
+    [Fact]
+    public void TryGetUnlockPath_FollowedByAnotherFlag_ReturnsNull()
+    {
+        string[] args1 = ["Sol.exe", "--unlock", "--silent"];
+        Assert.Null(CommandLineHelper.TryGetUnlockPath(args1));
+
+        string[] args2 = ["Sol.exe", "--unlock", "-f"];
+        Assert.Null(CommandLineHelper.TryGetUnlockPath(args2));
+    }
+
+    [Fact]
+    public void TryGetUnlockPath_FileStartingWithHyphen_IsAccepted()
+    {
+        string[] args = ["Sol.exe", "--unlock", "-private-data.txt"];
+        var path = CommandLineHelper.TryGetUnlockPath(args);
+        Assert.Equal("-private-data.txt", path);
+    }
+
+    [Theory]
+    [InlineData("PC-01")]
+    [InlineData("PC-01.corp.contoso.com")]
+    [InlineData("192.168.1.1")]
+    [InlineData("web-server")]
+    [InlineData("localhost")]
+    [InlineData("DC1")]
+    public void IsValidHostNameOrAddress_ValidTargets_ReturnsTrue(string host)
+    {
+        Assert.True(CommandLineHelper.IsValidHostNameOrAddress(host));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("PC-01 & calc.exe")]
+    [InlineData("PC-01; dir")]
+    [InlineData("PC-01 | powershell")]
+    [InlineData("-s")]
+    [InlineData("--silent")]
+    [InlineData("192.168.1.1/24")]
+    [InlineData("host name with spaces")]
+    [InlineData("host`whoami`")]
+    [InlineData("host$(whoami)")]
+    [InlineData("host'")]
+    [InlineData("host\"")]
+    public void IsValidHostNameOrAddress_InjectionOrInvalidTargets_ReturnsFalse(string? host)
+    {
+        Assert.False(CommandLineHelper.IsValidHostNameOrAddress(host));
+    }
 }

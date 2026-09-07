@@ -47,6 +47,11 @@ public class JiraService : IJiraService
             return GetDemoTickets(baseUrl, userEmailOrSam, startAt, maxResults);
         }
 
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedUri) || parsedUri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidOperationException(Strings.S.JiraHttpsRequiredPrompt);
+        }
+
         try
         {
             if (string.Equals(mode, "Cloud", StringComparison.OrdinalIgnoreCase))
@@ -58,10 +63,10 @@ public class JiraService : IJiraService
                 return await FetchDataCenterTicketsAsync(baseUrl, secret, userEmailOrSam, startAt, maxResults, cancellationToken);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Network failure or API change — graceful fallback
-            return new List<JiraTicket>();
+            AppLog.Write($"JiraService.GetTicketsCreatedByUserAsync failed: {ex.Message}");
+            throw;
         }
     }
 
@@ -77,9 +82,9 @@ public class JiraService : IJiraService
         string email = (overrideEmail ?? _settings.JiraCloudEmail ?? string.Empty).Trim();
         string secret = (overrideSecret ?? JiraCredentialHelper.GetSecret(mode) ?? string.Empty).Trim();
 
-        // 1. Strict URL validation: must be an absolute http or https URI
+        // 1. Strict URL validation: must be an absolute https URI
         if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            uri.Scheme != Uri.UriSchemeHttps)
         {
             return false;
         }
@@ -152,7 +157,13 @@ public class JiraService : IJiraService
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            return new List<JiraTicket>();
+        {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                throw new HttpRequestException(Strings.S.JiraUnauthorizedError, null, response.StatusCode);
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                throw new HttpRequestException(Strings.S.JiraForbiddenError, null, response.StatusCode);
+            throw new HttpRequestException(string.Format(Strings.S.JiraHttpErrorFormat, (int)response.StatusCode, response.ReasonPhrase), null, response.StatusCode);
+        }
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return ParseIssuesFromJson(json, baseUrl);
@@ -191,7 +202,13 @@ public class JiraService : IJiraService
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            return new List<JiraTicket>();
+        {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                throw new HttpRequestException(Strings.S.JiraUnauthorizedError, null, response.StatusCode);
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                throw new HttpRequestException(Strings.S.JiraForbiddenError, null, response.StatusCode);
+            throw new HttpRequestException(string.Format(Strings.S.JiraHttpErrorFormat, (int)response.StatusCode, response.ReasonPhrase), null, response.StatusCode);
+        }
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return ParseIssuesFromJson(json, baseUrl);
@@ -226,6 +243,18 @@ public class JiraService : IJiraService
                     }
                 }
             }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new HttpRequestException(Strings.S.JiraUnauthorizedError, null, resp.StatusCode);
+            }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                throw new HttpRequestException(Strings.S.JiraForbiddenError, null, resp.StatusCode);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            throw;
         }
         catch { }
 

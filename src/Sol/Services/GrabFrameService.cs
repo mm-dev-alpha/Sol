@@ -224,6 +224,25 @@ public sealed class GrabFrameService : IGrabFrameService
     }
 
     /// <inheritdoc/>
+    public GrabFrameToolbarState CalculateToolbarState(double windowWidth)
+    {
+        bool isLanguageVisible = windowWidth >= 580;
+        bool areModeButtonsVisible = windowWidth >= 460;
+        bool areSecondaryButtonsVisible = windowWidth >= 360;
+        bool isMatchCountVisible = windowWidth >= 360;
+        bool isGrabTextVisible = windowWidth >= 260;
+        bool isTitleTextVisible = windowWidth >= 320;
+
+        return new GrabFrameToolbarState(
+            isLanguageVisible,
+            areModeButtonsVisible,
+            areSecondaryButtonsVisible,
+            isMatchCountVisible,
+            isGrabTextVisible,
+            isTitleTextVisible);
+    }
+
+    /// <inheritdoc/>
     public void Dispose()
     {
         UnregisterGlobalHotkey(_registeredHwnd);

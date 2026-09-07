@@ -9,8 +9,6 @@ using CommunityToolkit.Mvvm.Messaging;
 using Sol.Models;
 using Sol.Services;
 using Sol.Helpers;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 
 namespace Sol.ViewModels;
 
@@ -19,12 +17,13 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     private readonly IActiveDirectoryService _adService;
     private readonly INavigationService _navigationService;
     private readonly IComputerDiagnosticService _diagnosticService;
+    private readonly IExportService _exportService;
     private System.Threading.CancellationTokenSource? _diagnosticCts;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ComputerContentVisibility))]
-    [NotifyPropertyChangedFor(nameof(EmptyStateVisibility))]
-    [NotifyPropertyChangedFor(nameof(MultipleMatchesVisibility))]
+    [NotifyPropertyChangedFor(nameof(HasComputer))]
+    [NotifyPropertyChangedFor(nameof(IsEmptyState))]
+    [NotifyPropertyChangedFor(nameof(HasMultipleMatches))]
     [NotifyPropertyChangedFor(nameof(IsAccountEnabled))]
     [NotifyPropertyChangedFor(nameof(IsAccountDisabled))]
     [NotifyPropertyChangedFor(nameof(FormattedPasswordLastSet))]
@@ -58,7 +57,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasBatterySnapshot))]
     [NotifyPropertyChangedFor(nameof(HasBatteryError))]
     [NotifyPropertyChangedFor(nameof(IsDesktopOrNoBattery))]
-    [NotifyPropertyChangedFor(nameof(BatterySectionVisibility))]
+    [NotifyPropertyChangedFor(nameof(HasBatterySection))]
     public partial ComputerBatterySnapshot? BatterySnapshot { get; set; }
 
     [ObservableProperty]
@@ -104,7 +103,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDiagnosticsLoading))]
-    [NotifyPropertyChangedFor(nameof(BatterySectionVisibility))]
+    [NotifyPropertyChangedFor(nameof(HasBatterySection))]
     public partial bool IsBatteryLoading { get; set; }
 
     [ObservableProperty]
@@ -112,7 +111,6 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public partial bool IsSessionsLoading { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ProcessesLoadingVisibility))]
     public partial bool IsProcessesLoading { get; set; }
 
     [ObservableProperty]
@@ -120,7 +118,6 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public partial bool IsBitLockerLoading { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ServicesLoadingVisibility))]
     public partial bool IsServicesLoading { get; set; }
     [ObservableProperty] public partial string ServiceFilterQuery { get; set; } = string.Empty;
     [ObservableProperty] public partial string ServiceStatusFilter { get; set; } = "All";
@@ -136,12 +133,9 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [ObservableProperty] public partial string CenterSearchQuery { get; set; } = string.Empty;
     [ObservableProperty] public partial string NewGroupName { get; set; } = string.Empty;
 
-    public Visibility ProcessesLoadingVisibility => IsProcessesLoading ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility ServicesLoadingVisibility => IsServicesLoading ? Visibility.Visible : Visibility.Collapsed;
-
-    public Visibility ComputerContentVisibility => CurrentComputer != null ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility EmptyStateVisibility => CurrentComputer == null && SearchResults.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility MultipleMatchesVisibility => SearchResults.Count > 0 && CurrentComputer == null ? Visibility.Visible : Visibility.Collapsed;
+    public bool HasComputer => CurrentComputer != null;
+    public bool IsEmptyState => CurrentComputer == null && SearchResults.Count == 0;
+    public bool HasMultipleMatches => SearchResults.Count > 0 && CurrentComputer == null;
 
     public bool IsAccountEnabled => CurrentComputer?.IsEnabled == true;
     public bool IsAccountDisabled => CurrentComputer?.IsEnabled == false;
@@ -169,7 +163,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public bool HasBatterySnapshot => BatterySnapshot != null && BatterySnapshot.IsSuccess && BatterySnapshot.HasBattery;
     public bool HasBatteryError => BatterySnapshot != null && !BatterySnapshot.IsSuccess;
     public bool IsDesktopOrNoBattery => BatterySnapshot != null && BatterySnapshot.IsSuccess && !BatterySnapshot.HasBattery;
-    public Visibility BatterySectionVisibility => (HasBatterySnapshot || IsBatteryLoading || HasBatteryError) ? Visibility.Visible : Visibility.Collapsed;
+    public bool HasBatterySection => HasBatterySnapshot || IsBatteryLoading || HasBatteryError;
 
     public bool HasSessionSnapshot => SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count > 0;
     public bool HasSessionError => SessionSnapshot != null && !SessionSnapshot.IsSuccess;
@@ -210,11 +204,13 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public ComputerWorkspaceViewModel(
         IActiveDirectoryService adService, 
         INavigationService navigationService,
-        IComputerDiagnosticService diagnosticService)
+        IComputerDiagnosticService diagnosticService,
+        IExportService? exportService = null)
     {
         _adService = adService;
         _navigationService = navigationService;
         _diagnosticService = diagnosticService;
+        _exportService = exportService ?? new ExportService();
     }
 
     public event Action? CloseProcessManagerRequested;
@@ -237,7 +233,6 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         RequestCloseProcessManager();
         RequestCloseServicesInspector();
         _diagnosticCts?.Cancel();
-        _diagnosticCts?.Dispose();
         _diagnosticCts = null;
         HardwareSnapshot = null;
         IsHardwareLoading = false;
@@ -484,10 +479,14 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public void CopyBitLockerKey(string recoveryPassword)
     {
         if (string.IsNullOrWhiteSpace(recoveryPassword)) return;
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(recoveryPassword);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.BitLockerKeyCopiedSuccess);
+        if (SafeClipboard.TrySetText(recoveryPassword, isSensitive: true))
+        {
+            ShowInfo(Strings.S.BitLockerKeyCopiedSuccess);
+        }
+        else
+        {
+            ShowError(Strings.S.ClipboardBusy);
+        }
     }
 
     [RelayCommand]
@@ -496,19 +495,26 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         if (CurrentComputer == null) return;
         string targetHost = !string.IsNullOrWhiteSpace(CurrentComputer.DnsHostName) ? CurrentComputer.DnsHostName : CurrentComputer.Name;
 
+        string safeSam = (CurrentComputer.SamAccountName ?? string.Empty).Replace("'", "''");
+        string safeHost = targetHost.Replace("'", "''");
+
         string script = cmdType switch
         {
-            "Get-ADComputer" => $"Get-ADComputer -Identity \"{CurrentComputer.SamAccountName}\" -Properties *",
-            "Test-Connection" => $"Test-Connection -TargetName \"{targetHost}\" -Count 4",
-            "Enter-PSSession" => $"Enter-PSSession -ComputerName \"{targetHost}\"",
-            "mstsc" => $"mstsc /v:{targetHost}",
-            _ => $"Get-ADComputer -Identity \"{CurrentComputer.SamAccountName}\""
+            "Get-ADComputer" => $"Get-ADComputer -Identity '{safeSam}' -Properties *",
+            "Test-Connection" => $"Test-Connection -TargetName '{safeHost}' -Count 4",
+            "Enter-PSSession" => $"Enter-PSSession -ComputerName '{safeHost}'",
+            "mstsc" => $"mstsc /v:{safeHost}",
+            _ => $"Get-ADComputer -Identity '{safeSam}'"
         };
 
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(script);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.PowerShellCopiedSuccess);
+        if (SafeClipboard.TrySetText(script))
+        {
+            ShowInfo(Strings.S.PowerShellCopiedSuccess);
+        }
+        else
+        {
+            ShowError(Strings.S.ClipboardBusy);
+        }
     }
 
     [RelayCommand]
@@ -523,176 +529,24 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public void CopyAllDetails()
     {
         if (CurrentComputer == null) return;
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("================================================================================");
-        sb.AppendLine($"COMPUTER PROFILE & DIAGNOSTICS: {CurrentComputer.Name} ({CurrentComputer.DnsHostName})");
-        sb.AppendLine("================================================================================");
-        sb.AppendLine();
+        var report = _exportService.FormatComputerProfileReport(
+            CurrentComputer,
+            HardwareSnapshot,
+            UptimeSnapshot,
+            DiskSnapshot,
+            BatterySnapshot,
+            SessionSnapshot,
+            BitLockerSnapshot,
+            HasWarrantyLink ? WarrantyUrl : null);
 
-        // 1. Identity & Active Directory
-        sb.AppendLine("[ ACTIVE DIRECTORY & NETWORK IDENTITY ]");
-        sb.AppendLine($"  Computer Name:       {CurrentComputer.Name}");
-        sb.AppendLine($"  SAM Account Name:    {CurrentComputer.SamAccountName}");
-        sb.AppendLine($"  DNS Host Name:       {CurrentComputer.DnsHostName}");
-        if (!string.IsNullOrWhiteSpace(CurrentComputer.IPv4Address))
-            sb.AppendLine($"  IPv4 Address:        {CurrentComputer.IPv4Address}");
-        sb.AppendLine($"  Operating System:    {CurrentComputer.OperatingSystem} {CurrentComputer.OperatingSystemVersion}".Trim());
-        sb.AppendLine($"  Account Status:      {CurrentComputer.AccountStatus} (Enabled: {CurrentComputer.IsEnabled})");
-        if (!string.IsNullOrWhiteSpace(CurrentComputer.Sid))
-            sb.AppendLine($"  Security ID (SID):   {CurrentComputer.Sid}");
-        sb.AppendLine($"  OU Path:             {CurrentComputer.OuPath}");
-        if (!string.IsNullOrWhiteSpace(CurrentComputer.Description))
-            sb.AppendLine($"  Description:         {CurrentComputer.Description}");
-        if (!string.IsNullOrWhiteSpace(CurrentComputer.ManagedBy))
-            sb.AppendLine($"  Managed By:          {CurrentComputer.ManagedBy}");
-        if (!string.IsNullOrWhiteSpace(CurrentComputer.Location))
-            sb.AppendLine($"  Location:            {CurrentComputer.Location}");
-        sb.AppendLine($"  Password Last Set:   {FormattedPasswordLastSet}");
-        sb.AppendLine($"  Last Logon:          {FormattedLastLogon}");
-        sb.AppendLine($"  Created:             {FormattedCreated}");
-        sb.AppendLine($"  Modified:            {FormattedModified}");
-        sb.AppendLine();
-
-        // 2. Hardware & BIOS Diagnostics
-        sb.AppendLine("[ HARDWARE & BIOS DIAGNOSTICS ]");
-        if (HardwareSnapshot != null && HardwareSnapshot.IsSuccess)
+        if (SafeClipboard.TrySetText(report))
         {
-            sb.AppendLine($"  Manufacturer & Model:{HardwareSnapshot.Manufacturer} {HardwareSnapshot.Model}".Trim());
-            sb.AppendLine($"  Serial / Service Tag:{HardwareSnapshot.SerialNumber}");
-            sb.AppendLine($"  BIOS Version & Date: {HardwareSnapshot.BiosVersion} ({HardwareSnapshot.BiosReleaseDate})");
-            sb.AppendLine($"  OS Build:            {HardwareSnapshot.FormattedBuild}");
-            sb.AppendLine($"  Processor (CPU):     {HardwareSnapshot.CpuName}");
-            sb.AppendLine($"  Total Memory (RAM):  {HardwareSnapshot.TotalMemoryFormatted}");
-            if (HasWarrantyLink)
-                sb.AppendLine($"  Warranty Check Link: {WarrantyUrl}");
-        }
-        else if (HardwareSnapshot != null && !HardwareSnapshot.IsSuccess)
-        {
-            sb.AppendLine($"  Diagnostics Status:  Error ({HardwareSnapshot.ErrorMessage})");
+            ShowInfo(Strings.S.AllInfoCopiedSuccess);
         }
         else
         {
-            sb.AppendLine("  Diagnostics Status:  Not queried or unreachable");
+            ShowError(Strings.S.ClipboardBusy);
         }
-        sb.AppendLine();
-
-        // 3. System Uptime & Reboot State
-        sb.AppendLine("[ SYSTEM UPTIME & REBOOT STATUS ]");
-        if (UptimeSnapshot != null && UptimeSnapshot.IsSuccess)
-        {
-            sb.AppendLine($"  System Uptime:       {UptimeSnapshot.FormattedUptime}");
-            sb.AppendLine($"  Last Boot Time:      {UptimeSnapshot.FormattedLastBoot}");
-            sb.AppendLine($"  Reboot Required:     {UptimeSnapshot.RebootStatusText}");
-            if (UptimeSnapshot.PendingRebootReasons.Count > 0)
-                sb.AppendLine($"  Reboot Reasons:      {UptimeSnapshot.FormattedRebootReasons}");
-        }
-        else if (UptimeSnapshot != null && !UptimeSnapshot.IsSuccess)
-        {
-            sb.AppendLine($"  Uptime Status:       Error ({UptimeSnapshot.ErrorMessage})");
-        }
-        else
-        {
-            sb.AppendLine("  Uptime Status:       Not queried or unreachable");
-        }
-        sb.AppendLine();
-
-        // 4. Local Storage & Logical Drives
-        sb.AppendLine("[ STORAGE & LOGICAL DISK DRIVES ]");
-        if (DiskSnapshot != null && DiskSnapshot.IsSuccess && DiskSnapshot.Drives.Count > 0)
-        {
-            foreach (var drive in DiskSnapshot.Drives)
-            {
-                sb.AppendLine($"  - {drive.CopyDetailsText}");
-            }
-        }
-        else if (DiskSnapshot != null && !DiskSnapshot.IsSuccess)
-        {
-            sb.AppendLine($"  Storage Status:      Error ({DiskSnapshot.ErrorMessage})");
-        }
-        else
-        {
-            sb.AppendLine("  Storage Status:      Not queried or no local fixed drives reported");
-        }
-        sb.AppendLine();
-
-        // 5. Battery & Power Diagnostics (Laptops)
-        if (BatterySnapshot != null && BatterySnapshot.IsSuccess && BatterySnapshot.HasBattery)
-        {
-            sb.AppendLine("[ BATTERY & POWER DIAGNOSTICS ]");
-            sb.AppendLine($"  Battery Health:      {BatterySnapshot.HealthStatusDisplay} ({Strings.S.BatteryWearNotice}: {BatterySnapshot.WearPercentage:F1}%)");
-            sb.AppendLine($"  Charge Remaining:    {BatterySnapshot.EstimatedChargeRemainingPercent}% ({BatterySnapshot.BatteryStatusText})");
-            sb.AppendLine($"  Full / Design Cap.:  {BatterySnapshot.FormattedFullChargeCapacity} / {BatterySnapshot.FormattedDesignCapacity}");
-            sb.AppendLine($"  Cycle Count:         {BatterySnapshot.FormattedCycleCount}");
-            sb.AppendLine($"  Estimated Runtime:   {BatterySnapshot.FormattedEstimatedRunTime}");
-            if (!string.IsNullOrWhiteSpace(BatterySnapshot.Chemistry))
-                sb.AppendLine($"  Chemistry:           {BatterySnapshot.Chemistry}");
-            sb.AppendLine();
-        }
-
-        // 6. Active Logon Sessions
-        sb.AppendLine("[ ACTIVE & DISCONNECTED LOGON SESSIONS ]");
-        if (SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count > 0)
-        {
-            foreach (var session in SessionSnapshot.Sessions)
-            {
-                sb.AppendLine($"  - Session ID {session.SessionId}: {session.CopyDetailsText}");
-            }
-        }
-        else if (SessionSnapshot != null && SessionSnapshot.IsSuccess && SessionSnapshot.Sessions.Count == 0)
-        {
-            sb.AppendLine("  (No active logon sessions currently active)");
-        }
-        else if (SessionSnapshot != null && !SessionSnapshot.IsSuccess)
-        {
-            sb.AppendLine($"  Sessions Status:     Error ({SessionSnapshot.ErrorMessage})");
-        }
-        else
-        {
-            sb.AppendLine("  Sessions Status:     Not queried or unreachable");
-        }
-        sb.AppendLine();
-
-        // 7. BitLocker Drive Encryption & Recovery Keys
-        sb.AppendLine("[ BITLOCKER ENCRYPTION & RECOVERY KEYS ]");
-        if (BitLockerSnapshot != null && BitLockerSnapshot.IsSuccess)
-        {
-            sb.AppendLine($"  Drive Letter:        {BitLockerSnapshot.DriveLetter}");
-            sb.AppendLine($"  Protection Status:   {(BitLockerSnapshot.IsProtectionActive ? "Active / Protected" : (BitLockerSnapshot.IsProtectionSuspended ? "Suspended" : "Disabled"))}");
-            sb.AppendLine($"  Conversion Status:   {BitLockerSnapshot.FormattedConversionStatus}");
-            sb.AppendLine($"  Encryption Method:   {BitLockerSnapshot.FormattedEncryptionMethod}");
-        }
-        if (CurrentComputer.BitLockerKeys.Count > 0)
-        {
-            sb.AppendLine($"  AD Recovery Keys ({CurrentComputer.BitLockerKeys.Count}):");
-            foreach (var key in CurrentComputer.BitLockerKeys)
-            {
-                sb.AppendLine($"    - ID: {key.KeyId} | Password: {key.RecoveryPassword} | Created: {key.FormattedCreated}");
-            }
-        }
-        else if (BitLockerSnapshot == null || !BitLockerSnapshot.IsSuccess)
-        {
-            sb.AppendLine("  (No BitLocker recovery keys stored in Active Directory)");
-        }
-        sb.AppendLine();
-
-        // 8. Security Groups
-        sb.AppendLine($"[ GROUP MEMBERSHIPS ({CurrentComputer.Groups.Count}) ]");
-        if (CurrentComputer.Groups.Count > 0)
-        {
-            foreach (var group in CurrentComputer.Groups)
-            {
-                sb.AppendLine($"  - {group}");
-            }
-        }
-        else
-        {
-            sb.AppendLine("  (No groups assigned)");
-        }
-
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(sb.ToString());
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.AllInfoCopiedSuccess);
     }
 
     [RelayCommand]
@@ -825,12 +679,11 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task NavigateToSessionUserAsync(string? samAccountName)
+    public Task NavigateToSessionUserAsync(string? samAccountName)
     {
-        if (string.IsNullOrWhiteSpace(samAccountName)) return;
-        var userVm = App.GetService<UserWorkspaceViewModel>();
-        await userVm.LoadUserAsync(samAccountName);
-        _navigationService.NavigateTo("UserWorkspacePage");
+        if (string.IsNullOrWhiteSpace(samAccountName)) return Task.CompletedTask;
+        _navigationService.NavigateTo("UserWorkspacePage", samAccountName);
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -1013,10 +866,17 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 
     public async Task FetchDiagnosticsAsync(AdComputer computer)
     {
-        _diagnosticCts?.Cancel();
-        _diagnosticCts?.Dispose();
-        _diagnosticCts = new System.Threading.CancellationTokenSource();
-        var token = _diagnosticCts.Token;
+        var newCts = new System.Threading.CancellationTokenSource();
+        var oldCts = System.Threading.Interlocked.Exchange(ref _diagnosticCts, newCts);
+        if (oldCts != null)
+        {
+            try
+            {
+                oldCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+        }
+        var token = newCts.Token;
 
         string targetHost = !string.IsNullOrWhiteSpace(computer.DnsHostName) ? computer.DnsHostName : computer.Name;
         if (string.IsNullOrWhiteSpace(targetHost)) return;
@@ -1075,7 +935,10 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             finally
             {
-                RunOnUIThread(() => { IsHardwareLoading = false; NotifyHardwarePropertiesChanged(); });
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() => { IsHardwareLoading = false; NotifyHardwarePropertiesChanged(); });
+                }
             }
         }, token);
 
@@ -1109,7 +972,10 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             finally
             {
-                RunOnUIThread(() => { IsUptimeLoading = false; NotifyUptimePropertiesChanged(); });
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() => { IsUptimeLoading = false; NotifyUptimePropertiesChanged(); });
+                }
             }
         }, token);
 
@@ -1144,7 +1010,10 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             finally
             {
-                RunOnUIThread(() => { IsDiskLoading = false; NotifyDiskPropertiesChanged(); });
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() => { IsDiskLoading = false; NotifyDiskPropertiesChanged(); });
+                }
             }
         }, token);
 
@@ -1178,7 +1047,10 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             finally
             {
-                RunOnUIThread(() => { IsBatteryLoading = false; NotifyBatteryPropertiesChanged(); });
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() => { IsBatteryLoading = false; NotifyBatteryPropertiesChanged(); });
+                }
             }
         }, token);
 
@@ -1213,7 +1085,10 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             finally
             {
-                RunOnUIThread(() => { IsSessionsLoading = false; NotifySessionPropertiesChanged(); });
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() => { IsSessionsLoading = false; NotifySessionPropertiesChanged(); });
+                }
             }
         }, token);
 
@@ -1247,7 +1122,10 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             finally
             {
-                RunOnUIThread(() => { IsBitLockerLoading = false; NotifyBitLockerPropertiesChanged(); });
+                if (!token.IsCancellationRequested)
+                {
+                    RunOnUIThread(() => { IsBitLockerLoading = false; NotifyBitLockerPropertiesChanged(); });
+                }
             }
         }, token);
 
@@ -1287,19 +1165,22 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     {
         string? text = parameter?.ToString();
         if (string.IsNullOrEmpty(text)) return;
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(text);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.CopiedToClipboard);
+        if (SafeClipboard.TrySetText(text))
+        {
+            ShowInfo(Strings.S.CopiedToClipboard);
+        }
+        else
+        {
+            ShowError(Strings.S.ClipboardBusy);
+        }
     }
 
     [RelayCommand]
-    public async Task NavigateToManagedByUserAsync()
+    public Task NavigateToManagedByUserAsync()
     {
-        if (CurrentComputer == null || string.IsNullOrWhiteSpace(CurrentComputer.ManagedBy)) return;
-        var userVm = App.GetService<UserWorkspaceViewModel>();
-        await userVm.LoadUserAsync(CurrentComputer.ManagedBy);
-        _navigationService.NavigateTo("UserWorkspacePage");
+        if (CurrentComputer == null || string.IsNullOrWhiteSpace(CurrentComputer.ManagedBy)) return Task.CompletedTask;
+        _navigationService.NavigateTo("UserWorkspacePage", CurrentComputer.ManagedBy);
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -1328,9 +1209,9 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public void NotifyPropertiesChanged()
     {
         OnPropertyChanged(nameof(CurrentComputer));
-        OnPropertyChanged(nameof(ComputerContentVisibility));
-        OnPropertyChanged(nameof(EmptyStateVisibility));
-        OnPropertyChanged(nameof(MultipleMatchesVisibility));
+        OnPropertyChanged(nameof(HasComputer));
+        OnPropertyChanged(nameof(IsEmptyState));
+        OnPropertyChanged(nameof(HasMultipleMatches));
         OnPropertyChanged(nameof(IsAccountEnabled));
         OnPropertyChanged(nameof(IsAccountDisabled));
         OnPropertyChanged(nameof(FormattedPasswordLastSet));
@@ -1388,7 +1269,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(HasBatterySnapshot));
         OnPropertyChanged(nameof(HasBatteryError));
         OnPropertyChanged(nameof(IsDesktopOrNoBattery));
-        OnPropertyChanged(nameof(BatterySectionVisibility));
+        OnPropertyChanged(nameof(HasBatterySection));
     }
 
     public void NotifySessionPropertiesChanged()
@@ -1791,11 +1672,11 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
 
     public void ShowInfo(string message)
     {
-        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Informational));
+        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, AppNotificationSeverity.Informational));
     }
 
     public void ShowError(string message)
     {
-        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Error));
+        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, AppNotificationSeverity.Error));
     }
 }

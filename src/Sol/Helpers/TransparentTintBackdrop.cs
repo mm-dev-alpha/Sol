@@ -14,6 +14,25 @@ namespace Sol.Helpers;
 public sealed class TransparentTintBackdrop : SystemBackdrop
 {
     private readonly IntPtr _hwnd;
+    private Windows.UI.Composition.Compositor? _compositor;
+    private Windows.UI.Composition.CompositionColorBrush? _brush;
+    private readonly SubclassProc _subclassProc;
+    private bool _isSubclassed;
+
+    private const int SUBCLASS_ID = 0x5442; // 'TB'
+    private const uint WM_ERASEBKGND = 0x0014;
+    private const uint WM_DWMCOMPOSITIONCHANGED = 0x031E;
+
+    private delegate IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
+
+    [DllImport("comctl32.dll", SetLastError = true)]
+    private static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, UIntPtr uIdSubclass, UIntPtr dwRefData);
+
+    [DllImport("comctl32.dll", SetLastError = true)]
+    private static extern bool RemoveWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, UIntPtr uIdSubclass);
+
+    [DllImport("comctl32.dll")]
+    private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MARGINS
@@ -58,21 +77,58 @@ public sealed class TransparentTintBackdrop : SystemBackdrop
     {
         ArgumentNullException.ThrowIfNull(window);
         _hwnd = WindowNative.GetWindowHandle(window);
+        _subclassProc = WndProc;
     }
 
     /// <inheritdoc/>
     protected override void OnTargetConnected(ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
     {
         base.OnTargetConnected(connectedTarget, xamlRoot);
+
+        if (_hwnd != IntPtr.Zero && !_isSubclassed)
+        {
+            _isSubclassed = SetWindowSubclass(_hwnd, _subclassProc, (UIntPtr)SUBCLASS_ID, UIntPtr.Zero);
+        }
+
         ConfigureDwm(_hwnd);
-        connectedTarget.SystemBackdrop = null;
+
+        _compositor = new Windows.UI.Composition.Compositor();
+        _brush = _compositor.CreateColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+        connectedTarget.SystemBackdrop = _brush;
     }
 
     /// <inheritdoc/>
     protected override void OnTargetDisconnected(ICompositionSupportsSystemBackdrop disconnectedTarget)
     {
+        if (_hwnd != IntPtr.Zero && _isSubclassed)
+        {
+            RemoveWindowSubclass(_hwnd, _subclassProc, (UIntPtr)SUBCLASS_ID);
+            _isSubclassed = false;
+        }
+
         disconnectedTarget.SystemBackdrop = null;
+        _brush?.Dispose();
+        _brush = null;
+        _compositor?.Dispose();
+        _compositor = null;
+
         base.OnTargetDisconnected(disconnectedTarget);
+    }
+
+    private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData)
+    {
+        if (uMsg == WM_ERASEBKGND)
+        {
+            return (IntPtr)1; // Prevent GDI default erase with opaque window brush
+        }
+
+        if (uMsg == WM_DWMCOMPOSITIONCHANGED)
+        {
+            ConfigureDwm(hWnd);
+            return IntPtr.Zero;
+        }
+
+        return DefSubclassProc(hWnd, uMsg, wParam, lParam);
     }
 
     /// <summary>
@@ -87,7 +143,7 @@ public sealed class TransparentTintBackdrop : SystemBackdrop
 
         try
         {
-            var margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
+            var margins = new MARGINS { cxLeftWidth = 0, cxRightWidth = 0, cyTopHeight = 0, cyBottomHeight = 0 };
             DwmExtendFrameIntoClientArea(hWnd, ref margins);
 
             IntPtr hrgn = CreateRectRgn(-2, -2, -1, -1);

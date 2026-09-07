@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls;
 using Sol.Helpers;
 using Sol.Models;
 using Sol.Services;
@@ -25,31 +25,25 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void UserSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    private void UserSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
     {
         if (args.SelectedItem is AdUser chosenUser)
         {
             var nav = App.GetService<INavigationService>();
-            var userVm = App.GetService<UserWorkspaceViewModel>();
-            await userVm.LoadUserAsync(chosenUser.SamAccountName);
-            nav.NavigateTo("UserWorkspacePage");
+            nav.NavigateTo("UserWorkspacePage", chosenUser.SamAccountName);
         }
     }
 
-    private async void UserSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    private void UserSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
         var nav = App.GetService<INavigationService>();
-        var userVm = App.GetService<UserWorkspaceViewModel>();
-
         if (args.ChosenSuggestion is AdUser chosenUser)
         {
-            await userVm.LoadUserAsync(chosenUser.SamAccountName);
-            nav.NavigateTo("UserWorkspacePage");
+            nav.NavigateTo("UserWorkspacePage", chosenUser.SamAccountName);
         }
         else if (!string.IsNullOrWhiteSpace(args.QueryText))
         {
-            await userVm.LoadUserAsync(args.QueryText);
-            nav.NavigateTo("UserWorkspacePage");
+            nav.NavigateTo("UserWorkspacePage", args.QueryText);
         }
     }
 
@@ -61,31 +55,25 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void ComputerSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    private void ComputerSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
     {
         if (args.SelectedItem is AdComputer chosenComp)
         {
             var nav = App.GetService<INavigationService>();
-            var compVm = App.GetService<ComputerWorkspaceViewModel>();
-            await compVm.LoadComputerAsync(chosenComp);
-            nav.NavigateTo("ComputerWorkspacePage");
+            nav.NavigateTo("ComputerWorkspacePage", chosenComp);
         }
     }
 
-    private async void ComputerSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    private void ComputerSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
         var nav = App.GetService<INavigationService>();
-        var compVm = App.GetService<ComputerWorkspaceViewModel>();
-
         if (args.ChosenSuggestion is AdComputer chosenComp)
         {
-            await compVm.LoadComputerAsync(chosenComp);
-            nav.NavigateTo("ComputerWorkspacePage");
+            nav.NavigateTo("ComputerWorkspacePage", chosenComp);
         }
         else if (!string.IsNullOrWhiteSpace(args.QueryText))
         {
-            await compVm.SearchAndLoadComputerAsync(args.QueryText);
-            nav.NavigateTo("ComputerWorkspacePage");
+            nav.NavigateTo("ComputerWorkspacePage", args.QueryText);
         }
     }
 }

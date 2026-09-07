@@ -2,8 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using System;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+using Serilog;
 using Sol.Helpers;
 using Sol.Views;
 using Windows.ApplicationModel.Activation;
@@ -13,6 +17,8 @@ namespace Sol;
 
 public partial class App : Application
 {
+    private static readonly object _crashLock = new();
+
     public static Window? MainWindow { get; private set; }
     
     public IHost Host { get; }
@@ -38,22 +44,40 @@ public partial class App : Application
 
         this.InitializeComponent();
 
+        // WinUI thread unhandled exceptions
         this.UnhandledException += (s, e) =>
         {
             e.Handled = true;
-            try
-            {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string logDir = System.IO.Path.Combine(localAppData, "Sol");
-                System.IO.Directory.CreateDirectory(logDir);
-                System.IO.File.WriteAllText(System.IO.Path.Combine(logDir, "crash.log"), e.Exception?.ToString() + "\nMessage: " + e.Message);
-            }
-            catch { }
+            LogCrash("WinUI", e.Exception, e.Message);
+        };
+
+        // AppDomain unhandled exceptions (background threads, threadpool, worker tasks)
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            LogCrash("AppDomain", e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString() ?? "Unknown AppDomain exception"));
+        };
+
+        // TaskScheduler unobserved task exceptions (async void, faulted Task background exceptions)
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            e.SetObserved();
+            LogCrash("TaskScheduler", e.Exception);
         };
         
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string logDir = Path.Combine(localAppData, "Sol", "Logs");
+        Directory.CreateDirectory(logDir);
+        string appLogPath = Path.Combine(logDir, "app.log");
+
         Host = Microsoft.Extensions.Hosting.Host.
         CreateDefaultBuilder().
         UseContentRoot(AppContext.BaseDirectory).
+        UseSerilog((ctx, lc) =>
+        {
+            lc.MinimumLevel.Information()
+              .Enrich.FromLogContext()
+              .WriteTo.File(appLogPath, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7);
+        }).
         ConfigureServices((context, services) =>
         {
             // Caching
@@ -66,9 +90,11 @@ public partial class App : Application
             services.AddSingleton<Sol.Services.IGreetingService, Sol.Services.GreetingService>();
             services.AddSingleton<Sol.Services.INavigationService, Sol.Services.NavigationService>();
             services.AddSingleton<Sol.Services.IExportService, Sol.Services.ExportService>();
+            services.AddSingleton<Sol.Services.IHardwareDiagnosticService, Sol.Services.HardwareDiagnosticService>();
+            services.AddSingleton<Sol.Services.IProcessManagementService, Sol.Services.ProcessManagementService>();
+            services.AddSingleton<Sol.Services.IBitLockerManagementService, Sol.Services.BitLockerManagementService>();
             services.AddSingleton<Sol.Services.IComputerDiagnosticService, Sol.Services.ComputerDiagnosticService>();
             services.AddSingleton<Sol.Services.IJiraService, Sol.Services.JiraService>();
-            services.AddSingleton<Sol.Services.IAwakeService, Sol.Services.AwakeService>();
             services.AddSingleton<Sol.Services.IFileLocksmithService, Sol.Services.FileLocksmithService>();
             services.AddSingleton<Sol.Services.IShortcutGuideService, Sol.Services.ShortcutGuideService>();
             services.AddSingleton<Sol.Services.IOcrService, Sol.Services.OcrService>();
@@ -79,13 +105,14 @@ public partial class App : Application
             services.AddSingleton<Sol.Services.IMmcLookupService, Sol.Services.MmcLookupService>();
             services.AddSingleton<Sol.Services.IAdminCommandService, Sol.Services.AdminCommandService>();
             services.AddSingleton<Sol.Services.IEntityComparisonService, Sol.Services.EntityComparisonService>();
+            services.AddSingleton<Sol.Services.IGlobalHotkeyService, Sol.Services.GlobalHotkeyService>();
 
             // ViewModels
             services.AddSingleton<Sol.ViewModels.GlobalSearchViewModel>();
             services.AddSingleton<Sol.ViewModels.ShellViewModel>();
             services.AddSingleton<Sol.ViewModels.HomeViewModel>();
-            services.AddSingleton<Sol.ViewModels.UserWorkspaceViewModel>();
-            services.AddSingleton<Sol.ViewModels.ComputerWorkspaceViewModel>();
+            services.AddTransient<Sol.ViewModels.UserWorkspaceViewModel>();
+            services.AddTransient<Sol.ViewModels.ComputerWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.CompareWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.JiraWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.SettingsViewModel>();
@@ -199,5 +226,51 @@ public partial class App : Application
             }
             catch { }
         });
+    }
+
+    private static void LogCrash(string source, Exception? ex, string? extraMessage = null)
+    {
+        lock (_crashLock)
+        {
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string logDir = Path.Combine(localAppData, "Sol");
+                Directory.CreateDirectory(logDir);
+                string crashLogPath = Path.Combine(logDir, "crash.log");
+
+                // Bounded log rotation: if > 5MB, rotate to crash.log.1
+                var fileInfo = new FileInfo(crashLogPath);
+                if (fileInfo.Exists && fileInfo.Length > 5 * 1024 * 1024)
+                {
+                    string rotatedPath = Path.Combine(logDir, "crash.log.1");
+                    File.Copy(crashLogPath, rotatedPath, overwrite: true);
+                    File.Delete(crashLogPath);
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("================================================================================");
+                sb.AppendLine($"[CRASH {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Source: {source}");
+                if (!string.IsNullOrWhiteSpace(extraMessage))
+                {
+                    sb.AppendLine($"Message: {extraMessage}");
+                }
+                if (ex != null)
+                {
+                    sb.AppendLine($"Exception Type: {ex.GetType().FullName}");
+                    sb.AppendLine($"Exception Message: {ex.Message}");
+                    sb.AppendLine($"Stack Trace:\n{ex.StackTrace}");
+                    if (ex.InnerException != null)
+                    {
+                        sb.AppendLine($"Inner Exception: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}");
+                        sb.AppendLine($"Inner Stack Trace:\n{ex.InnerException.StackTrace}");
+                    }
+                }
+                sb.AppendLine();
+
+                File.AppendAllText(crashLogPath, sb.ToString(), Encoding.UTF8);
+            }
+            catch { }
+        }
     }
 }

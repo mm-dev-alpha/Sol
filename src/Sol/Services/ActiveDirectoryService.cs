@@ -25,7 +25,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
             if (query.Equals("demo", StringComparison.OrdinalIgnoreCase) ||
                 query.Equals("local", StringComparison.OrdinalIgnoreCase) ||
-                query.Equals("test", StringComparison.OrdinalIgnoreCase))
+                query.Equals("test", StringComparison.OrdinalIgnoreCase) ||
+                _settings.IsDemoMode)
             {
                 return GetFallbackUsers(query);
             }
@@ -55,6 +56,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 
                 searcher.Filter = $"(&(objectCategory=person)(objectClass=user)(|(sAMAccountName={escapedQuery})(displayName={escapedQuery})))";
                 SetPropertiesToLoad(searcher);
+                searcher.PageSize = 1000;
                 searcher.SizeLimit = 25;
                 
                 using (var matches = searcher.FindAll())
@@ -80,10 +82,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // In non-domain or offline environments, provide graceful fallback demo users
-                results = GetFallbackUsers(query);
+                AppLog.Write($"ActiveDirectoryService.SearchUsersAsync LDAP error: {ex.Message}");
+                if (_settings.IsDemoMode)
+                {
+                    results = GetFallbackUsers(query);
+                }
+                else
+                {
+                    throw;
+                }
             }
 
             return results;
@@ -206,14 +215,14 @@ public class ActiveDirectoryService : IActiveDirectoryService
             PasswordExpiryStatus = passwordNeverExpires ? "Never expires" : TimeHelper.GetPasswordExpiryStatus(pwdExpiry),
             BadPasswordCount = GetIntProperty(result, "badPwdCount"),
             BadPasswordTime = GetFileTimeProperty(result, "badPasswordTime"),
-            Created = result.Properties.Contains("whenCreated") ? (DateTime)result.Properties["whenCreated"][0] : null,
-            Modified = result.Properties.Contains("whenChanged") ? (DateTime)result.Properties["whenChanged"][0] : null
+            Created = GetDateTimeProperty(result, "whenCreated"),
+            Modified = GetDateTimeProperty(result, "whenChanged")
         };
     }
 
-    private string GetSidProperty(SearchResult result)
+    private static string GetSidProperty(SearchResult result)
     {
-        if (result.Properties.Contains("objectSid"))
+        if (result.Properties.Contains("objectSid") && result.Properties["objectSid"].Count > 0)
         {
             var sidBytes = result.Properties["objectSid"][0] as byte[];
             if (sidBytes != null)
@@ -265,6 +274,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
         return null;
     }
 
+    private static DateTime? GetDateTimeProperty(SearchResult result, string propertyName)
+    {
+        if (result.Properties.Contains(propertyName) && result.Properties[propertyName].Count > 0)
+        {
+            var value = result.Properties[propertyName][0];
+            if (value is DateTime dt) return dt;
+            if (value != null && DateTime.TryParse(value.ToString(), out var parsed)) return parsed;
+        }
+        return null;
+    }
+
     private PrincipalContext GetPrincipalContext()
     {
         if (!string.IsNullOrWhiteSpace(AdDomain))
@@ -291,6 +311,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
                 searcher.Filter = $"(&(objectCategory=group)(|(sAMAccountName=*{escapedQuery}*)(name=*{escapedQuery}*)))";
                 searcher.PropertiesToLoad.Add("sAMAccountName");
+                searcher.PageSize = 1000;
                 searcher.SizeLimit = 15;
 
                 using var matches = searcher.FindAll();
@@ -307,20 +328,28 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
                 return results.OrderBy(g => g).ToList();
             }
-            catch
+            catch (Exception ex)
             {
-                var fallbackGroups = new List<string>
+                AppLog.Write($"ActiveDirectoryService.SearchGroupsAsync LDAP error: {ex.Message}");
+                if (query.Equals("demo", StringComparison.OrdinalIgnoreCase) ||
+                    query.Equals("local", StringComparison.OrdinalIgnoreCase) ||
+                    _settings.IsDemoMode)
                 {
-                    "Domain Users", "Domain Admins", "Enterprise Admins", "Schema-Admins",
-                    "IT-Support-Tier1", "IT-Support-Tier2", "VPN-Users", "HR-Staff",
-                    "Payroll-Access", "All-Employees", "Executive-Board", "Security-Officers",
-                    "Workstations-All", "Domain Computers", "Laptops-Policy-GPO", "BitLocker-Protected-Devices"
-                };
+                    var fallbackGroups = new List<string>
+                    {
+                        "Domain Users", "Domain Admins", "Enterprise Admins", "Schema-Admins",
+                        "IT-Support-Tier1", "IT-Support-Tier2", "VPN-Users", "HR-Staff",
+                        "Payroll-Access", "All-Employees", "Executive-Board", "Security-Officers",
+                        "Workstations-All", "Domain Computers", "Laptops-Policy-GPO", "BitLocker-Protected-Devices"
+                    };
 
-                return fallbackGroups
-                    .Where(g => g.Contains(query, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(g => g)
-                    .ToList();
+                    return fallbackGroups
+                        .Where(g => g.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(g => g)
+                        .ToList();
+                }
+
+                throw;
             }
         });
     }
@@ -439,7 +468,14 @@ public class ActiveDirectoryService : IActiveDirectoryService
             else
             {
                 using var rootDse = new DirectoryEntry("LDAP://RootDSE");
-                ldapPath = $"LDAP://{rootDse.Properties["defaultNamingContext"].Value}";
+                var defaultNamingContext = rootDse.Properties.Contains("defaultNamingContext") && rootDse.Properties["defaultNamingContext"].Count > 0
+                    ? rootDse.Properties["defaultNamingContext"].Value?.ToString()
+                    : null;
+
+                if (string.IsNullOrEmpty(defaultNamingContext))
+                    throw new Exception("Could not determine default naming context from AD.");
+
+                ldapPath = $"LDAP://{defaultNamingContext}";
             }
 
             var escapedSam = LdapFilterHelper.Escape(samAccountName);
@@ -448,6 +484,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             {
                 Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={escapedSam}))"
             };
+            searcher.PropertiesToLoad.Add("distinguishedName");
             
             var result = searcher.FindOne();
             if (result == null) throw new Exception("User not found.");
@@ -472,37 +509,40 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(newManager))
+            if (newManager != null)
             {
-                string targetSam = newManager;
-                if (newManager.Contains('(') && newManager.Contains(')'))
+                if (string.IsNullOrWhiteSpace(newManager))
                 {
-                    int start = newManager.LastIndexOf('(') + 1;
-                    int end = newManager.LastIndexOf(')');
-                    targetSam = newManager.Substring(start, end - start);
-                }
-
-                var escapedTargetSam = LdapFilterHelper.Escape(targetSam);
-                using var mgrSearcher = new DirectorySearcher(searchRoot)
-                {
-                    Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={escapedTargetSam}))"
-                };
-                mgrSearcher.PropertiesToLoad.Add("distinguishedName");
-                var mgrResult = mgrSearcher.FindOne();
-
-                if (mgrResult != null)
-                {
-                    entry.Properties["manager"].Value = mgrResult.Properties["distinguishedName"][0];
+                    if (entry.Properties.Contains("manager"))
+                        entry.Properties["manager"].Clear();
                 }
                 else
                 {
-                    throw new Exception($"Manager '{newManager}' not found in Active Directory.");
+                    string targetSam = newManager;
+                    if (newManager.Contains('(') && newManager.Contains(')'))
+                    {
+                        int start = newManager.LastIndexOf('(') + 1;
+                        int end = newManager.LastIndexOf(')');
+                        targetSam = newManager.Substring(start, end - start);
+                    }
+
+                    var escapedTargetSam = LdapFilterHelper.Escape(targetSam);
+                    using var mgrSearcher = new DirectorySearcher(searchRoot)
+                    {
+                        Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={escapedTargetSam}))"
+                    };
+                    mgrSearcher.PropertiesToLoad.Add("distinguishedName");
+                    var mgrResult = mgrSearcher.FindOne();
+
+                    if (mgrResult != null && mgrResult.Properties.Contains("distinguishedName") && mgrResult.Properties["distinguishedName"].Count > 0)
+                    {
+                        entry.Properties["manager"].Value = mgrResult.Properties["distinguishedName"][0];
+                    }
+                    else
+                    {
+                        throw new Exception($"Manager '{newManager}' not found in Active Directory.");
+                    }
                 }
-            }
-            else
-            {
-                if (entry.Properties.Contains("manager"))
-                    entry.Properties["manager"].Clear();
             }
 
             entry.CommitChanges();
@@ -529,14 +569,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     var values = new List<string>();
                     foreach (var val in valCollection)
                     {
-                        if (val is byte[] bytes)
-                        {
-                            values.Add(BitConverter.ToString(bytes).Replace("-", " "));
-                        }
-                        else if (val != null)
-                        {
-                            values.Add(val.ToString() ?? "");
-                        }
+                        values.Add(FormatPropertyValue(val));
                     }
                     results.Add(new KeyValuePair<string, string>(propertyName, string.Join(", ", values)));
                 }
@@ -544,6 +577,13 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
             return results.OrderBy(k => k.Key).ToList();
         });
+    }
+
+    private static string FormatPropertyValue(object? val)
+    {
+        if (val is null) return string.Empty;
+        if (val is byte[] bytes) return BitConverter.ToString(bytes).Replace("-", " ");
+        return val.ToString() ?? string.Empty;
     }
 
     public static readonly HashSet<string> SafeEditableAttributes = new(StringComparer.OrdinalIgnoreCase)
@@ -578,11 +618,27 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 using var user = UserPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, samAccountName);
                 if (user == null) throw new Exception("User not found.");
 
-                var entry = (DirectoryEntry)user.GetUnderlyingObject();
+                using var entry = (DirectoryEntry)user.GetUnderlyingObject();
 
-                if (entry.Properties.Contains(attributeName) && entry.Properties[attributeName].Value != null)
+                if (entry.Properties.Contains(attributeName))
                 {
-                    oldValue = entry.Properties[attributeName].Value?.ToString() ?? string.Empty;
+                    var propCol = entry.Properties[attributeName];
+                    if (propCol != null && propCol.Count > 0)
+                    {
+                        if (propCol.Count == 1)
+                        {
+                            oldValue = FormatPropertyValue(propCol.Value);
+                        }
+                        else
+                        {
+                            var items = new List<string>();
+                            foreach (var item in propCol)
+                            {
+                                items.Add(FormatPropertyValue(item));
+                            }
+                            oldValue = string.Join(", ", items);
+                        }
+                    }
                 }
 
                 if (string.IsNullOrWhiteSpace(newValue))
@@ -618,7 +674,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             var results = new List<AdComputer>();
             if (string.IsNullOrWhiteSpace(query)) return results;
 
-            if (query.Equals("demo", StringComparison.OrdinalIgnoreCase) ||
+            if (_settings.IsDemoMode ||
+                query.Equals("demo", StringComparison.OrdinalIgnoreCase) ||
                 query.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
                 query.Equals("local", StringComparison.OrdinalIgnoreCase) ||
                 query.Equals("test", StringComparison.OrdinalIgnoreCase))
@@ -635,6 +692,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
                 searcher.Filter = $"(&(objectCategory=computer)(|(name={escapedQuery}*)(sAMAccountName={escapedQuery}*)(dNSHostName={escapedQuery}*)))";
                 SetComputerPropertiesToLoad(searcher);
+                searcher.PageSize = 1000;
                 searcher.SizeLimit = 25;
 
                 using (var matches = searcher.FindAll())
@@ -660,10 +718,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // In non-domain or offline environments, provide graceful fallback demo/local computers
-                results = GetFallbackComputers(query);
+                AppLog.Write($"ActiveDirectoryService.SearchComputersAsync LDAP error: {ex.Message}");
+                if (_settings.IsDemoMode)
+                {
+                    results = GetFallbackComputers(query);
+                }
+                else
+                {
+                    throw;
+                }
             }
 
             return results;
@@ -733,9 +798,13 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 {
                     foreach (SearchResult fve in fveResults)
                     {
-                        string rPwd = fve.Properties.Contains("msFVE-RecoveryPassword") ? (string)fve.Properties["msFVE-RecoveryPassword"][0] : "";
-                        string idName = fve.Properties.Contains("name") ? (string)fve.Properties["name"][0] : "";
-                        DateTime created = fve.Properties.Contains("whenCreated") ? (DateTime)fve.Properties["whenCreated"][0] : DateTime.MinValue;
+                        string rPwd = fve.Properties.Contains("msFVE-RecoveryPassword") && fve.Properties["msFVE-RecoveryPassword"].Count > 0
+                            ? fve.Properties["msFVE-RecoveryPassword"][0]?.ToString() ?? ""
+                            : "";
+                        string idName = fve.Properties.Contains("name") && fve.Properties["name"].Count > 0
+                            ? fve.Properties["name"][0]?.ToString() ?? ""
+                            : "";
+                        DateTime created = GetDateTimeProperty(fve, "whenCreated") ?? DateTime.MinValue;
 
                         bitLockerKeys.Add(new BitLockerKeyInfo
                         {
@@ -769,8 +838,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             LastLogon = GetFileTimeProperty(result, "lastLogon"),
             LastLogonTimestamp = GetFileTimeProperty(result, "lastLogonTimestamp"),
             PasswordLastSet = GetFileTimeProperty(result, "pwdLastSet"),
-            Created = result.Properties.Contains("whenCreated") ? (DateTime)result.Properties["whenCreated"][0] : null,
-            Modified = result.Properties.Contains("whenChanged") ? (DateTime)result.Properties["whenChanged"][0] : null,
+            Created = GetDateTimeProperty(result, "whenCreated"),
+            Modified = GetDateTimeProperty(result, "whenChanged"),
             BitLockerKeys = bitLockerKeys.OrderByDescending(k => k.Created).ToList(),
             Groups = groupsList
         };

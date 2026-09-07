@@ -97,8 +97,16 @@ public class AttributeEditorSafetyTests : IDisposable
         // Arrange
         var navService = new NavigationService();
 
-        // Assert that core pages are registered
+        // Assert that core pages are registered and mapped to correct view types
         Assert.Null(navService.CurrentPageKey);
+        Assert.True(navService.RegisteredPages.ContainsKey("HomePage"));
+        Assert.Equal(typeof(Sol.Views.HomePage), navService.RegisteredPages["HomePage"]);
+        Assert.Equal(typeof(Sol.Views.UserWorkspacePage), navService.RegisteredPages["UserWorkspacePage"]);
+        Assert.Equal(typeof(Sol.Views.ComputerWorkspacePage), navService.RegisteredPages["ComputerWorkspacePage"]);
+        Assert.Equal(typeof(Sol.Views.JiraWorkspacePage), navService.RegisteredPages["JiraWorkspacePage"]);
+        Assert.Equal(typeof(Sol.Views.ToolsPage), navService.RegisteredPages["ToolsPage"]);
+        Assert.Equal(typeof(Sol.Views.CompareWorkspacePage), navService.RegisteredPages["CompareWorkspacePage"]);
+        Assert.Equal(typeof(Sol.Views.SettingsPage), navService.RegisteredPages["SettingsPage"]);
     }
 
     [Fact]
@@ -243,6 +251,38 @@ public class AttributeEditorSafetyTests : IDisposable
         // Cloud missing email
         bool res3 = await jira.TestConnectionAsync("https://company.atlassian.net", "Cloud", "", "secret");
         Assert.False(res3);
+
+        // SEC-HIGH-05: Insecure HTTP transport strictly rejected
+        bool res4 = await jira.TestConnectionAsync("http://jira.example.com", "DataCenter", "", "secret");
+        Assert.False(res4);
+    }
+
+    [Theory]
+    [InlineData("wuauserv", true)]
+    [InlineData("Spooler", true)]
+    [InlineData("MSSQL$INSTANCE", true)]
+    [InlineData("App_Service-1.0", true)]
+    [InlineData("Spooler' OR 1=1 --", false)]
+    [InlineData("Spooler; DROP TABLE", false)]
+    [InlineData("service\"name", false)]
+    [InlineData("service\\name", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void ProcessManagementService_IsValidServiceName_ValidatesProperly(string? serviceName, bool expected)
+    {
+        Assert.Equal(expected, Services.ProcessManagementService.IsValidServiceName(serviceName));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void FileLocksmithService_KillProcess_GuardsSystemPids(int pid)
+    {
+        var service = new Services.FileLocksmithService();
+        bool killed = service.KillProcess(pid, out string? errorMessage);
+        Assert.False(killed);
+        Assert.Equal(Helpers.Strings.S.CriticalProcessCannotBeTerminated, errorMessage);
     }
 
     [Fact]
@@ -276,14 +316,14 @@ public class AttributeEditorSafetyTests : IDisposable
         vm.IsDiskLoading = false;
 
         vm.IsProcessesLoading = true;
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.ProcessesLoadingVisibility);
+        Assert.True(vm.IsProcessesLoading);
         vm.IsProcessesLoading = false;
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, vm.ProcessesLoadingVisibility);
+        Assert.False(vm.IsProcessesLoading);
 
         vm.IsServicesLoading = true;
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.ServicesLoadingVisibility);
+        Assert.True(vm.IsServicesLoading);
         vm.IsServicesLoading = false;
-        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, vm.ServicesLoadingVisibility);
+        Assert.False(vm.IsServicesLoading);
     }
 
     [Fact]
@@ -293,5 +333,40 @@ public class AttributeEditorSafetyTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(s.DiagnosticsQuerying));
         Assert.False(string.IsNullOrWhiteSpace(s.FetchingProcessData));
         Assert.False(string.IsNullOrWhiteSpace(s.FetchingServicesData));
+    }
+
+    [Fact]
+    public void GenerateSecurePassword_MeetsLengthAndComplexityRequirements()
+    {
+        const string uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lowers = "abcdefghijkmnopqrstuvwxyz";
+        const string digits = "23456789";
+        const string specials = "!@#$%^&*-_+=";
+
+        var generatedPasswords = new HashSet<string>();
+
+        for (int i = 0; i < 50; i++)
+        {
+            string password = ViewModels.UserWorkspaceViewModel.GenerateSecurePassword();
+            Assert.Equal(16, password.Length);
+            Assert.Contains(password, c => uppers.Contains(c));
+            Assert.Contains(password, c => lowers.Contains(c));
+            Assert.Contains(password, c => digits.Contains(c));
+            Assert.Contains(password, c => specials.Contains(c));
+            generatedPasswords.Add(password);
+        }
+
+        // Entropy check: 50 randomly generated passwords should all be distinct
+        Assert.Equal(50, generatedPasswords.Count);
+    }
+
+    [Theory]
+    [InlineData("manager", false)]
+    [InlineData("distinguishedName", false)]
+    [InlineData("sAMAccountName", false)]
+    [InlineData("objectGUID", false)]
+    public void IsProfileAttributeEditable_DoesNotPermitManagerOrStructuralAttributesDirectly(string attr, bool expected)
+    {
+        Assert.Equal(expected, ActiveDirectoryService.IsProfileAttributeEditable(attr));
     }
 }

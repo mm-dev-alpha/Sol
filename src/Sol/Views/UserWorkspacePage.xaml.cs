@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using Sol.Helpers;
 using Sol.Services;
 using Sol.ViewModels;
@@ -19,6 +20,15 @@ public sealed partial class UserWorkspacePage : Page
         InitializeComponent();
     }
 
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is string username && !string.IsNullOrWhiteSpace(username))
+        {
+            await ViewModel.LoadUserAsync(username);
+        }
+    }
+
     private void ManagerSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
@@ -29,7 +39,7 @@ public sealed partial class UserWorkspacePage : Page
 
     private void ManagerSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
     {
-        ViewModel.ManagerSelectedCommand.Execute(args);
+        ViewModel.ManagerSelectedCommand.Execute(args.SelectedItem);
     }
 
     private void AttributeFilterBox_TextChanged(object sender, TextChangedEventArgs e)

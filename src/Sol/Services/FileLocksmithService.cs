@@ -203,9 +203,21 @@ public class FileLocksmithService : IFileLocksmithService
 
     public bool KillProcess(int processId, out string? errorMessage)
     {
+        if (processId <= 4)
+        {
+            errorMessage = Strings.S.CriticalProcessCannotBeTerminated;
+            return false;
+        }
+
         try
         {
             using var proc = Process.GetProcessById(processId);
+            if (ComputerProcessInfo.IsCriticalProcess((uint)processId, proc.ProcessName))
+            {
+                errorMessage = Strings.S.CriticalProcessCannotBeTerminated;
+                return false;
+            }
+
             proc.Kill(entireProcessTree: true);
             proc.WaitForExit(3000);
             errorMessage = null;
@@ -258,7 +270,7 @@ public class FileLocksmithService : IFileLocksmithService
         {
             if (enable)
             {
-                string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(AppContext.BaseDirectory, "Sol.exe");
+                string exePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Sol.exe");
                 string command = $"\"{exePath}\" --unlock \"%1\"";
                 string title = Strings.S.FileLocksmithContextMenuEntry;
 

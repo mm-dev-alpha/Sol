@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Principal;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,36 +13,25 @@ namespace Sol;
 
 public sealed partial class MainWindow : Window
 {
-    private const uint WM_HOTKEY = 0x0312;
-    private const int HOTKEY_MMC_LOOKUP_ID = 0x4D4D;
-    private const int HOTKEY_ADMIN_COMMANDS_ID = 0x4143;
-    private const int HOTKEY_SHORTCUT_GUIDE_ID = 0x5347;
-    private const int HOTKEY_GRAB_FRAME_ID = 0x4746;
-    private const int HOTKEY_EDIT_TEXT_ID = 0x5345;
-    private const uint SUBCLASS_ID = 101;
-
-    [DllImport("comctl32.dll", SetLastError = true)]
-    private static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, UIntPtr uIdSubclass, UIntPtr dwRefData);
-
-    [DllImport("comctl32.dll", SetLastError = true)]
-    private static extern bool RemoveWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, UIntPtr uIdSubclass);
-
-    [DllImport("comctl32.dll")]
-    private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
-
-    private delegate IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
-
     public ShellViewModel ViewModel { get; }
     public Strings S => Strings.S;
     private readonly INavigationService _navigationService;
+    private readonly IGlobalHotkeyService _hotkeyService;
     private readonly DispatcherTimer _toastTimer;
     private IntPtr _hwnd = IntPtr.Zero;
-    private SubclassProc? _subclassProc;
 
-    public MainWindow()
+    public MainWindow() : this(
+        App.GetService<ShellViewModel>(),
+        App.GetService<INavigationService>(),
+        App.GetService<IGlobalHotkeyService>())
     {
-        ViewModel = App.GetService<ShellViewModel>();
-        _navigationService = App.GetService<INavigationService>();
+    }
+
+    public MainWindow(ShellViewModel viewModel, INavigationService navigationService, IGlobalHotkeyService hotkeyService)
+    {
+        ViewModel = viewModel;
+        _navigationService = navigationService;
+        _hotkeyService = hotkeyService;
         
         InitializeComponent();
 
@@ -70,36 +58,13 @@ public sealed partial class MainWindow : Window
 
             if (_hwnd != IntPtr.Zero)
             {
-                _subclassProc = new SubclassProc(WndProc);
-                bool subclassResult = SetWindowSubclass(_hwnd, _subclassProc, (UIntPtr)SUBCLASS_ID, UIntPtr.Zero);
-                AppLog.Write($"MainWindow constructor: SetWindowSubclass result = {subclassResult}, lastErr = {Marshal.GetLastWin32Error()}");
-
-                var settings = App.GetService<ISettingsService>();
-                UpdateGlobalHotkeys(settings.IsMmcLookupEnabled, settings.IsAdminCommandsEnabled, settings.IsShortcutGuideEnabled, settings.IsGrabFrameEnabled, settings.IsEditTextWindowEnabled);
-
-                WeakReferenceMessenger.Default.Register<ToolsSettingsChangedMessage>(this, (r, m) =>
-                {
-                    UpdateGlobalHotkeys(m.IsMmcLookupEnabled, m.IsAdminCommandsEnabled, m.IsShortcutGuideEnabled, m.IsGrabFrameEnabled, m.IsEditTextWindowEnabled);
-                });
-
-                var mmcService = App.GetService<IMmcLookupService>();
-                if (mmcService != null)
-                {
-                    mmcService.OpenRequested += (s, e) => DispatcherQueue.TryEnqueue(() => OpenMmcLookup());
-                }
-
-                var adminCommandsService = App.GetService<IAdminCommandService>();
-                if (adminCommandsService != null)
-                {
-                    adminCommandsService.OpenRequested += (s, e) => DispatcherQueue.TryEnqueue(() => OpenAdminCommands());
-                }
-
-                var editTextService = App.GetService<IEditTextService>();
-                if (editTextService != null)
-                {
-                    editTextService.ToggleRequested += (s, e) => DispatcherQueue.TryEnqueue(() => OpenEditTextWindow());
-                    editTextService.OpenRequested += (s, e) => DispatcherQueue.TryEnqueue(() => OpenEditTextWindow(e.InitialText, e.InitialTable));
-                }
+                _hotkeyService.Initialize(_hwnd);
+                _hotkeyService.MmcLookupTriggered += (s, e) => DispatcherQueue.TryEnqueue(OpenMmcLookup);
+                _hotkeyService.AdminCommandsTriggered += (s, e) => DispatcherQueue.TryEnqueue(OpenAdminCommands);
+                _hotkeyService.ShortcutGuideTriggered += (s, e) => DispatcherQueue.TryEnqueue(OpenShortcutGuide);
+                _hotkeyService.GrabFrameTriggered += (s, e) => DispatcherQueue.TryEnqueue(OpenGrabFrame);
+                _hotkeyService.EditTextTriggered += (s, e) => DispatcherQueue.TryEnqueue(() => OpenEditTextWindow());
+                _hotkeyService.EditTextOpenRequested += (s, e) => DispatcherQueue.TryEnqueue(() => OpenEditTextWindow(e.InitialText, e.InitialTable));
             }
         }
         catch (Exception ex)
@@ -135,12 +100,19 @@ public sealed partial class MainWindow : Window
             {
                 _toastTimer.Stop();
                 GlobalInfoBar.Message = m.Message;
-                GlobalInfoBar.Severity = m.Severity;
+                var infoBarSeverity = m.Severity switch
+                {
+                    AppNotificationSeverity.Informational => InfoBarSeverity.Informational,
+                    AppNotificationSeverity.Warning => InfoBarSeverity.Warning,
+                    AppNotificationSeverity.Error => InfoBarSeverity.Error,
+                    _ => InfoBarSeverity.Success
+                };
+                GlobalInfoBar.Severity = infoBarSeverity;
                 GlobalInfoBar.IsOpen = true;
 
                 // Errors stay visible until the user explicitly dismisses them via the 'X' button.
                 // Informational, Success, and Warning notifications auto-dismiss after 4 seconds.
-                if (m.Severity != InfoBarSeverity.Error)
+                if (infoBarSeverity != InfoBarSeverity.Error)
                 {
                     _toastTimer.Start();
                 }
@@ -241,40 +213,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData)
-    {
-        if (uMsg == WM_HOTKEY)
-        {
-            int hotkeyId = wParam.ToInt32();
-            AppLog.Write($"MainWindow.WndProc: WM_HOTKEY received! hotkeyId = 0x{hotkeyId:X4}");
-            if (hotkeyId == HOTKEY_MMC_LOOKUP_ID)
-            {
-                DispatcherQueue.TryEnqueue(OpenMmcLookup);
-                return IntPtr.Zero;
-            }
-            if (hotkeyId == HOTKEY_ADMIN_COMMANDS_ID)
-            {
-                DispatcherQueue.TryEnqueue(OpenAdminCommands);
-                return IntPtr.Zero;
-            }
-            if (hotkeyId == HOTKEY_SHORTCUT_GUIDE_ID)
-            {
-                DispatcherQueue.TryEnqueue(OpenShortcutGuide);
-                return IntPtr.Zero;
-            }
-            if (hotkeyId == HOTKEY_GRAB_FRAME_ID)
-            {
-                DispatcherQueue.TryEnqueue(OpenGrabFrame);
-                return IntPtr.Zero;
-            }
-            if (hotkeyId == HOTKEY_EDIT_TEXT_ID)
-            {
-                DispatcherQueue.TryEnqueue(() => OpenEditTextWindow());
-                return IntPtr.Zero;
-            }
-        }
-        return DefSubclassProc(hWnd, uMsg, wParam, lParam);
-    }
 
     private void OpenMmcLookup()
     {
@@ -402,82 +340,11 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void UpdateGlobalHotkeys(bool mmcEnabled, bool adminCommandsEnabled, bool shortcutGuideEnabled, bool grabFrameEnabled = true, bool editTextEnabled = true)
-    {
-        if (_hwnd == IntPtr.Zero)
-        {
-            AppLog.Write("UpdateGlobalHotkeys: _hwnd is Zero!");
-            return;
-        }
-        try
-        {
-            var mmcService = App.GetService<IMmcLookupService>();
-            var adminCommandsService = App.GetService<IAdminCommandService>();
-            var shortcutService = App.GetService<IShortcutGuideService>();
-            var grabFrameService = App.GetService<IGrabFrameService>();
-            var editTextService = App.GetService<IEditTextService>();
-
-            if (mmcEnabled)
-            {
-                bool r = mmcService?.RegisterGlobalHotkey(_hwnd) ?? false;
-                AppLog.Write($"UpdateGlobalHotkeys: MMC registered = {r}");
-            }
-            else mmcService?.UnregisterGlobalHotkey(_hwnd);
-
-            if (adminCommandsEnabled)
-            {
-                bool r = adminCommandsService?.RegisterGlobalHotkey(_hwnd) ?? false;
-                AppLog.Write($"UpdateGlobalHotkeys: AdminCommands registered = {r}");
-            }
-            else adminCommandsService?.UnregisterGlobalHotkey(_hwnd);
-
-            if (shortcutGuideEnabled)
-            {
-                bool r = shortcutService?.RegisterGlobalHotkey(_hwnd) ?? false;
-                AppLog.Write($"UpdateGlobalHotkeys: ShortcutGuide registered = {r}");
-            }
-            else shortcutService?.UnregisterGlobalHotkey(_hwnd);
-
-            if (grabFrameEnabled)
-            {
-                bool r = grabFrameService?.RegisterGlobalHotkey(_hwnd) ?? false;
-                AppLog.Write($"UpdateGlobalHotkeys: GrabFrame registered = {r}");
-            }
-            else grabFrameService?.UnregisterGlobalHotkey(_hwnd);
-
-            if (editTextEnabled)
-            {
-                bool r = editTextService?.RegisterGlobalHotkey(_hwnd) ?? false;
-                AppLog.Write($"UpdateGlobalHotkeys: EditText registered = {r}");
-            }
-            else editTextService?.UnregisterGlobalHotkey(_hwnd);
-        }
-        catch (Exception ex)
-        {
-            AppLog.Write($"UpdateGlobalHotkeys exception: {ex}");
-        }
-    }
-
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         try
         {
-            if (_hwnd != IntPtr.Zero)
-            {
-                if (_subclassProc != null)
-                {
-                    RemoveWindowSubclass(_hwnd, _subclassProc, (UIntPtr)SUBCLASS_ID);
-                }
-                App.GetService<IMmcLookupService>()?.UnregisterGlobalHotkey(_hwnd);
-                App.GetService<IMmcLookupService>()?.Dispose();
-                App.GetService<IAdminCommandService>()?.UnregisterGlobalHotkey(_hwnd);
-                App.GetService<IAdminCommandService>()?.Dispose();
-                App.GetService<IShortcutGuideService>()?.UnregisterGlobalHotkey(_hwnd);
-                App.GetService<IGrabFrameService>()?.UnregisterGlobalHotkey(_hwnd);
-                App.GetService<IGrabFrameService>()?.Dispose();
-                App.GetService<IEditTextService>()?.UnregisterGlobalHotkey(_hwnd);
-                (App.GetService<IEditTextService>() as IDisposable)?.Dispose();
-            }
+            _hotkeyService.Dispose();
         }
         catch { }
 
@@ -491,12 +358,6 @@ public sealed partial class MainWindow : Window
         {
             var compVm = App.GetService<ComputerWorkspaceViewModel>();
             compVm.RequestCloseProcessManager();
-        }
-        catch { }
-
-        try
-        {
-            App.GetService<IAwakeService>()?.Dispose();
         }
         catch { }
 

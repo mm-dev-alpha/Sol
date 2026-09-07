@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Sol.Helpers;
 using Sol.Models;
 using Sol.Services;
@@ -181,7 +182,6 @@ public partial class JiraWorkspaceViewModel : ObservableObject
     public async Task UpdateCenterSearchSuggestionsAsync(string query)
     {
         _searchCts?.Cancel();
-        _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         var token = _searchCts.Token;
 
@@ -275,8 +275,17 @@ public partial class JiraWorkspaceViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            HasError = true;
             ErrorMessage = ex.Message;
+            if (isInitial)
+            {
+                HasError = true;
+            }
+            else
+            {
+                WeakReferenceMessenger.Default.Send(
+                    new AppNotificationMessage($"Failed to load more Jira tickets: {ex.Message}", InfoBarSeverity.Error)
+                );
+            }
         }
         finally
         {

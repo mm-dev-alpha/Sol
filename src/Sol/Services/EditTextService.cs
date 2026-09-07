@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Sol.Models;
+using Sol.Helpers;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Sol.Services;
@@ -168,21 +169,15 @@ public sealed class EditTextService : IEditTextService, IDisposable
 
     public async Task<bool> TryInsertTextAsync(string text)
     {
-        try
-        {
-            var package = new DataPackage();
-            package.SetText(text);
-            Clipboard.SetContent(package);
-
-            await Task.Delay(150);
-
-            SendCtrlV();
-            return true;
-        }
-        catch
+        if (!SafeClipboard.TrySetText(text))
         {
             return false;
         }
+
+        await Task.Delay(150);
+
+        SendCtrlV();
+        return true;
     }
 
     private const int INPUT_KEYBOARD = 1;

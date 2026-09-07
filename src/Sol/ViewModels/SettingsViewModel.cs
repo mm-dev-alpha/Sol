@@ -35,10 +35,6 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial string JiraCloudTokenSecret { get; set; } = string.Empty;
 
     // Tools Configuration
-    [ObservableProperty] public partial bool AwakeKeepDisplayOnDefault { get; set; } = false;
-    [ObservableProperty] public partial int AwakeDefaultTimeIndex { get; set; } = 0;
-    public string[] AwakeDurationOptions => [Strings.S.ToolsSettingsDuration30Min, Strings.S.ToolsSettingsDuration1Hour, Strings.S.ToolsSettingsDuration2Hours];
-
     [ObservableProperty] public partial bool IsShortcutGuideEnabled { get; set; } = true;
     [ObservableProperty] public partial bool IsFileLocksmithShellIntegrationEnabled { get; set; }
     [ObservableProperty] public partial bool IsMmcLookupEnabled { get; set; } = true;
@@ -89,13 +85,6 @@ public partial class SettingsViewModel : ObservableObject
         JiraCloudTokenSecret = JiraCredentialHelper.GetSecret("Cloud");
 
         // Tools settings
-        AwakeKeepDisplayOnDefault = _settings.AwakeKeepDisplayOnDefault;
-        AwakeDefaultTimeIndex = _settings.AwakeDefaultTimeMinutes switch
-        {
-            60 => 1,
-            120 => 2,
-            _ => 0
-        };
         IsShortcutGuideEnabled = _settings.IsShortcutGuideEnabled;
         IsFileLocksmithShellIntegrationEnabled = _fileLocksmithService?.IsContextMenuRegistered() ?? _settings.IsFileLocksmithShellIntegrationEnabled;
         IsMmcLookupEnabled = _settings.IsMmcLookupEnabled;
@@ -148,14 +137,14 @@ public partial class SettingsViewModel : ObservableObject
         string secretToUse = (IsJiraCloud ? JiraCloudTokenSecret : JiraPatSecret) ?? string.Empty;
         string email = (JiraCloudEmail ?? string.Empty).Trim();
 
-        // 1. Validation guard: Base URL format
+        // 1. Validation guard: Base URL format (HTTPS strictly enforced)
         if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedUri) ||
-            (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
+            parsedUri.Scheme != Uri.UriSchemeHttps)
         {
-            JiraTestStatusMessage = Strings.S.JiraUrlRequiredPrompt;
+            JiraTestStatusMessage = Strings.S.JiraHttpsRequiredPrompt;
             JiraTestStatusSeverity = InfoBarSeverity.Warning;
             IsJiraTestStatusOpen = true;
-            WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.JiraUrlRequiredPrompt, InfoBarSeverity.Warning));
+            WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.JiraHttpsRequiredPrompt, InfoBarSeverity.Warning));
             return;
         }
 
@@ -231,13 +220,6 @@ public partial class SettingsViewModel : ObservableObject
             _settings.JiraCloudEmail = JiraCloudEmail;
 
             // Save Tools Configuration
-            _settings.AwakeKeepDisplayOnDefault = AwakeKeepDisplayOnDefault;
-            _settings.AwakeDefaultTimeMinutes = AwakeDefaultTimeIndex switch
-            {
-                1 => 60,
-                2 => 120,
-                _ => 30
-            };
             _settings.IsShortcutGuideEnabled = IsShortcutGuideEnabled;
             _settings.IsFileLocksmithShellIntegrationEnabled = IsFileLocksmithShellIntegrationEnabled;
             _settings.IsMmcLookupEnabled = IsMmcLookupEnabled;
@@ -263,24 +245,69 @@ public partial class SettingsViewModel : ObservableObject
             // Broadcast tools settings changed message
             WeakReferenceMessenger.Default.Send(new ToolsSettingsChangedMessage(IsMmcLookupEnabled, IsAdminCommandsEnabled, IsShortcutGuideEnabled, IsGrabFrameEnabled, IsEditTextWindowEnabled));
 
-            // Persist secrets securely to Windows Credential Locker
-            if (!string.IsNullOrWhiteSpace(JiraPatSecret))
-            {
-                JiraCredentialHelper.SaveSecret("DataCenter", JiraPatSecret);
-            }
-            if (!string.IsNullOrWhiteSpace(JiraCloudTokenSecret))
-            {
-                JiraCredentialHelper.SaveSecret("Cloud", JiraCloudTokenSecret);
-            }
-            
             Sol.Helpers.Strings.CurrentLanguage = AppLanguage;
             
             // Notify MainWindow and workspaces to sync JIRA navigation in real-time
             WeakReferenceMessenger.Default.Send(new JiraSettingsChangedMessage(IsJiraEnabled));
 
-            WeakReferenceMessenger.Default.Send(
-                new AppNotificationMessage(Strings.S.SettingsSavedPrompt, InfoBarSeverity.Success)
-            );
+            // Persist secrets securely to Windows Credential Locker without blocking general settings
+            bool credentialError = false;
+            string credentialErrorMessage = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(JiraPatSecret))
+            {
+                try
+                {
+                    JiraCredentialHelper.SaveSecret("DataCenter", JiraPatSecret);
+                }
+                catch (Exception ex)
+                {
+                    credentialError = true;
+                    credentialErrorMessage = ex.Message;
+                }
+            }
+            else
+            {
+                try
+                {
+                    JiraCredentialHelper.ClearSecret("DataCenter");
+                }
+                catch { }
+            }
+
+            if (!string.IsNullOrWhiteSpace(JiraCloudTokenSecret))
+            {
+                try
+                {
+                    JiraCredentialHelper.SaveSecret("Cloud", JiraCloudTokenSecret);
+                }
+                catch (Exception ex)
+                {
+                    credentialError = true;
+                    credentialErrorMessage = string.IsNullOrEmpty(credentialErrorMessage) ? ex.Message : $"{credentialErrorMessage}; {ex.Message}";
+                }
+            }
+            else
+            {
+                try
+                {
+                    JiraCredentialHelper.ClearSecret("Cloud");
+                }
+                catch { }
+            }
+
+            if (credentialError)
+            {
+                WeakReferenceMessenger.Default.Send(
+                    new AppNotificationMessage($"{Strings.S.SettingsSavedCredentialFailed}: {credentialErrorMessage}", InfoBarSeverity.Warning)
+                );
+            }
+            else
+            {
+                WeakReferenceMessenger.Default.Send(
+                    new AppNotificationMessage(Strings.S.SettingsSavedPrompt, InfoBarSeverity.Success)
+                );
+            }
         }
         catch (Exception ex)
         {

@@ -146,4 +146,40 @@ public class GrabFrameServiceTests
         string singleLine = _service.FormatExtractedText(raw, GrabFrameMode.SingleLine);
         Assert.Equal("First Line Second Line Third Line", singleLine);
     }
+
+    [Theory]
+    [InlineData(650, true, true, true, true, true, true)]
+    [InlineData(580, true, true, true, true, true, true)]
+    [InlineData(579.9, false, true, true, true, true, true)]
+    [InlineData(500, false, true, true, true, true, true)]
+    [InlineData(460, false, true, true, true, true, true)]
+    [InlineData(459.9, false, false, true, true, true, true)]
+    [InlineData(400, false, false, true, true, true, true)]
+    [InlineData(360, false, false, true, true, true, true)]
+    [InlineData(359.9, false, false, false, false, true, true)]
+    [InlineData(330, false, false, false, false, true, true)]
+    [InlineData(320, false, false, false, false, true, true)]
+    [InlineData(319.9, false, false, false, false, true, false)]
+    [InlineData(280, false, false, false, false, true, false)]
+    [InlineData(260, false, false, false, false, true, false)]
+    [InlineData(259.9, false, false, false, false, false, false)]
+    [InlineData(200, false, false, false, false, false, false)]
+    public void CalculateToolbarState_ProgressivelyCollapsesElements(
+        double width,
+        bool expectLanguage,
+        bool expectModes,
+        bool expectSecondary,
+        bool expectMatchCount,
+        bool expectGrabText,
+        bool expectTitle)
+    {
+        var state = _service.CalculateToolbarState(width);
+
+        Assert.Equal(expectLanguage, state.IsLanguageSelectorVisible);
+        Assert.Equal(expectModes, state.AreModeButtonsVisible);
+        Assert.Equal(expectSecondary, state.AreSecondaryButtonsVisible);
+        Assert.Equal(expectMatchCount, state.IsMatchCountVisible);
+        Assert.Equal(expectGrabText, state.IsGrabTextVisible);
+        Assert.Equal(expectTitle, state.IsTitleTextVisible);
+    }
 }

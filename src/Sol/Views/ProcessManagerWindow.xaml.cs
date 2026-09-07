@@ -12,6 +12,8 @@ public sealed partial class ProcessManagerWindow : Window
     public ComputerWorkspaceViewModel ViewModel { get; }
     public Strings S => Strings.S;
 
+    public Visibility GetLoadingVisibility(bool isLoading) => isLoading ? Visibility.Visible : Visibility.Collapsed;
+
     public ProcessManagerWindow(ComputerWorkspaceViewModel viewModel)
     {
         ViewModel = viewModel;

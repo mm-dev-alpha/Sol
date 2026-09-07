@@ -9,8 +9,6 @@ using CommunityToolkit.Mvvm.Messaging;
 using Sol.Models;
 using Sol.Services;
 using Sol.Helpers;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 
 namespace Sol.ViewModels;
 
@@ -20,6 +18,7 @@ public partial class UserWorkspaceViewModel : ObservableObject
     private readonly IGreetingService _greetingService;
     private readonly ISettingsService _settings;
     private readonly INavigationService _navigationService;
+    private readonly IExportService _exportService;
 
     public GlobalSearchViewModel Search { get; }
 
@@ -31,13 +30,15 @@ public partial class UserWorkspaceViewModel : ObservableObject
         GlobalSearchViewModel search, 
         IGreetingService greetingService,
         ISettingsService settings,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        IExportService? exportService = null)
     {
         _adService = adService;
         Search = search;
         _greetingService = greetingService;
         _settings = settings;
         _navigationService = navigationService;
+        _exportService = exportService ?? new ExportService();
 
         IsJiraEnabled = _settings.IsJiraEnabled;
 
@@ -73,15 +74,15 @@ public partial class UserWorkspaceViewModel : ObservableObject
     // Multiple matches
     public ObservableCollection<AdUser> SearchResults { get; } = new();
 
-    // Visibility States
-    public Visibility UserContentVisibility => CurrentUser != null ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility EmptyStateVisibility => CurrentUser == null && SearchResults.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility MultipleMatchesVisibility => SearchResults.Count > 0 && CurrentUser == null ? Visibility.Visible : Visibility.Collapsed;
+    // State Flags
+    public bool HasUser => CurrentUser != null;
+    public bool IsEmptyState => CurrentUser == null && SearchResults.Count == 0;
+    public bool HasMultipleMatches => SearchResults.Count > 0 && CurrentUser == null;
 
     // Derived properties for UI
     public bool HasManager => !string.IsNullOrWhiteSpace(CurrentUser?.Manager);
-    public Visibility ManagerDisplayVisibility => !IsEditing && HasManager ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility NoManagerDisplayVisibility => !IsEditing && !HasManager ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsManagerDisplayVisible => !IsEditing && HasManager;
+    public bool IsNoManagerDisplayVisible => !IsEditing && !HasManager;
     public bool HasDirectReports => CurrentUser?.DirectReports?.Count > 0;
     public string DirectReportsCount => CurrentUser?.DirectReports?.Count.ToString() ?? "0";
     public string DirectReportsCountBadge => CurrentUser?.DirectReports?.Count.ToString() ?? "0";
@@ -213,8 +214,8 @@ public partial class UserWorkspaceViewModel : ObservableObject
 
     partial void OnIsEditingChanged(bool value)
     {
-        OnPropertyChanged(nameof(ManagerDisplayVisibility));
-        OnPropertyChanged(nameof(NoManagerDisplayVisibility));
+        OnPropertyChanged(nameof(IsManagerDisplayVisible));
+        OnPropertyChanged(nameof(IsNoManagerDisplayVisible));
     }
     [ObservableProperty] public partial string EditTitle { get; set; } = string.Empty;
     [ObservableProperty] public partial string EditDepartment { get; set; } = string.Empty;
@@ -236,12 +237,12 @@ public partial class UserWorkspaceViewModel : ObservableObject
 
     public void NotifyPropertiesChanged()
     {
-        OnPropertyChanged(nameof(UserContentVisibility));
-        OnPropertyChanged(nameof(EmptyStateVisibility));
-        OnPropertyChanged(nameof(MultipleMatchesVisibility));
+        OnPropertyChanged(nameof(HasUser));
+        OnPropertyChanged(nameof(IsEmptyState));
+        OnPropertyChanged(nameof(HasMultipleMatches));
         OnPropertyChanged(nameof(HasManager));
-        OnPropertyChanged(nameof(ManagerDisplayVisibility));
-        OnPropertyChanged(nameof(NoManagerDisplayVisibility));
+        OnPropertyChanged(nameof(IsManagerDisplayVisible));
+        OnPropertyChanged(nameof(IsNoManagerDisplayVisible));
         OnPropertyChanged(nameof(HasDirectReports));
         OnPropertyChanged(nameof(DirectReportsCount));
         OnPropertyChanged(nameof(DirectReportsCountBadge));
@@ -377,11 +378,14 @@ public partial class UserWorkspaceViewModel : ObservableObject
                 await _adService.UnlockAccountAsync(CurrentUser.SamAccountName);
             }
             
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetText(newPassword);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-            
-            ShowInfo(Strings.S.PasswordResetSuccess);
+            if (SafeClipboard.TrySetText(newPassword, isSensitive: true))
+            {
+                ShowInfo(Strings.S.PasswordResetSuccess);
+            }
+            else
+            {
+                ShowError(Strings.S.ClipboardBusy);
+            }
             await RefreshCurrentUserAsync();
         }
         catch (Exception ex) 
@@ -403,24 +407,31 @@ public partial class UserWorkspaceViewModel : ObservableObject
         const string allChars = uppers + lowers + digits + specials;
 
         var chars = new char[16];
-        chars[0] = uppers[System.Security.Cryptography.RandomNumberGenerator.GetInt32(uppers.Length)];
-        chars[1] = lowers[System.Security.Cryptography.RandomNumberGenerator.GetInt32(lowers.Length)];
-        chars[2] = digits[System.Security.Cryptography.RandomNumberGenerator.GetInt32(digits.Length)];
-        chars[3] = specials[System.Security.Cryptography.RandomNumberGenerator.GetInt32(specials.Length)];
-
-        for (int i = 4; i < 16; i++)
+        try
         {
-            chars[i] = allChars[System.Security.Cryptography.RandomNumberGenerator.GetInt32(allChars.Length)];
-        }
+            chars[0] = uppers[System.Security.Cryptography.RandomNumberGenerator.GetInt32(uppers.Length)];
+            chars[1] = lowers[System.Security.Cryptography.RandomNumberGenerator.GetInt32(lowers.Length)];
+            chars[2] = digits[System.Security.Cryptography.RandomNumberGenerator.GetInt32(digits.Length)];
+            chars[3] = specials[System.Security.Cryptography.RandomNumberGenerator.GetInt32(specials.Length)];
 
-        // Cryptographically secure in-place Fisher-Yates shuffle
-        for (int i = chars.Length - 1; i > 0; i--)
+            for (int i = 4; i < 16; i++)
+            {
+                chars[i] = allChars[System.Security.Cryptography.RandomNumberGenerator.GetInt32(allChars.Length)];
+            }
+
+            // Cryptographically secure in-place Fisher-Yates shuffle
+            for (int i = chars.Length - 1; i > 0; i--)
+            {
+                int j = System.Security.Cryptography.RandomNumberGenerator.GetInt32(i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+
+            return new string(chars);
+        }
+        finally
         {
-            int j = System.Security.Cryptography.RandomNumberGenerator.GetInt32(i + 1);
-            (chars[i], chars[j]) = (chars[j], chars[i]);
+            Array.Clear(chars, 0, chars.Length);
         }
-
-        return new string(chars);
     }
 
     [RelayCommand]
@@ -562,9 +573,9 @@ public partial class UserWorkspaceViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ManagerSelected(AutoSuggestBoxSuggestionChosenEventArgs args)
+    private void ManagerSelected(object? selectedItem)
     {
-        if (args.SelectedItem is AdUser user)
+        if (selectedItem is AdUser user)
         {
             EditManager = user.DisplayName;
             EditManagerSamAccountName = user.SamAccountName;
@@ -720,120 +731,31 @@ public partial class UserWorkspaceViewModel : ObservableObject
     private void CopyPowerShell()
     {
         if (CurrentUser == null) return;
-        var ps = $"Get-ADUser -Identity \"{CurrentUser.SamAccountName}\" -Properties *";
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(ps);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.PowerShellCommandCopied);
+        string safeSam = (CurrentUser.SamAccountName ?? string.Empty).Replace("'", "''");
+        var ps = $"Get-ADUser -Identity '{safeSam}' -Properties *";
+        if (SafeClipboard.TrySetText(ps))
+        {
+            ShowInfo(Strings.S.PowerShellCommandCopied);
+        }
+        else
+        {
+            ShowError(Strings.S.ClipboardBusy);
+        }
     }
 
     [RelayCommand]
     private void CopyAll()
     {
         if (CurrentUser == null) return;
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("================================================================================");
-        sb.AppendLine($"ACTIVE DIRECTORY USER PROFILE: {CurrentUser.DisplayName} ({CurrentUser.SamAccountName})");
-        sb.AppendLine("================================================================================");
-        sb.AppendLine();
-
-        // 1. Identity & Directory
-        sb.AppendLine("[ IDENTITY & DIRECTORY ]");
-        sb.AppendLine($"  Display Name:        {CurrentUser.DisplayName}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.GivenName))
-            sb.AppendLine($"  First Name:          {CurrentUser.GivenName}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.Surname))
-            sb.AppendLine($"  Last Name:           {CurrentUser.Surname}");
-        sb.AppendLine($"  SAM Account Name:    {CurrentUser.SamAccountName}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.Upn))
-            sb.AppendLine($"  User Principal Name: {CurrentUser.Upn}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.Email))
-            sb.AppendLine($"  Email Address:       {CurrentUser.Email}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.EmployeeId))
-            sb.AppendLine($"  Employee ID:         {CurrentUser.EmployeeId}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.Sid))
-            sb.AppendLine($"  Security ID (SID):   {CurrentUser.Sid}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.OuPath))
-            sb.AppendLine($"  OU Path:             {CurrentUser.OuPath}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.Description))
-            sb.AppendLine($"  Description:         {CurrentUser.Description}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.WebPage))
-            sb.AppendLine($"  Web Page:            {CurrentUser.WebPage}");
-        sb.AppendLine();
-
-        // 2. Organization
-        sb.AppendLine("[ ORGANIZATION ]");
-        sb.AppendLine($"  Job Title:           {(!string.IsNullOrWhiteSpace(CurrentUser.Title) ? CurrentUser.Title : "—")}");
-        sb.AppendLine($"  Department:          {(!string.IsNullOrWhiteSpace(CurrentUser.Department) ? CurrentUser.Department : "—")}");
-        sb.AppendLine($"  Office:              {(!string.IsNullOrWhiteSpace(CurrentUser.Office) ? CurrentUser.Office : "—")}");
-        sb.AppendLine($"  Manager:             {(!string.IsNullOrWhiteSpace(CurrentUser.Manager) ? CurrentUser.Manager : "—")}");
-        if (CurrentUser.DirectReports != null && CurrentUser.DirectReports.Count > 0)
+        var report = _exportService.FormatUserProfileReport(CurrentUser);
+        if (SafeClipboard.TrySetText(report))
         {
-            sb.AppendLine($"  Direct Reports ({CurrentUser.DirectReports.Count}):");
-            foreach (var report in CurrentUser.DirectReports)
-            {
-                sb.AppendLine($"    - {report}");
-            }
+            ShowInfo(Strings.S.AllInfoCopiedSuccess);
         }
         else
         {
-            sb.AppendLine("  Direct Reports:      None");
+            ShowError(Strings.S.ClipboardBusy);
         }
-        sb.AppendLine();
-
-        // 3. Contact Details
-        sb.AppendLine("[ CONTACT INFORMATION ]");
-        sb.AppendLine($"  Office Phone:        {(!string.IsNullOrWhiteSpace(CurrentUser.OfficePhone) ? CurrentUser.OfficePhone : "—")}");
-        sb.AppendLine($"  Mobile Phone:        {(!string.IsNullOrWhiteSpace(CurrentUser.MobilePhone) ? CurrentUser.MobilePhone : "—")}");
-        if (!string.IsNullOrWhiteSpace(CurrentUser.StreetAddress) || !string.IsNullOrWhiteSpace(CurrentUser.City) || !string.IsNullOrWhiteSpace(CurrentUser.PostalCode) || !string.IsNullOrWhiteSpace(CurrentUser.State))
-        {
-            sb.AppendLine($"  Street Address:      {(!string.IsNullOrWhiteSpace(CurrentUser.StreetAddress) ? CurrentUser.StreetAddress : "—")}");
-            sb.AppendLine($"  City:                {(!string.IsNullOrWhiteSpace(CurrentUser.City) ? CurrentUser.City : "—")}");
-            sb.AppendLine($"  Postal Code:         {(!string.IsNullOrWhiteSpace(CurrentUser.PostalCode) ? CurrentUser.PostalCode : "—")}");
-            sb.AppendLine($"  State / Province:    {(!string.IsNullOrWhiteSpace(CurrentUser.State) ? CurrentUser.State : "—")}");
-        }
-        sb.AppendLine();
-
-        // 4. Account & Security Status
-        sb.AppendLine("[ ACCOUNT & SECURITY STATUS ]");
-        sb.AppendLine($"  Account Status:      {CurrentUser.AccountStatus}");
-        sb.AppendLine($"  Locked Out:          {(CurrentUser.IsLockedOut ? Strings.S.Yes : Strings.S.No)}");
-        sb.AppendLine($"  Account Expires:     {(CurrentUser.AccountExpires.HasValue ? CurrentUser.AccountExpires.Value.ToString("g") : (!string.IsNullOrWhiteSpace(CurrentUser.AccountExpiresStatus) ? CurrentUser.AccountExpiresStatus : Strings.S.Never))}");
-        sb.AppendLine($"  Password Last Set:   {FormattedPasswordLastSet}");
-        sb.AppendLine($"  Password Expiry:     {(!string.IsNullOrWhiteSpace(CurrentUser.PasswordExpiryStatus) ? CurrentUser.PasswordExpiryStatus : (CurrentUser.PasswordExpiry.HasValue ? CurrentUser.PasswordExpiry.Value.ToString("g") : Strings.S.Never))}");
-        sb.AppendLine($"  Password Never Exp.: {(CurrentUser.PasswordNeverExpires ? Strings.S.Yes : Strings.S.No)}");
-        sb.AppendLine($"  Bad Password Count:  {CurrentUser.BadPasswordCount}");
-        if (CurrentUser.BadPasswordTime.HasValue && CurrentUser.BadPasswordTime.Value != DateTime.MinValue)
-            sb.AppendLine($"  Last Bad Password:   {CurrentUser.BadPasswordTime.Value:g}");
-        sb.AppendLine();
-
-        // 5. Activity & Object Metadata
-        sb.AppendLine("[ ACTIVITY & OBJECT METADATA ]");
-        sb.AppendLine($"  Last Logon:          {FormattedLastLogon}");
-        if (CurrentUser.LastLogonTimestamp.HasValue)
-            sb.AppendLine($"  Last Logon Timestamp:{CurrentUser.LastLogonTimestamp.Value:g}");
-        sb.AppendLine($"  Created:             {FormattedCreated}");
-        sb.AppendLine($"  Modified:            {FormattedModified}");
-        sb.AppendLine();
-
-        // 6. Security Groups
-        sb.AppendLine($"[ GROUP MEMBERSHIPS ({CurrentUser.Groups.Count}) ]");
-        if (CurrentUser.Groups.Count > 0)
-        {
-            foreach (var group in CurrentUser.Groups)
-            {
-                sb.AppendLine($"  - {group}");
-            }
-        }
-        else
-        {
-            sb.AppendLine("  (No groups assigned)");
-        }
-        
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(sb.ToString());
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.AllInfoCopiedSuccess);
     }
 
     [RelayCommand]
@@ -841,10 +763,14 @@ public partial class UserWorkspaceViewModel : ObservableObject
     {
         string? text = parameter?.ToString();
         if (string.IsNullOrEmpty(text)) return;
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(text);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ShowInfo(Strings.S.CopiedToClipboard);
+        if (SafeClipboard.TrySetText(text))
+        {
+            ShowInfo(Strings.S.CopiedToClipboard);
+        }
+        else
+        {
+            ShowError(Strings.S.ClipboardBusy);
+        }
     }
 
     [RelayCommand]
@@ -859,12 +785,12 @@ public partial class UserWorkspaceViewModel : ObservableObject
 
     public void ShowInfo(string message)
     {
-        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Informational));
+        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, AppNotificationSeverity.Informational));
     }
 
     public void ShowError(string message)
     {
-        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, InfoBarSeverity.Error));
+        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(message, AppNotificationSeverity.Error));
     }
 }
 

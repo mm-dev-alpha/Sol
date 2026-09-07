@@ -15,23 +15,6 @@ public partial class ToolsViewModel : ObservableObject
     public Strings S => Strings.S;
 
     [ObservableProperty]
-    public partial bool IsAwakeActive { get; set; }
-
-    [ObservableProperty]
-    public partial string AwakeStatusBadge { get; set; }
-
-    [ObservableProperty]
-    public partial int AwakeModeIndex { get; set; } = 0; // 0: Indefinite, 1: 30m, 2: 1h, 3: 2h
-
-    [ObservableProperty]
-    public partial bool KeepScreenOn { get; set; } = false;
-
-    [ObservableProperty]
-    public partial string AwakeCountdownText { get; set; } = string.Empty;
-
-    public ObservableCollection<string> AwakeModes { get; } = [];
-
-    [ObservableProperty]
     public partial string FileLocksmithStatusBadge { get; set; }
 
     [ObservableProperty]
@@ -64,41 +47,31 @@ public partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     public partial string EditTextHotkeyText { get; set; } = "Win + Shift + E";
 
-    private readonly IAwakeService? _awakeService;
     private readonly IShortcutGuideService? _shortcutGuideService;
     private readonly IMmcLookupService? _mmcLookupService;
     private readonly IAdminCommandService? _adminCommandService;
     private readonly INavigationService? _navigationService;
     private readonly ISettingsService? _settingsService;
-    private bool _isUpdatingState;
 
     public ToolsViewModel(
-        IAwakeService? awakeService = null, 
         IShortcutGuideService? shortcutGuideService = null,
         IMmcLookupService? mmcLookupService = null,
         IAdminCommandService? adminCommandService = null,
         INavigationService? navigationService = null,
         ISettingsService? settingsService = null)
     {
-        _awakeService = awakeService;
         _shortcutGuideService = shortcutGuideService;
         _mmcLookupService = mmcLookupService;
         _adminCommandService = adminCommandService;
         _navigationService = navigationService;
         _settingsService = settingsService;
 
-        AwakeStatusBadge = S.ToolStatusInactive;
         FileLocksmithStatusBadge = S.ToolStatusReady;
         ShortcutGuideStatusBadge = (_settingsService?.IsShortcutGuideEnabled ?? true) ? S.ToolStatusReady : S.ToolStatusInactive;
         MmcStatusBadge = (_settingsService?.IsMmcLookupEnabled ?? true) ? S.ToolStatusReady : S.ToolStatusInactive;
         AdminCommandsStatusBadge = (_settingsService?.IsAdminCommandsEnabled ?? true) ? S.ToolStatusReady : S.ToolStatusInactive;
         GrabFrameStatusBadge = (_settingsService?.IsGrabFrameEnabled ?? true) ? S.ToolStatusReady : S.ToolStatusInactive;
         EditTextStatusBadge = (_settingsService?.IsEditTextWindowEnabled ?? true) ? S.ToolStatusReady : S.ToolStatusInactive;
-
-        if (_settingsService != null)
-        {
-            KeepScreenOn = _settingsService.AwakeKeepDisplayOnDefault;
-        }
 
         if (_shortcutGuideService != null)
         {
@@ -123,154 +96,6 @@ public partial class ToolsViewModel : ObservableObject
             GrabFrameStatusBadge = m.IsGrabFrameEnabled ? S.ToolStatusReady : S.ToolStatusInactive;
             EditTextStatusBadge = m.IsEditTextWindowEnabled ? S.ToolStatusReady : S.ToolStatusInactive;
         });
-
-        AwakeModes.Add(S.ToolAwakeModeIndefinite);
-        AwakeModes.Add(S.ToolAwakeMode30m);
-        AwakeModes.Add(S.ToolAwakeMode1h);
-        AwakeModes.Add(S.ToolAwakeMode2h);
-
-        if (_awakeService != null)
-        {
-            _awakeService.StateChanged += OnAwakeServiceStateChanged;
-            _awakeService.TimeRemainingTick += OnAwakeServiceTimeRemainingTick;
-            _awakeService.TimedSessionExpired += OnAwakeServiceTimedSessionExpired;
-
-            SyncWithAwakeService();
-        }
-    }
-
-    private void SyncWithAwakeService()
-    {
-        if (_awakeService == null) return;
-
-        _isUpdatingState = true;
-        try
-        {
-            IsAwakeActive = _awakeService.IsActive;
-            AwakeStatusBadge = _awakeService.IsActive ? S.ToolStatusActive : S.ToolStatusInactive;
-            KeepScreenOn = _awakeService.KeepDisplayOn;
-
-            if (_awakeService.Mode == AwakeMode.Indefinite)
-            {
-                AwakeModeIndex = 0;
-                AwakeCountdownText = string.Empty;
-            }
-            else if (_awakeService.Mode == AwakeMode.Timed && _awakeService.RemainingTime.HasValue)
-            {
-                var rem = _awakeService.RemainingTime.Value;
-                AwakeCountdownText = $"{S.ToolAwakeRemainingTime}{rem:hh\\:mm\\:ss}";
-            }
-            else
-            {
-                AwakeCountdownText = string.Empty;
-            }
-        }
-        finally
-        {
-            _isUpdatingState = false;
-        }
-    }
-
-    partial void OnIsAwakeActiveChanged(bool value)
-    {
-        if (_isUpdatingState || _awakeService == null) return;
-        ApplyAwakeState();
-    }
-
-    partial void OnAwakeModeIndexChanged(int value)
-    {
-        if (_isUpdatingState || _awakeService == null || !IsAwakeActive) return;
-        ApplyAwakeState();
-    }
-
-    partial void OnKeepScreenOnChanged(bool value)
-    {
-        if (_isUpdatingState || _awakeService == null) return;
-        _awakeService.KeepDisplayOn = value;
-        if (IsAwakeActive)
-        {
-            ApplyAwakeState();
-        }
-    }
-
-    private void ApplyAwakeState()
-    {
-        if (_awakeService == null) return;
-
-        if (!IsAwakeActive)
-        {
-            _awakeService.SetPassive();
-            AwakeStatusBadge = S.ToolStatusInactive;
-            AwakeCountdownText = string.Empty;
-            return;
-        }
-
-        AwakeStatusBadge = S.ToolStatusActive;
-
-        switch (AwakeModeIndex)
-        {
-            case 0:
-                _awakeService.SetIndefinite(KeepScreenOn);
-                AwakeCountdownText = string.Empty;
-                break;
-            case 1:
-                _awakeService.SetTimed(TimeSpan.FromMinutes(30), KeepScreenOn);
-                break;
-            case 2:
-                _awakeService.SetTimed(TimeSpan.FromHours(1), KeepScreenOn);
-                break;
-            case 3:
-                _awakeService.SetTimed(TimeSpan.FromHours(2), KeepScreenOn);
-                break;
-            default:
-                _awakeService.SetIndefinite(KeepScreenOn);
-                AwakeCountdownText = string.Empty;
-                break;
-        }
-    }
-
-    private void OnAwakeServiceStateChanged(object? sender, AwakeStateChangedEventArgs e)
-    {
-        _isUpdatingState = true;
-        try
-        {
-            IsAwakeActive = e.IsActive;
-            AwakeStatusBadge = e.IsActive ? S.ToolStatusActive : S.ToolStatusInactive;
-            KeepScreenOn = e.KeepDisplayOn;
-
-            if (e.Mode != AwakeMode.Timed)
-            {
-                AwakeCountdownText = string.Empty;
-            }
-        }
-        finally
-        {
-            _isUpdatingState = false;
-        }
-    }
-
-    private void OnAwakeServiceTimeRemainingTick(object? sender, TimeSpan remaining)
-    {
-        AwakeCountdownText = $"{S.ToolAwakeRemainingTime}{remaining:hh\\:mm\\:ss}";
-    }
-
-    private void OnAwakeServiceTimedSessionExpired(object? sender, EventArgs e)
-    {
-        _isUpdatingState = true;
-        try
-        {
-            IsAwakeActive = false;
-            AwakeStatusBadge = S.ToolStatusInactive;
-            AwakeCountdownText = string.Empty;
-        }
-        finally
-        {
-            _isUpdatingState = false;
-        }
-
-        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(
-            S.ToolAwakeExpiredNotification,
-            InfoBarSeverity.Informational));
     }
 
     [RelayCommand]

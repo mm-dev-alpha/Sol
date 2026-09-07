@@ -10,7 +10,6 @@ public partial class ShellViewModel : ObservableObject
 {
     private readonly ISettingsService _settings;
 
-    public UserWorkspaceViewModel UserWorkspace { get; }
     public GlobalSearchViewModel Search { get; }
 
     [ObservableProperty]
@@ -18,9 +17,8 @@ public partial class ShellViewModel : ObservableObject
 
     public Visibility JiraNavVisibility => IsJiraNavVisible ? Visibility.Visible : Visibility.Collapsed;
 
-    public ShellViewModel(UserWorkspaceViewModel userWorkspace, GlobalSearchViewModel search, ISettingsService settings)
+    public ShellViewModel(GlobalSearchViewModel search, ISettingsService settings)
     {
-        UserWorkspace = userWorkspace;
         Search = search;
         _settings = settings;
 

@@ -170,7 +170,12 @@ public class OcrService : IOcrService
         // WinRT OCR requires image dimensions between 40x40 and 2600x2600
         if (workingBitmap.PixelWidth < 40 || workingBitmap.PixelHeight < 40)
         {
+            SoftwareBitmap previousBitmap = workingBitmap;
             workingBitmap = PadSoftwareBitmap(workingBitmap, Math.Max(40, workingBitmap.PixelWidth), Math.Max(40, workingBitmap.PixelHeight));
+            if (createdNewBitmap && previousBitmap != bitmap)
+            {
+                previousBitmap.Dispose();
+            }
             createdNewBitmap = true;
         }
 

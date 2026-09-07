@@ -289,10 +289,10 @@ public sealed partial class MmcLookupWindow : Window
         string command = _mmcService.CopyRunCommand(item);
         if (!string.IsNullOrEmpty(command))
         {
-            var data = new DataPackage();
-            data.SetText(command);
-            Clipboard.SetContent(data);
-            ShowFeedback(S.MmcCopiedCommand);
+            if (SafeClipboard.TrySetText(command))
+                ShowFeedback(S.MmcCopiedCommand);
+            else
+                ShowFeedback(S.ClipboardBusy);
         }
     }
 

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using Sol.Helpers;
 using Sol.Models;
 using Sol.Services;
@@ -18,6 +19,34 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         ViewModel = App.GetService<ComputerWorkspaceViewModel>();
         InitializeComponent();
+
+        Loaded += (s, e) =>
+        {
+            ViewModel.CloseProcessManagerRequested += OnCloseProcessManagerRequested;
+            ViewModel.CloseServicesInspectorRequested += OnCloseServicesInspectorRequested;
+        };
+
+        Unloaded += (s, e) =>
+        {
+            ViewModel.CloseProcessManagerRequested -= OnCloseProcessManagerRequested;
+            ViewModel.CloseServicesInspectorRequested -= OnCloseServicesInspectorRequested;
+        };
+    }
+
+    private void OnCloseProcessManagerRequested() => _processManagerWindow?.Close();
+    private void OnCloseServicesInspectorRequested() => _servicesInspectorWindow?.Close();
+
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is AdComputer comp)
+        {
+            await ViewModel.LoadComputerAsync(comp);
+        }
+        else if (e.Parameter is string computerName && !string.IsNullOrWhiteSpace(computerName))
+        {
+            await ViewModel.SearchAndLoadComputerAsync(computerName);
+        }
     }
 
     private async void CenterSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -409,9 +438,15 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (ViewModel.CurrentComputer == null) return;
         string target = !string.IsNullOrWhiteSpace(ViewModel.CurrentComputer.DnsHostName) ? ViewModel.CurrentComputer.DnsHostName : ViewModel.CurrentComputer.Name;
+        if (!CommandLineHelper.IsValidHostNameOrAddress(target))
+        {
+            ViewModel.ShowError(S.InvalidHostNameError);
+            return;
+        }
+
         try
         {
-            Process.Start(new ProcessStartInfo
+            using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "cmd.exe",
                 Arguments = $"/k ping {target}",
@@ -428,9 +463,15 @@ public sealed partial class ComputerWorkspacePage : Page
     {
         if (ViewModel.CurrentComputer == null) return;
         string target = !string.IsNullOrWhiteSpace(ViewModel.CurrentComputer.DnsHostName) ? ViewModel.CurrentComputer.DnsHostName : ViewModel.CurrentComputer.Name;
+        if (!CommandLineHelper.IsValidHostNameOrAddress(target))
+        {
+            ViewModel.ShowError(S.InvalidHostNameError);
+            return;
+        }
+
         try
         {
-            Process.Start(new ProcessStartInfo
+            using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "mstsc.exe",
                 Arguments = $"/v:{target}",

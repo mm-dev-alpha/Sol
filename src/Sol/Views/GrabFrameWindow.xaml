@@ -35,6 +35,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <FontIcon Glyph="&#xE790;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                 <TextBlock
+                    x:Name="WindowTitleTextBlock"
                     Text="{x:Bind S.ToolGrabFrameTitle}"
                     Style="{ThemeResource CaptionTextBlockStyle}"
                     FontWeight="SemiBold"
@@ -163,46 +164,42 @@
             BorderThickness="0,1,0,0"
             Padding="8,0">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="60" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Search Box -->
-            <TextBox
-                x:Name="SearchTextBox"
-                Grid.Column="0"
-                Width="180"
-                Height="32"
-                VerticalAlignment="Center"
-                PlaceholderText="{x:Bind S.GrabFrameSearchPlaceholder}"
-                TextChanged="SearchTextBox_TextChanged" />
+            <!-- Search Area (Column 0: Search Box & Match Count) -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBox
+                    x:Name="SearchTextBox"
+                    Width="140"
+                    Height="32"
+                    VerticalAlignment="Center"
+                    PlaceholderText="{x:Bind S.GrabFrameSearchPlaceholder}"
+                    TextChanged="SearchTextBox_TextChanged" />
+                <TextBlock
+                    x:Name="MatchCountTextBlock"
+                    VerticalAlignment="Center"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind S.GrabFrameNoMatches}" />
+            </StackPanel>
 
-            <!-- Match Count Label -->
-            <TextBlock
-                x:Name="MatchCountTextBlock"
-                Grid.Column="1"
-                Margin="8,0,0,0"
-                VerticalAlignment="Center"
-                Style="{ThemeResource CaptionTextBlockStyle}"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Text="{x:Bind S.GrabFrameNoMatches}" />
-
-            <!-- Language ComboBox -->
+            <!-- Language ComboBox (Column 1) -->
             <ComboBox
                 x:Name="LanguageComboBox"
-                Grid.Column="3"
+                Grid.Column="1"
                 Height="32"
                 MinWidth="100"
-                Margin="0,0,8,0"
+                Margin="0,0,6,0"
                 VerticalAlignment="Center"
                 DisplayMemberPath="DisplayName"
                 SelectionChanged="LanguageComboBox_SelectionChanged" />
 
-            <!-- Action Controls Stack -->
-            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <!-- Secondary Actions (Column 2) -->
+            <StackPanel x:Name="SecondaryActionsStack" Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,6,0">
                 <!-- Re-OCR Button -->
                 <Button
                     x:Name="RefreshButton"
@@ -246,21 +243,24 @@
                     Click="SingleLineToggleButton_Click">
                     <FontIcon Glyph="&#xE8D2;" FontSize="13" />
                 </ToggleButton>
-
-                <!-- Grab Button -->
-                <Button
-                    x:Name="GrabActionButton"
-                    Height="32"
-                    Padding="12,0"
-                    Style="{ThemeResource AccentButtonStyle}"
-                    ToolTipService.ToolTip="{x:Bind S.GrabFrameGrabTooltip}"
-                    Click="GrabActionButton_Click">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE8C8;" FontSize="13" />
-                        <TextBlock Text="{x:Bind S.GrabFrameGrabButton}" FontWeight="SemiBold" />
-                    </StackPanel>
-                </Button>
             </StackPanel>
+
+            <!-- Grab Action Button (Column 3) ALWAYS on the far right -->
+            <Button
+                x:Name="GrabActionButton"
+                Grid.Column="3"
+                Height="32"
+                Padding="12,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Style="{ThemeResource AccentButtonStyle}"
+                ToolTipService.ToolTip="{x:Bind S.GrabFrameGrabTooltip}"
+                Click="GrabActionButton_Click">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE8C8;" FontSize="13" />
+                    <TextBlock x:Name="GrabButtonTextBlock" Text="{x:Bind S.GrabFrameGrabButton}" FontWeight="SemiBold" />
+                </StackPanel>
+            </Button>
         </Grid>
     </Grid>
 </Window>

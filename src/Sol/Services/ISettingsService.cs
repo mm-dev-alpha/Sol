@@ -6,6 +6,9 @@ namespace Sol.Services;
 /// </summary>
 public interface ISettingsService
 {
+    int SchemaVersion { get; }
+    bool IsDemoMode { get; set; }
+
     string AdDomain { get; set; }
     string AppLanguage { get; set; }
 
@@ -15,8 +18,6 @@ public interface ISettingsService
     string JiraCloudEmail { get; set; }
 
     // Tools Configuration
-    bool AwakeKeepDisplayOnDefault { get; set; }
-    int AwakeDefaultTimeMinutes { get; set; }
     bool IsMmcLookupEnabled { get; set; }
     bool IsAdminCommandsEnabled { get; set; }
     bool IsShortcutGuideEnabled { get; set; }

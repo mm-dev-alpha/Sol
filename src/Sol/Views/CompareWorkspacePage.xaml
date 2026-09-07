@@ -372,6 +372,7 @@
                     <ListView ItemsSource="{x:Bind ViewModel.FilteredGroupItems, Mode=OneWay}"
                               MaxHeight="360"
                               SelectionMode="None"
+                              ScrollViewer.IsVerticalScrollChainingEnabled="True"
                               BorderThickness="1"
                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                               CornerRadius="{ThemeResource CardCornerRadius}"
@@ -445,7 +446,9 @@
                     </Grid>
 
                     <ListView ItemsSource="{x:Bind ViewModel.FilteredPropertyItems, Mode=OneWay}"
+                              MaxHeight="480"
                               SelectionMode="None"
+                              ScrollViewer.IsVerticalScrollChainingEnabled="True"
                               BorderThickness="1"
                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                               CornerRadius="{ThemeResource CardCornerRadius}"

@@ -284,17 +284,20 @@ public sealed partial class AdminCommandsWindow : Window
         string command = _commandService.CopyCommand(item);
         if (!string.IsNullOrEmpty(command))
         {
-            var data = new DataPackage();
-            data.SetText(command);
-            Clipboard.SetContent(data);
-
-            if (closeAfter)
+            if (SafeClipboard.TrySetText(command))
             {
-                Close();
+                if (closeAfter)
+                {
+                    Close();
+                }
+                else
+                {
+                    ShowFeedback(S.AdminCommandsCopied);
+                }
             }
             else
             {
-                ShowFeedback(S.AdminCommandsCopied);
+                ShowFeedback(S.ClipboardBusy);
             }
         }
     }

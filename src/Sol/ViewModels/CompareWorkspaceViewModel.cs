@@ -383,18 +383,14 @@ public partial class CompareWorkspaceViewModel : ObservableObject
     {
         string report = GenerateReportText();
 
-        try
+        if (SafeClipboard.TrySetText(report))
         {
-            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            dataPackage.SetText(report);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+            WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.CompareReportCopied));
         }
-        catch
+        else
         {
-            // Fallback for headless / non-UI testing environments
+            WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.ClipboardBusy));
         }
-
-        WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.CompareReportCopied));
     }
 
     public string GenerateReportText()

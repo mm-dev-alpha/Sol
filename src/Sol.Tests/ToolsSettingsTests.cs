@@ -33,6 +33,8 @@ public class ToolsSettingsTests : IDisposable
 
     private class TestSettingsService : ISettingsService
     {
+        public int SchemaVersion => 1;
+        public bool IsDemoMode { get; set; } = false;
         public string AdDomain { get; set; } = string.Empty;
         public string AppLanguage { get; set; } = "en";
         public bool IsJiraEnabled { get; set; }
@@ -40,8 +42,6 @@ public class ToolsSettingsTests : IDisposable
         public string JiraBaseUrl { get; set; } = string.Empty;
         public string JiraCloudEmail { get; set; } = string.Empty;
 
-        public bool AwakeKeepDisplayOnDefault { get; set; } = false;
-        public int AwakeDefaultTimeMinutes { get; set; } = 30;
         public bool IsMmcLookupEnabled { get; set; } = true;
         public bool IsAdminCommandsEnabled { get; set; } = true;
         public bool IsShortcutGuideEnabled { get; set; } = true;
@@ -91,8 +91,6 @@ public class ToolsSettingsTests : IDisposable
         var settings = new SettingsService(_testSettingsFile);
         
         // Assert initial defaults
-        Assert.False(settings.AwakeKeepDisplayOnDefault);
-        Assert.Equal(30, settings.AwakeDefaultTimeMinutes);
         Assert.True(settings.IsMmcLookupEnabled);
         Assert.True(settings.IsAdminCommandsEnabled);
         Assert.True(settings.IsShortcutGuideEnabled);
@@ -102,8 +100,6 @@ public class ToolsSettingsTests : IDisposable
         Assert.True(settings.GrabFrameAlwaysOnTop);
 
         // Modify settings
-        settings.AwakeKeepDisplayOnDefault = true;
-        settings.AwakeDefaultTimeMinutes = 60;
         settings.IsMmcLookupEnabled = false;
         settings.IsAdminCommandsEnabled = false;
         settings.IsShortcutGuideEnabled = false;
@@ -116,8 +112,6 @@ public class ToolsSettingsTests : IDisposable
 
         // Reload from isolated test file
         var reloadedSettings = new SettingsService(_testSettingsFile);
-        Assert.True(reloadedSettings.AwakeKeepDisplayOnDefault);
-        Assert.Equal(60, reloadedSettings.AwakeDefaultTimeMinutes);
         Assert.False(reloadedSettings.IsMmcLookupEnabled);
         Assert.False(reloadedSettings.IsAdminCommandsEnabled);
         Assert.False(reloadedSettings.IsShortcutGuideEnabled);
@@ -127,8 +121,6 @@ public class ToolsSettingsTests : IDisposable
         Assert.False(reloadedSettings.GrabFrameAlwaysOnTop);
 
         // Cleanup modified settings file back to default
-        reloadedSettings.AwakeKeepDisplayOnDefault = false;
-        reloadedSettings.AwakeDefaultTimeMinutes = 30;
         reloadedSettings.IsMmcLookupEnabled = true;
         reloadedSettings.IsAdminCommandsEnabled = true;
         reloadedSettings.IsShortcutGuideEnabled = true;
@@ -144,8 +136,6 @@ public class ToolsSettingsTests : IDisposable
     {
         var settings = new TestSettingsService
         {
-            AwakeKeepDisplayOnDefault = false,
-            AwakeDefaultTimeMinutes = 120,
             IsMmcLookupEnabled = true,
             IsAdminCommandsEnabled = false,
             IsShortcutGuideEnabled = false
@@ -156,8 +146,6 @@ public class ToolsSettingsTests : IDisposable
 
         var vm = new SettingsViewModel(settings, jira, locksmith);
 
-        Assert.False(vm.AwakeKeepDisplayOnDefault);
-        Assert.Equal(2, vm.AwakeDefaultTimeIndex); // 120m -> index 2
         Assert.True(vm.IsMmcLookupEnabled);
         Assert.False(vm.IsAdminCommandsEnabled);
         Assert.False(vm.IsShortcutGuideEnabled);
@@ -173,8 +161,6 @@ public class ToolsSettingsTests : IDisposable
 
         var vm = new SettingsViewModel(settings, jira, locksmith);
 
-        vm.AwakeKeepDisplayOnDefault = true;
-        vm.AwakeDefaultTimeIndex = 1; // 60 minutes
         vm.IsMmcLookupEnabled = false;
         vm.IsAdminCommandsEnabled = false;
         vm.IsShortcutGuideEnabled = true;
@@ -188,8 +174,6 @@ public class ToolsSettingsTests : IDisposable
 
         vm.SaveCommand.Execute(null);
 
-        Assert.True(settings.AwakeKeepDisplayOnDefault);
-        Assert.Equal(60, settings.AwakeDefaultTimeMinutes);
         Assert.False(settings.IsMmcLookupEnabled);
         Assert.False(settings.IsAdminCommandsEnabled);
         Assert.True(settings.IsShortcutGuideEnabled);

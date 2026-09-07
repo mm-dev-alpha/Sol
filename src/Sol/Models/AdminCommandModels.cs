@@ -31,6 +31,8 @@ public sealed class AdminCommandItem
     public string Description { get; set; } = string.Empty;
     public bool IsFavorite { get; set; }
     public bool RequiresElevation { get; set; } = true;
+    public bool IsAvailable { get; set; } = true;
+    public string? RequiredFeature { get; set; }
 
     public string FavoriteGlyph => IsFavorite ? "\uE735" : "\uE734";
     public string ShellBadgeText => ShellType == AdminShellType.PowerShell ? "PS" : "CMD";

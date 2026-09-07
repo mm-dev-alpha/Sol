@@ -12,6 +12,8 @@ public class NavigationService : INavigationService
 
     public event EventHandler<string>? Navigated;
     public string? CurrentPageKey { get; private set; }
+    public IReadOnlyCollection<string> RegisteredPageKeys => _pageRegistry.Keys;
+    public IReadOnlyDictionary<string, Type> RegisteredPages => _pageRegistry;
 
     public NavigationService()
     {
