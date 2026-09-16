@@ -62,7 +62,7 @@
 
                 <!-- Mode Switcher (Users vs Computers) -->
                 <SelectorBar Grid.Column="1" VerticalAlignment="Center" SelectionChanged="ModeSelectorBar_SelectionChanged">
-                    <SelectorBarItem x:Name="UsersSelectorItem" Text="{x:Bind S.CompareModeUsers}" IsSelected="True" />
+                    <SelectorBarItem x:Name="UsersSelectorItem" Text="{x:Bind S.CompareModeUsers}" />
                     <SelectorBarItem x:Name="ComputersSelectorItem" Text="{x:Bind S.CompareModeComputers}" />
                 </SelectorBar>
             </Grid>
@@ -140,7 +140,7 @@
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="{x:Bind ViewModel.TargetAName, Mode=OneWay}" Style="{ThemeResource TitleTextBlockStyle}" FontWeight="SemiBold"/>
-                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="10" Padding="6,1">
+                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
                                         <TextBlock Text="{x:Bind S.CompareTargetALabel}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </Border>
                                 </StackPanel>
@@ -251,7 +251,7 @@
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="{x:Bind ViewModel.TargetBName, Mode=OneWay}" Style="{ThemeResource TitleTextBlockStyle}" FontWeight="SemiBold"/>
-                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="10" Padding="6,1">
+                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
                                         <TextBlock Text="{x:Bind S.CompareTargetBLabel}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </Border>
                                 </StackPanel>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,10 +19,17 @@ public partial class CompareWorkspaceViewModel : ObservableObject
     private readonly IActiveDirectoryService _adService;
     private readonly IEntityComparisonService _comparisonService;
     private readonly INavigationService _navigationService;
+    private long _searchVersionA;
+    private long _searchVersionB;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUserMode))]
     [NotifyPropertyChangedFor(nameof(IsComputerMode))]
+    [NotifyPropertyChangedFor(nameof(HasTargetA))]
+    [NotifyPropertyChangedFor(nameof(HasTargetB))]
+    [NotifyPropertyChangedFor(nameof(HasBothTargets))]
+    [NotifyPropertyChangedFor(nameof(HasNoTargets))]
+    [NotifyPropertyChangedFor(nameof(HasSingleTarget))]
     [NotifyPropertyChangedFor(nameof(TargetAPlaceholder))]
     [NotifyPropertyChangedFor(nameof(TargetBPlaceholder))]
     [NotifyPropertyChangedFor(nameof(CurrentResultCount))]
@@ -255,20 +263,31 @@ public partial class CompareWorkspaceViewModel : ObservableObject
         });
     }
 
-    private void HandleInitiateComparison(InitiateComparisonMessage message)
+    public void HandleInitiateComparison(InitiateComparisonMessage message)
     {
-        SelectedMode = message.Mode;
+        AppLog.Write($"[COMPARE] HandleInitiateComparison: Mode={message.Mode}, Entity={message.TargetEntity?.GetType().Name}");
+        if (SelectedMode != message.Mode)
+        {
+            SelectedMode = message.Mode; // triggers OnSelectedModeChanged -> ClearComparison()
+        }
+        else
+        {
+            ClearComparison();
+        }
+
         if (message.Mode == ComparisonMode.Users && message.TargetEntity is AdUser user)
         {
             UserA = user;
-            UserB = null;
-            UserResult = null;
+            AppLog.Write($"[COMPARE] Populated UserA: {user.SamAccountName}");
         }
         else if (message.Mode == ComparisonMode.Computers && message.TargetEntity is AdComputer computer)
         {
             ComputerA = computer;
-            ComputerB = null;
-            ComputerResult = null;
+            AppLog.Write($"[COMPARE] Populated ComputerA: {computer.Name}");
+        }
+        else
+        {
+            AppLog.Write($"[COMPARE] Warning: HandleInitiateComparison unhandled entity type: {message.TargetEntity?.GetType().FullName}");
         }
     }
 
@@ -552,6 +571,7 @@ public partial class CompareWorkspaceViewModel : ObservableObject
 
     public async Task SearchAsync(string query, bool isTargetA)
     {
+        long currentVersion = isTargetA ? Interlocked.Increment(ref _searchVersionA) : Interlocked.Increment(ref _searchVersionB);
         var targetSuggestions = isTargetA ? SuggestionsA : SuggestionsB;
         var targetUsers = isTargetA ? UserSuggestionsA : UserSuggestionsB;
         var targetComputers = isTargetA ? ComputerSuggestionsA : ComputerSuggestionsB;
@@ -568,29 +588,44 @@ public partial class CompareWorkspaceViewModel : ObservableObject
         targetUsers.Clear();
         targetComputers.Clear();
 
-        if (IsUserMode)
+        try
         {
-            var results = await _adService.SearchUsersAsync(query);
-            foreach (var user in results)
+            if (IsUserMode)
             {
-                targetUsers.Add(user);
-                string title = !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName : user.SamAccountName;
-                string subtitle = user.SamAccountName + (!string.IsNullOrWhiteSpace(user.Upn) ? $" ({user.Upn})" : "");
-                targetSuggestions.Add(new ComparisonSuggestionItem(title, subtitle, "\uE77B", user));
+                var results = await _adService.SearchUsersAsync(query);
+                if (isTargetA ? currentVersion != Volatile.Read(ref _searchVersionA) : currentVersion != Volatile.Read(ref _searchVersionB))
+                {
+                    return;
+                }
+                foreach (var user in results)
+                {
+                    targetUsers.Add(user);
+                    string title = !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName : user.SamAccountName;
+                    string subtitle = user.SamAccountName + (!string.IsNullOrWhiteSpace(user.Upn) ? $" ({user.Upn})" : "");
+                    targetSuggestions.Add(new ComparisonSuggestionItem(title, subtitle, "\uE77B", user));
+                }
+            }
+            else
+            {
+                var results = await _adService.SearchComputersAsync(query);
+                if (isTargetA ? currentVersion != Volatile.Read(ref _searchVersionA) : currentVersion != Volatile.Read(ref _searchVersionB))
+                {
+                    return;
+                }
+                foreach (var comp in results)
+                {
+                    targetComputers.Add(comp);
+                    string title = comp.Name;
+                    string subtitle = !string.IsNullOrWhiteSpace(comp.OperatingSystem)
+                        ? $"{comp.OperatingSystem} ({comp.DnsHostName})"
+                        : (!string.IsNullOrWhiteSpace(comp.DnsHostName) ? comp.DnsHostName : comp.SamAccountName);
+                    targetSuggestions.Add(new ComparisonSuggestionItem(title, subtitle, "\uE7F8", comp));
+                }
             }
         }
-        else
+        catch (Exception ex)
         {
-            var results = await _adService.SearchComputersAsync(query);
-            foreach (var comp in results)
-            {
-                targetComputers.Add(comp);
-                string title = comp.Name;
-                string subtitle = !string.IsNullOrWhiteSpace(comp.OperatingSystem)
-                    ? $"{comp.OperatingSystem} ({comp.DnsHostName})"
-                    : (!string.IsNullOrWhiteSpace(comp.DnsHostName) ? comp.DnsHostName : comp.SamAccountName);
-                targetSuggestions.Add(new ComparisonSuggestionItem(title, subtitle, "\uE7F8", comp));
-            }
+            AppLog.Write($"CompareWorkspaceViewModel.SearchAsync failed: {ex.Message}");
         }
     }
 }

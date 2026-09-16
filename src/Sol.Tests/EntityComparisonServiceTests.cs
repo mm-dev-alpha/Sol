@@ -104,4 +104,76 @@ public class EntityComparisonServiceTests
 
         Assert.Contains(result.Insights, i => i.Severity == InsightSeverity.Info && i.Title.Contains("Operating System"));
     }
+
+    [Fact]
+    public void CompareUsers_SameOuDifferentObjectNames_MatchesOuWithoutInsight()
+    {
+        var userA = new AdUser
+        {
+            SamAccountName = "max.mustermann",
+            DistinguishedName = "CN=Max Mustermann,OU=IT,OU=Users,DC=company,DC=local",
+            OuPath = "OU=IT,OU=Users,DC=company,DC=local",
+            Groups = []
+        };
+        var userB = new AdUser
+        {
+            SamAccountName = "erika.musterfrau",
+            DistinguishedName = "CN=Erika Musterfrau,OU=IT,OU=Users,DC=company,DC=local",
+            OuPath = "OU=IT,OU=Users,DC=company,DC=local",
+            Groups = []
+        };
+
+        var result = _service.CompareUsers(userA, userB);
+
+        // No OU divergence insight
+        Assert.DoesNotContain(result.Insights, i => i.Title.Contains("Organizational Unit"));
+
+        // OU property matches
+        var ouProp = result.Properties.Find(p => p.PropertyName == "Organizational Unit (OU)");
+        Assert.NotNull(ouProp);
+        Assert.False(ouProp.IsDifferent);
+        Assert.Equal("OU=IT,OU=Users,DC=company,DC=local", ouProp.ValueA);
+        Assert.Equal("OU=IT,OU=Users,DC=company,DC=local", ouProp.ValueB);
+
+        // Distinguished Name differs
+        var dnProp = result.Properties.Find(p => p.PropertyName == "Distinguished Name");
+        Assert.NotNull(dnProp);
+        Assert.True(dnProp.IsDifferent);
+    }
+
+    [Fact]
+    public void CompareComputers_SameOuDifferentNames_MatchesOuWithoutInsight()
+    {
+        var compA = new AdComputer
+        {
+            Name = "PC-01",
+            DistinguishedName = "CN=PC-01,OU=Laptops,OU=Clients,DC=company,DC=local",
+            OuPath = "OU=Laptops,OU=Clients,DC=company,DC=local",
+            Groups = []
+        };
+        var compB = new AdComputer
+        {
+            Name = "PC-02",
+            DistinguishedName = "CN=PC-02,OU=Laptops,OU=Clients,DC=company,DC=local",
+            OuPath = "OU=Laptops,OU=Clients,DC=company,DC=local",
+            Groups = []
+        };
+
+        var result = _service.CompareComputers(compA, compB);
+
+        // No OU divergence insight
+        Assert.DoesNotContain(result.Insights, i => i.Title.Contains("Organizational Unit"));
+
+        // OU property matches
+        var ouProp = result.Properties.Find(p => p.PropertyName == "Organizational Unit (OU)");
+        Assert.NotNull(ouProp);
+        Assert.False(ouProp.IsDifferent);
+        Assert.Equal("OU=Laptops,OU=Clients,DC=company,DC=local", ouProp.ValueA);
+        Assert.Equal("OU=Laptops,OU=Clients,DC=company,DC=local", ouProp.ValueB);
+
+        // Distinguished Name differs
+        var dnProp = result.Properties.Find(p => p.PropertyName == "Distinguished Name");
+        Assert.NotNull(dnProp);
+        Assert.True(dnProp.IsDifferent);
+    }
 }

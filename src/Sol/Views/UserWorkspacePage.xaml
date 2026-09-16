@@ -240,6 +240,13 @@
                                         <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.OuPath, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
                                     </Grid>
                                 </controls:SettingsCard>
+                                <controls:SettingsCard Header="{x:Bind S.DistinguishedNameLabel}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.CurrentUser.DistinguishedName, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" MaxWidth="280"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" ToolTipService.ToolTip="{x:Bind S.CopyBtn}" Command="{x:Bind ViewModel.CopyToClipboardCommand}" CommandParameter="{x:Bind ViewModel.CurrentUser.DistinguishedName, Mode=OneWay}"><FontIcon Glyph="&#xE8C8;" FontSize="12"/></Button>
+                                    </Grid>
+                                </controls:SettingsCard>
                                 <controls:SettingsCard Header="{x:Bind S.SidLabel}" Visibility="{x:Bind ViewModel.CurrentUser.Sid, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

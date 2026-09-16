@@ -157,29 +157,43 @@ public sealed partial class FileLocksmithWindow : Window
         catch { }
     }
 
-    private void EndTaskButton_Click(object sender, RoutedEventArgs e)
+    private async void EndTaskButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: LockingProcessInfo process })
         {
-            ViewModel.EndTask(process);
+            try
+            {
+                await ViewModel.EndTaskAsync(process);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"EndTaskButton_Click failed: {ex.Message}");
+            }
         }
     }
 
     private async void EndAllButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ContentDialog
+        try
         {
-            Title = S.FileLocksmithConfirmKillAllTitle,
-            Content = S.FileLocksmithConfirmKillAllMessage,
-            PrimaryButtonText = S.FileLocksmithEndAllBtn,
-            CloseButtonText = S.CancelBtn,
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = Content.XamlRoot
-        };
+            var dialog = new ContentDialog
+            {
+                Title = S.FileLocksmithConfirmKillAllTitle,
+                Content = S.FileLocksmithConfirmKillAllMessage,
+                PrimaryButtonText = S.FileLocksmithEndAllBtn,
+                CloseButtonText = S.CancelBtn,
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                await ViewModel.EndAllTasksAsync();
+            }
+        }
+        catch (Exception ex)
         {
-            ViewModel.EndAllTasks();
+            AppLog.Write($"EndAllButton_Click failed: {ex.Message}");
         }
     }
 }

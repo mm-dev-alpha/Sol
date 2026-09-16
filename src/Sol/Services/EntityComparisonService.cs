@@ -28,6 +28,7 @@ public class EntityComparisonService : IEntityComparisonService
         AddDiff(propertyDiffs, "Identity", "Email", userA.Email, userB.Email);
         AddDiff(propertyDiffs, "Identity", "Employee ID", userA.EmployeeId, userB.EmployeeId);
         AddDiff(propertyDiffs, "Identity", "Organizational Unit (OU)", userA.OuPath, userB.OuPath);
+        AddDiff(propertyDiffs, "Identity", "Distinguished Name", userA.DistinguishedName, userB.DistinguishedName);
         AddDiff(propertyDiffs, "Identity", "Security Identifier (SID)", userA.Sid, userB.Sid);
         AddDiff(propertyDiffs, "Identity", "Description", userA.Description, userB.Description);
         AddDiff(propertyDiffs, "Identity", "Web Page", userA.WebPage, userB.WebPage);
@@ -133,6 +134,7 @@ public class EntityComparisonService : IEntityComparisonService
         AddDiff(propertyDiffs, "Identity & Network", "Operating System", computerA.OperatingSystem, computerB.OperatingSystem);
         AddDiff(propertyDiffs, "Identity & Network", "Operating System Version", computerA.OperatingSystemVersion, computerB.OperatingSystemVersion);
         AddDiff(propertyDiffs, "Identity & Network", "Organizational Unit (OU)", computerA.OuPath, computerB.OuPath);
+        AddDiff(propertyDiffs, "Identity & Network", "Distinguished Name", computerA.DistinguishedName, computerB.DistinguishedName);
         AddDiff(propertyDiffs, "Identity & Network", "IPv4 Address", computerA.IPv4Address, computerB.IPv4Address);
         AddDiff(propertyDiffs, "Identity & Network", "Location", computerA.Location, computerB.Location);
         AddDiff(propertyDiffs, "Identity & Network", "Managed By", computerA.ManagedBy, computerB.ManagedBy);

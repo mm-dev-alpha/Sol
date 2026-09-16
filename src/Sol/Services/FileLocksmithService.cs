@@ -201,6 +201,58 @@ public class FileLocksmithService : IFileLocksmithService
         return string.Empty;
     }
 
+    public async Task<(bool Success, string? ErrorMessage)> KillProcessAsync(int processId, CancellationToken cancellationToken = default)
+    {
+        if (processId <= 4)
+        {
+            return (false, Strings.S.CriticalProcessCannotBeTerminated);
+        }
+
+        try
+        {
+            using var proc = Process.GetProcessById(processId);
+            if (ComputerProcessInfo.IsCriticalProcess((uint)processId, proc.ProcessName))
+            {
+                return (false, Strings.S.CriticalProcessCannotBeTerminated);
+            }
+
+            proc.Kill(entireProcessTree: true);
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            await proc.WaitForExitAsync(linkedCts.Token);
+            return (true, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool Success, List<string> Errors)> KillAllProcessesAsync(IEnumerable<int> processIds, CancellationToken cancellationToken = default)
+    {
+        var errors = new List<string>();
+        bool allSucceeded = true;
+
+        foreach (var pid in processIds.Distinct())
+        {
+            var (success, err) = await KillProcessAsync(pid, cancellationToken);
+            if (!success)
+            {
+                allSucceeded = false;
+                if (!string.IsNullOrEmpty(err))
+                {
+                    errors.Add($"PID {pid}: {err}");
+                }
+            }
+        }
+
+        return (allSucceeded, errors);
+    }
+
     public bool KillProcess(int processId, out string? errorMessage)
     {
         if (processId <= 4)

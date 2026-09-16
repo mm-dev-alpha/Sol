@@ -33,6 +33,8 @@ public partial class GlobalSearchViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(value))
         {
             _searchCts?.Cancel();
+            _searchCts?.Dispose();
+            _searchCts = null;
             Suggestions.Clear();
             IsLoading = false;
             return;
@@ -40,6 +42,7 @@ public partial class GlobalSearchViewModel : ObservableObject
 
         // Cancel any pending search
         _searchCts?.Cancel();
+        _searchCts?.Dispose();
         var currentCts = new CancellationTokenSource();
         _searchCts = currentCts;
         var token = currentCts.Token;

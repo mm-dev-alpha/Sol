@@ -30,14 +30,21 @@ public sealed partial class ToolsPage : Page
 
     private async void LocksmithDropZone_Drop(object sender, DragEventArgs e)
     {
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        try
         {
-            var items = await e.DataView.GetStorageItemsAsync();
-            if (items.Count > 0)
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
             {
-                var path = items[0].Path;
-                ViewModel.OpenFileLocksmithWindow(path);
+                var items = await e.DataView.GetStorageItemsAsync();
+                if (items.Count > 0)
+                {
+                    var path = items[0].Path;
+                    ViewModel.OpenFileLocksmithWindow(path);
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"LocksmithDropZone_Drop failed: {ex.Message}");
         }
     }
 

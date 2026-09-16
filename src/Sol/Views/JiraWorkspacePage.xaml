@@ -190,6 +190,9 @@
                             <!-- Tickets List -->
                             <ListView ItemsSource="{x:Bind ViewModel.FilteredTickets, Mode=OneWay}"
                                       SelectionMode="None"
+                                      MaxHeight="520"
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                      ScrollViewer.VerticalScrollMode="Auto"
                                       Padding="0">
                                 <ListView.ItemTemplate>
                                     <DataTemplate x:DataType="models:JiraTicket">

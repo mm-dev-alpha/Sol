@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,7 +19,8 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     private readonly INavigationService _navigationService;
     private readonly IComputerDiagnosticService _diagnosticService;
     private readonly IExportService _exportService;
-    private System.Threading.CancellationTokenSource? _diagnosticCts;
+    private CancellationTokenSource? _diagnosticCts;
+    private long _searchVersion;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasComputer))]
@@ -233,6 +235,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         RequestCloseProcessManager();
         RequestCloseServicesInspector();
         _diagnosticCts?.Cancel();
+        _diagnosticCts?.Dispose();
         _diagnosticCts = null;
         HardwareSnapshot = null;
         IsHardwareLoading = false;
@@ -268,6 +271,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     [RelayCommand]
     public async Task SearchCenterAsync(string query)
     {
+        long currentVersion = Interlocked.Increment(ref _searchVersion);
         CenterSearchQuery = query;
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
         {
@@ -278,6 +282,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
         try
         {
             var results = await _adService.SearchComputersAsync(query);
+            if (currentVersion != Volatile.Read(ref _searchVersion)) return;
             CenterSuggestions.Clear();
             foreach (var c in results) CenterSuggestions.Add(c);
         }
@@ -521,8 +526,19 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
     public void OpenCompareWith()
     {
         if (CurrentComputer == null) return;
-        WeakReferenceMessenger.Default.Send(new InitiateComparisonMessage(ComparisonMode.Computers, CurrentComputer));
-        _navigationService.NavigateTo("CompareWorkspacePage");
+        AppLog.Write($"[COMPARE] ComputerWorkspaceViewModel.OpenCompareWith: {CurrentComputer.Name}");
+        var message = new InitiateComparisonMessage(ComparisonMode.Computers, CurrentComputer);
+        try
+        {
+            var compareVm = App.GetService<CompareWorkspaceViewModel>();
+            compareVm.HandleInitiateComparison(message);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"[COMPARE] ComputerWorkspaceViewModel.OpenCompareWith could not pre-populate CompareWorkspaceViewModel: {ex.Message}");
+        }
+        WeakReferenceMessenger.Default.Send(message);
+        _navigationService.NavigateTo("CompareWorkspacePage", message);
     }
 
     [RelayCommand]
@@ -873,6 +889,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             try
             {
                 oldCts.Cancel();
+                oldCts.Dispose();
             }
             catch (ObjectDisposedException) { }
         }
@@ -1354,7 +1371,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             bool success = await _diagnosticService.TriggerGroupPolicyUpdateAsync(targetHost);
             if (!success)
             {
-                ShowError(Strings.RemoteGpupdateFailed(targetHost, "Command returned non-zero code."));
+                ShowError(Strings.RemoteGpupdateFailed(targetHost, Strings.S.GpupdateNonZeroExit));
             }
         }
         catch (Exception ex)
@@ -1382,7 +1399,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             else
             {
-                ShowError(Strings.BitLockerActionFailed(targetHost, "Failed to suspend protection."));
+                ShowError(Strings.BitLockerActionFailed(targetHost, Strings.S.BitLockerSuspendFailedDefault));
             }
         }
         catch (Exception ex)
@@ -1415,7 +1432,7 @@ public partial class ComputerWorkspaceViewModel : ObservableObject
             }
             else
             {
-                ShowError(Strings.BitLockerActionFailed(targetHost, "Failed to resume protection."));
+                ShowError(Strings.BitLockerActionFailed(targetHost, Strings.S.BitLockerResumeFailedDefault));
             }
         }
         catch (Exception ex)

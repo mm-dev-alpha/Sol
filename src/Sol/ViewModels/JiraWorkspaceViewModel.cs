@@ -182,6 +182,7 @@ public partial class JiraWorkspaceViewModel : ObservableObject
     public async Task UpdateCenterSearchSuggestionsAsync(string query)
     {
         _searchCts?.Cancel();
+        _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         var token = _searchCts.Token;
 
@@ -283,7 +284,7 @@ public partial class JiraWorkspaceViewModel : ObservableObject
             else
             {
                 WeakReferenceMessenger.Default.Send(
-                    new AppNotificationMessage($"Failed to load more Jira tickets: {ex.Message}", InfoBarSeverity.Error)
+                    new AppNotificationMessage(Strings.JiraFailedToLoadMoreTickets(ex.Message), InfoBarSeverity.Error)
                 );
             }
         }

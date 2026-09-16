@@ -264,6 +264,35 @@ public class ProcessManagementService : IProcessManagementService
             catch { }
 
             // 3. Fallback to taskkill.exe with force (/F) and process-tree (/T) termination
+            if (processId <= 4) return false;
+
+            if (DiagnosticScopeHelper.IsLocalHost(cleanHost))
+            {
+                try
+                {
+                    var checkProc = Process.GetProcessById((int)processId);
+                    if (ComputerProcessInfo.IsCriticalProcess(processId, checkProc.ProcessName))
+                    {
+                        return false;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Process has already terminated
+                    return true;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Process has exited
+                    return true;
+                }
+                catch
+                {
+                    // If inspection fails due to access constraints on local system processes, do not blind-force kill
+                    return false;
+                }
+            }
+
             try
             {
                 var psi = new ProcessStartInfo

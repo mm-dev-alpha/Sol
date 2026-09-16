@@ -79,6 +79,8 @@ public class ToolsSettingsTests : IDisposable
 
         public Task<IReadOnlyList<LockingProcessInfo>> FindLockingProcessesAsync(string path, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<LockingProcessInfo>>([]);
         public Task<IReadOnlyList<LockingProcessInfo>> FindLockingProcessesAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<LockingProcessInfo>>([]);
+        public Task<(bool Success, string? ErrorMessage)> KillProcessAsync(int processId, CancellationToken cancellationToken = default) => Task.FromResult<(bool, string?)>((true, null));
+        public Task<(bool Success, List<string> Errors)> KillAllProcessesAsync(IEnumerable<int> processIds, CancellationToken cancellationToken = default) => Task.FromResult<(bool, List<string>)>((true, []));
         public bool KillProcess(int processId, out string? errorMessage) { errorMessage = null; return true; }
         public bool KillAllProcesses(IEnumerable<int> processIds, out List<string> errors) { errors = []; return true; }
         public bool IsContextMenuRegistered() => RegisteredState;

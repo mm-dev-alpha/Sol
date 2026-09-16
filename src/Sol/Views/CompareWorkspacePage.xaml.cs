@@ -1,6 +1,7 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using Sol.Helpers;
 using Sol.Models;
 using Sol.ViewModels;
@@ -11,19 +12,49 @@ public sealed partial class CompareWorkspacePage : Page
 {
     public CompareWorkspaceViewModel ViewModel { get; }
     public Strings S => Strings.S;
+    private bool _isUpdatingModeSelector;
 
     public CompareWorkspacePage()
     {
         ViewModel = App.GetService<CompareWorkspaceViewModel>();
-        InitializeComponent();
+        _isUpdatingModeSelector = true;
+        try
+        {
+            InitializeComponent();
+        }
+        finally
+        {
+            _isUpdatingModeSelector = false;
+        }
         Loaded += CompareWorkspacePage_Loaded;
         Unloaded += CompareWorkspacePage_Unloaded;
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is InitiateComparisonMessage message)
+        {
+            AppLog.Write($"[COMPARE] CompareWorkspacePage.OnNavigatedTo: Mode={message.Mode}");
+            ViewModel.HandleInitiateComparison(message);
+            UpdateModeSelector();
+            Bindings.Update();
+            if (ViewModel.HasTargetA && !ViewModel.HasTargetB)
+            {
+                FocusSearchBoxB();
+            }
+        }
     }
 
     private void CompareWorkspacePage_Loaded(object sender, RoutedEventArgs e)
     {
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         UpdateModeSelector();
+        Bindings.Update();
+        if (ViewModel.HasTargetA && !ViewModel.HasTargetB)
+        {
+            FocusSearchBoxB();
+        }
     }
 
     private void CompareWorkspacePage_Unloaded(object sender, RoutedEventArgs e)
@@ -39,21 +70,61 @@ public sealed partial class CompareWorkspacePage : Page
         }
     }
 
-    private void UpdateModeSelector()
+    private void FocusSearchBoxB()
     {
-        if (ViewModel.IsUserMode)
+        if (SearchBoxB == null) return;
+
+        void DoFocus()
         {
-            if (!UsersSelectorItem.IsSelected)
+            DispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                UsersSelectorItem.IsSelected = true;
-            }
+                if (SearchBoxB != null && SearchBoxB.IsLoaded)
+                {
+                    bool focused = SearchBoxB.Focus(FocusState.Programmatic);
+                    AppLog.Write($"[COMPARE] FocusSearchBoxB: Focus result = {focused}");
+                }
+            });
+        }
+
+        if (SearchBoxB.IsLoaded)
+        {
+            DoFocus();
         }
         else
         {
-            if (!ComputersSelectorItem.IsSelected)
+            RoutedEventHandler? handler = null;
+            handler = (s, e) =>
             {
-                ComputersSelectorItem.IsSelected = true;
+                SearchBoxB.Loaded -= handler;
+                DoFocus();
+            };
+            SearchBoxB.Loaded += handler;
+        }
+    }
+
+    private void UpdateModeSelector()
+    {
+        _isUpdatingModeSelector = true;
+        try
+        {
+            if (ViewModel.IsUserMode)
+            {
+                if (!UsersSelectorItem.IsSelected)
+                {
+                    UsersSelectorItem.IsSelected = true;
+                }
             }
+            else
+            {
+                if (!ComputersSelectorItem.IsSelected)
+                {
+                    ComputersSelectorItem.IsSelected = true;
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingModeSelector = false;
         }
     }
 
@@ -61,8 +132,15 @@ public sealed partial class CompareWorkspacePage : Page
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            await ViewModel.SearchAsync(sender.Text, isTargetA: true);
-            sender.ItemsSource = ViewModel.SuggestionsA;
+            try
+            {
+                await ViewModel.SearchAsync(sender.Text, isTargetA: true);
+                sender.ItemsSource = ViewModel.SuggestionsA;
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"SearchBoxA_TextChanged failed: {ex.Message}");
+            }
         }
     }
 
@@ -70,8 +148,15 @@ public sealed partial class CompareWorkspacePage : Page
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            await ViewModel.SearchAsync(sender.Text, isTargetA: false);
-            sender.ItemsSource = ViewModel.SuggestionsB;
+            try
+            {
+                await ViewModel.SearchAsync(sender.Text, isTargetA: false);
+                sender.ItemsSource = ViewModel.SuggestionsB;
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"SearchBoxB_TextChanged failed: {ex.Message}");
+            }
         }
     }
 
@@ -125,11 +210,13 @@ public sealed partial class CompareWorkspacePage : Page
 
     private void ModeSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        if (sender.SelectedItem == UsersSelectorItem)
+        if (_isUpdatingModeSelector) return;
+
+        if (sender.SelectedItem == UsersSelectorItem && ViewModel.SelectedMode != ComparisonMode.Users)
         {
             ViewModel.SelectedMode = ComparisonMode.Users;
         }
-        else if (sender.SelectedItem == ComputersSelectorItem)
+        else if (sender.SelectedItem == ComputersSelectorItem && ViewModel.SelectedMode != ComparisonMode.Computers)
         {
             ViewModel.SelectedMode = ComparisonMode.Computers;
         }

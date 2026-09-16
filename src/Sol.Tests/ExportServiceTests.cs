@@ -60,6 +60,7 @@ public class ExportServiceTests
             Email = "jane.doe@example.com",
             EmployeeId = "EMP12345",
             Sid = "S-1-5-21-123456789-500",
+            DistinguishedName = "CN=Jane Doe,OU=Users,DC=corp,DC=local",
             OuPath = "OU=Users,DC=corp,DC=local",
             Title = "Senior Engineer",
             Department = "IT Infrastructure",
@@ -83,6 +84,7 @@ public class ExportServiceTests
         Assert.Contains("Jane Doe", report);
         Assert.Contains("jdoe@corp.local", report);
         Assert.Contains("EMP12345", report);
+        Assert.Contains("Distinguished Name:  CN=Jane Doe,OU=Users,DC=corp,DC=local", report);
         Assert.Contains("[ ORGANIZATION ]", report);
         Assert.Contains("Senior Engineer", report);
         Assert.Contains("IT Infrastructure", report);
@@ -112,6 +114,7 @@ public class ExportServiceTests
             OperatingSystemVersion = "10.0.26100",
             AccountStatus = "Enabled",
             IsEnabled = true,
+            DistinguishedName = "CN=SRV-PROD-01,OU=Servers,DC=corp,DC=local",
             OuPath = "OU=Servers,DC=corp,DC=local",
             Groups = new List<string> { "Domain Computers", "File Servers" },
             BitLockerKeys = new List<Sol.Models.BitLockerKeyInfo>
@@ -196,6 +199,7 @@ public class ExportServiceTests
         Assert.Contains("COMPUTER PROFILE & DIAGNOSTICS: SRV-PROD-01", report);
         Assert.Contains("[ ACTIVE DIRECTORY & NETWORK IDENTITY ]", report);
         Assert.Contains("10.0.0.50", report);
+        Assert.Contains("Distinguished Name:  CN=SRV-PROD-01,OU=Servers,DC=corp,DC=local", report);
         Assert.Contains("[ HARDWARE & BIOS DIAGNOSTICS ]", report);
         Assert.Contains("PowerEdge R750", report);
         Assert.Contains("TAG1234", report);

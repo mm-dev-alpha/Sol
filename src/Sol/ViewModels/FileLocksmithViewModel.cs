@@ -99,11 +99,12 @@ public partial class FileLocksmithViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void EndTask(LockingProcessInfo? process)
+    public async Task EndTaskAsync(LockingProcessInfo? process)
     {
         if (process == null) return;
 
-        if (_locksmithService.KillProcess(process.ProcessId, out var error))
+        var (success, error) = await _locksmithService.KillProcessAsync(process.ProcessId);
+        if (success)
         {
             LockingProcesses.Remove(process);
             HasResults = LockingProcesses.Count > 0;
@@ -126,13 +127,16 @@ public partial class FileLocksmithViewModel : ObservableObject
         }
     }
 
+    public void EndTask(LockingProcessInfo? process) => _ = EndTaskAsync(process);
+
     [RelayCommand]
-    public void EndAllTasks()
+    public async Task EndAllTasksAsync()
     {
         var pids = LockingProcesses.Select(p => p.ProcessId).ToList();
         if (pids.Count == 0) return;
 
-        if (_locksmithService.KillAllProcesses(pids, out var errors))
+        var (success, errors) = await _locksmithService.KillAllProcessesAsync(pids);
+        if (success)
         {
             LockingProcesses.Clear();
             HasResults = false;
@@ -153,4 +157,6 @@ public partial class FileLocksmithViewModel : ObservableObject
                 InfoBarSeverity.Error));
         }
     }
+
+    public void EndAllTasks() => _ = EndAllTasksAsync();
 }

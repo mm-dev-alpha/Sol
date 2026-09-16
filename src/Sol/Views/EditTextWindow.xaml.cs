@@ -295,11 +295,11 @@ public sealed partial class EditTextWindow : Window
             if (string.IsNullOrEmpty(_currentFilePath) || saveAs)
             {
                 var picker = new Windows.Storage.Pickers.FileSavePicker();
-                picker.FileTypeChoices.Add("Text Document", new List<string> { ".txt" });
-                picker.FileTypeChoices.Add("CSV Spreadsheet", new List<string> { ".csv" });
-                picker.FileTypeChoices.Add("TSV Document", new List<string> { ".tsv" });
-                picker.FileTypeChoices.Add("Markdown Document", new List<string> { ".md" });
-                picker.SuggestedFileName = "Document";
+                picker.FileTypeChoices.Add(S.FileFilterTextDocument, new List<string> { ".txt" });
+                picker.FileTypeChoices.Add(S.FileFilterCsvSpreadsheet, new List<string> { ".csv" });
+                picker.FileTypeChoices.Add(S.FileFilterTsvDocument, new List<string> { ".tsv" });
+                picker.FileTypeChoices.Add(S.FileFilterMarkdownDocument, new List<string> { ".md" });
+                picker.SuggestedFileName = S.FileDefaultDocumentName;
                 InitializeWithWindow.Initialize(picker, _hwnd);
 
                 var file = await picker.PickSaveFileAsync();
@@ -324,9 +324,16 @@ public sealed partial class EditTextWindow : Window
 
     private async void MenuFileCloseInsert_Click(object sender, RoutedEventArgs e)
     {
-        string text = GetActiveContent();
-        this.Close();
-        await _editTextService.TryInsertTextAsync(text);
+        try
+        {
+            string text = GetActiveContent();
+            this.Close();
+            await _editTextService.TryInsertTextAsync(text);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"MenuFileCloseInsert_Click failed: {ex.Message}");
+        }
     }
 
     private void MenuFileClose_Click(object sender, RoutedEventArgs e)
@@ -377,10 +384,17 @@ public sealed partial class EditTextWindow : Window
 
     private async void MenuEditPaste_Click(object sender, RoutedEventArgs e)
     {
-        var text = await SafeClipboard.TryGetTextAsync();
-        if (!string.IsNullOrEmpty(text))
+        try
         {
-            InsertTextAtCursor(text);
+            var text = await SafeClipboard.TryGetTextAsync();
+            if (!string.IsNullOrEmpty(text))
+            {
+                InsertTextAtCursor(text);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"MenuEditPaste_Click failed: {ex.Message}");
         }
     }
 

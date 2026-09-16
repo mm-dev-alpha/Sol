@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Management;
 using System.Net.Sockets;
 
@@ -23,9 +23,10 @@ internal static class DiagnosticScopeHelper
     {
         try
         {
+            using var cts = new System.Threading.CancellationTokenSource(timeoutMs);
             using var client = new TcpClient();
-            var connectTask = client.ConnectAsync(host, 135);
-            return connectTask.Wait(timeoutMs) && client.Connected;
+            client.ConnectAsync(host, 135, cts.Token).AsTask().GetAwaiter().GetResult();
+            return client.Connected;
         }
         catch
         {

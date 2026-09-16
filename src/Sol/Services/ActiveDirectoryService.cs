@@ -131,7 +131,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             WebPage = GetStringProperty(result, "wWWHomePage"),
             
             EmployeeId = GetStringProperty(result, "employeeID"),
-            OuPath = GetStringProperty(result, "distinguishedName"),
+            DistinguishedName = GetStringProperty(result, "distinguishedName"),
+            OuPath = LdapPathHelper.ExtractParentContainer(GetStringProperty(result, "distinguishedName")),
             Office = GetStringProperty(result, "physicalDeliveryOfficeName"),
             OfficePhone = GetStringProperty(result, "telephoneNumber"),
             MobilePhone = GetStringProperty(result, "mobile"),
@@ -523,7 +524,10 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     {
                         int start = newManager.LastIndexOf('(') + 1;
                         int end = newManager.LastIndexOf(')');
-                        targetSam = newManager.Substring(start, end - start);
+                        if (start > 0 && end > start)
+                        {
+                            targetSam = newManager.Substring(start, end - start).Trim();
+                        }
                     }
 
                     var escapedTargetSam = LdapFilterHelper.Escape(targetSam);
@@ -828,7 +832,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             DnsHostName = dns,
             OperatingSystem = os,
             OperatingSystemVersion = osVer,
-            OuPath = dn,
+            DistinguishedName = dn,
+            OuPath = LdapPathHelper.ExtractParentContainer(dn),
             Description = desc,
             Sid = GetSidProperty(result),
             ManagedBy = TimeHelper.ParseManagerName(managedBy),
@@ -910,6 +915,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             OperatingSystemVersion = Environment.OSVersion.Version.ToString(),
             AccountStatus = "Enabled",
             IsEnabled = true,
+            DistinguishedName = $"CN={Environment.MachineName},OU=Workstations,OU=Clients,DC=company,DC=local",
             OuPath = "OU=Workstations,OU=Clients,DC=company,DC=local",
             Description = "Local Machine — Live Hardware Diagnostics (WMI)",
             Location = "Home Office / Remote",
@@ -937,6 +943,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             OperatingSystemVersion = "10.0 (26100)",
             AccountStatus = "Enabled",
             IsEnabled = true,
+            DistinguishedName = "CN=PC-DELL-LATITUDE,OU=Laptops,OU=Clients,DC=company,DC=local",
             OuPath = "OU=Laptops,OU=Clients,DC=company,DC=local",
             Description = "Demo Laptop — Dell Latitude 5540",
             Location = "HQ - Floor 3",
@@ -964,6 +971,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             OperatingSystemVersion = "10.0 (22631)",
             AccountStatus = "Enabled",
             IsEnabled = true,
+            DistinguishedName = "CN=PC-LENOVO-THINKPAD,OU=Laptops,OU=Clients,DC=company,DC=local",
             OuPath = "OU=Laptops,OU=Clients,DC=company,DC=local",
             Description = "Demo Laptop — ThinkPad T14 Gen 4",
             Location = "HQ - Floor 2",
@@ -1013,7 +1021,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             Title = "Senior Systems Engineer",
             Description = "Demo User Account",
             EmployeeId = "EMP-90210",
-            OuPath = "CN=Max Mustermann,OU=IT,OU=Users,DC=company,DC=local",
+            DistinguishedName = "CN=Max Mustermann,OU=IT,OU=Users,DC=company,DC=local",
+            OuPath = "OU=IT,OU=Users,DC=company,DC=local",
             Office = "Munich HQ - Tech Hub 4",
             OfficePhone = "+49 89 123456-78",
             MobilePhone = "+49 170 9876543",
@@ -1043,7 +1052,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             Title = "Support Specialist",
             Description = "Demo User Account",
             EmployeeId = "EMP-90211",
-            OuPath = "CN=Erika Musterfrau,OU=IT,OU=Users,DC=company,DC=local",
+            DistinguishedName = "CN=Erika Musterfrau,OU=IT,OU=Users,DC=company,DC=local",
+            OuPath = "OU=IT,OU=Users,DC=company,DC=local",
             Office = "Munich HQ - Desk 12",
             OfficePhone = "+49 89 123456-79",
             MobilePhone = "+49 171 8765432",
@@ -1072,7 +1082,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             Title = "HR Business Partner",
             Description = "Demo HR User Account (Deaktiviert)",
             EmployeeId = "EMP-90305",
-            OuPath = "CN=Alex Schmidt,OU=HR,OU=Users,DC=company,DC=local",
+            DistinguishedName = "CN=Alex Schmidt,OU=HR,OU=Users,DC=company,DC=local",
+            OuPath = "OU=HR,OU=Users,DC=company,DC=local",
             Office = "Berlin Hub - HR Suite 2",
             OfficePhone = "+49 30 987654-20",
             MobilePhone = "+49 172 1122334",
@@ -1102,7 +1113,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
             Title = "Chief Information Officer (CIO)",
             Description = "Executive Demo Account",
             EmployeeId = "EMP-90001",
-            OuPath = "CN=Claudia Weber,OU=Executive,OU=Users,DC=company,DC=local",
+            DistinguishedName = "CN=Claudia Weber,OU=Executive,OU=Users,DC=company,DC=local",
+            OuPath = "OU=Executive,OU=Users,DC=company,DC=local",
             Office = "Munich HQ - Executive Floor",
             OfficePhone = "+49 89 123456-01",
             MobilePhone = "+49 170 1234567",

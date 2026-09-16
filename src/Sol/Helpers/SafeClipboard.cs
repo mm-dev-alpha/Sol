@@ -105,7 +105,7 @@ public static class SafeClipboard
                     AppLog.Write($"SafeClipboard.TrySetTextAsync failed after {maxRetries} attempts: {ex.Message}");
                     return false;
                 }
-                await Task.Delay(retryDelayMs).ConfigureAwait(false);
+                await Task.Delay(retryDelayMs);
             }
             catch (Exception ex)
             {

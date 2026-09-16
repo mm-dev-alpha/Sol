@@ -39,13 +39,21 @@ public sealed partial class ComputerWorkspacePage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.Parameter is AdComputer comp)
+        try
         {
-            await ViewModel.LoadComputerAsync(comp);
+            if (e.Parameter is AdComputer comp)
+            {
+                await ViewModel.LoadComputerAsync(comp);
+            }
+            else if (e.Parameter is string computerName && !string.IsNullOrWhiteSpace(computerName))
+            {
+                await ViewModel.SearchAndLoadComputerAsync(computerName);
+            }
         }
-        else if (e.Parameter is string computerName && !string.IsNullOrWhiteSpace(computerName))
+        catch (Exception ex)
         {
-            await ViewModel.SearchAndLoadComputerAsync(computerName);
+            AppLog.Write($"ComputerWorkspacePage.OnNavigatedTo failed: {ex.Message}");
+            ViewModel.ShowError(ex.Message);
         }
     }
 

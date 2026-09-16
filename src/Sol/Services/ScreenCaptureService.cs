@@ -104,9 +104,11 @@ public class ScreenCaptureService : IScreenCaptureService
         return new ScreenBounds(x, y, width, height);
     }
 
+    private const int MaxDimension = 16384;
+
     public byte[] CaptureRegion(int x, int y, int width, int height)
     {
-        if (width <= 0 || height <= 0)
+        if (width <= 0 || height <= 0 || width > MaxDimension || height > MaxDimension)
         {
             return [];
         }
@@ -124,6 +126,8 @@ public class ScreenCaptureService : IScreenCaptureService
             return [];
         }
 
+        int pixelByteCount = checked(width * height * 4);
+
         BITMAPINFO bmi = new()
         {
             bmiHeader = new BITMAPINFOHEADER
@@ -134,7 +138,7 @@ public class ScreenCaptureService : IScreenCaptureService
                 biPlanes = 1,
                 biBitCount = 32,
                 biCompression = BI_RGB,
-                biSizeImage = width * height * 4
+                biSizeImage = pixelByteCount
             }
         };
 
@@ -152,7 +156,6 @@ public class ScreenCaptureService : IScreenCaptureService
         {
             BitBlt(hdcMem, 0, 0, width, height, hdcScreen, x, y, SRCCOPY | CAPTUREBLT);
 
-            int pixelByteCount = width * height * 4;
             byte[] rawPixels = new byte[pixelByteCount];
             Marshal.Copy(ppvBits, rawPixels, 0, pixelByteCount);
 
@@ -169,8 +172,13 @@ public class ScreenCaptureService : IScreenCaptureService
 
     public byte[] CreateBmpFromPixels(byte[] bgraPixels, int width, int height)
     {
-        int imageSize = width * height * 4;
-        int totalSize = 54 + imageSize;
+        if (width <= 0 || height <= 0 || width > MaxDimension || height > MaxDimension)
+        {
+            return [];
+        }
+
+        int imageSize = checked(width * height * 4);
+        int totalSize = checked(54 + imageSize);
         byte[] bmp = new byte[totalSize];
 
         // BITMAPFILEHEADER (14 bytes)

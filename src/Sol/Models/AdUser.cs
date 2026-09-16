@@ -11,6 +11,7 @@ public record AdUser
     public string Email { get; init; } = string.Empty;
     public string Sid { get; init; } = string.Empty;
     public string EmployeeId { get; init; } = string.Empty;
+    public string DistinguishedName { get; init; } = string.Empty;
     public string OuPath { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public string WebPage { get; init; } = string.Empty;

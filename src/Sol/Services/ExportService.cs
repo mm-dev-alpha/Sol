@@ -113,6 +113,8 @@ public class ExportService : IExportService
             sb.AppendLine($"  Employee ID:         {user.EmployeeId}");
         if (!string.IsNullOrWhiteSpace(user.Sid))
             sb.AppendLine($"  Security ID (SID):   {user.Sid}");
+        if (!string.IsNullOrWhiteSpace(user.DistinguishedName))
+            sb.AppendLine($"  Distinguished Name:  {user.DistinguishedName}");
         if (!string.IsNullOrWhiteSpace(user.OuPath))
             sb.AppendLine($"  OU Path:             {user.OuPath}");
         if (!string.IsNullOrWhiteSpace(user.Description))
@@ -222,6 +224,8 @@ public class ExportService : IExportService
         sb.AppendLine($"  Account Status:      {computer.AccountStatus} (Enabled: {computer.IsEnabled})");
         if (!string.IsNullOrWhiteSpace(computer.Sid))
             sb.AppendLine($"  Security ID (SID):   {computer.Sid}");
+        if (!string.IsNullOrWhiteSpace(computer.DistinguishedName))
+            sb.AppendLine($"  Distinguished Name:  {computer.DistinguishedName}");
         sb.AppendLine($"  OU Path:             {computer.OuPath}");
         if (!string.IsNullOrWhiteSpace(computer.Description))
             sb.AppendLine($"  Description:         {computer.Description}");

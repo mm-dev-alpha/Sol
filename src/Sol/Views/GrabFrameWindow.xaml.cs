@@ -432,52 +432,66 @@ public sealed partial class GrabFrameWindow : Window
 
     private async void GrabActionButton_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteGrabAsync();
+        try
+        {
+            await ExecuteGrabAsync();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"GrabActionButton_Click failed: {ex.Message}");
+        }
     }
 
     private async Task ExecuteGrabAsync()
     {
-        string outputText = string.Empty;
+        try
+        {
+            string outputText = string.Empty;
 
-        if (_currentMode == GrabFrameMode.Table)
-        {
-            if (_lastOcrResult?.Words != null)
+            if (_currentMode == GrabFrameMode.Table)
             {
-                double viewportWidth = ViewfinderBorder.ActualWidth;
-                var table = _grabFrameService.ParseTable(_lastOcrResult.Words, _columnDividers, viewportWidth);
-                outputText = table.FormattedText;
-            }
-        }
-        else
-        {
-            string query = SearchTextBox.Text?.Trim() ?? string.Empty;
-            if (!string.IsNullOrEmpty(query) && _lastOcrResult?.Words != null)
-            {
-                var matched = _grabFrameService.FilterWords(_lastOcrResult.Words, query)
-                    .Where(w => w.IsMatched)
-                    .Select(w => w.Text);
-                outputText = string.Join(" ", matched);
+                if (_lastOcrResult?.Words != null)
+                {
+                    double viewportWidth = ViewfinderBorder.ActualWidth;
+                    var table = _grabFrameService.ParseTable(_lastOcrResult.Words, _columnDividers, viewportWidth);
+                    outputText = table.FormattedText;
+                }
             }
             else
             {
-                outputText = _lastOcrResult?.Text ?? string.Empty;
+                string query = SearchTextBox.Text?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(query) && _lastOcrResult?.Words != null)
+                {
+                    var matched = _grabFrameService.FilterWords(_lastOcrResult.Words, query)
+                        .Where(w => w.IsMatched)
+                        .Select(w => w.Text);
+                    outputText = string.Join(" ", matched);
+                }
+                else
+                {
+                    outputText = _lastOcrResult?.Text ?? string.Empty;
+                }
+
+                outputText = _grabFrameService.FormatExtractedText(outputText, _currentMode);
             }
 
-            outputText = _grabFrameService.FormatExtractedText(outputText, _currentMode);
+            if (string.IsNullOrWhiteSpace(outputText))
+            {
+                ShowStatus(S.GrabFrameStatusNoText, isTemporary: true);
+                return;
+            }
+
+            CopyTextToClipboard(outputText);
+
+            if (_settingsService?.GrabFrameAutoPaste == true)
+            {
+                await Task.Delay(100);
+                await _editTextService.TryInsertTextAsync(outputText);
+            }
         }
-
-        if (string.IsNullOrWhiteSpace(outputText))
+        catch (Exception ex)
         {
-            ShowStatus(S.GrabFrameStatusNoText, isTemporary: true);
-            return;
-        }
-
-        CopyTextToClipboard(outputText);
-
-        if (_settingsService?.GrabFrameAutoPaste == true)
-        {
-            await Task.Delay(100);
-            await _editTextService.TryInsertTextAsync(outputText);
+            AppLog.Write($"GrabFrameWindow.ExecuteGrabAsync failed: {ex.Message}");
         }
     }
 

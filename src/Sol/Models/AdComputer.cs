@@ -14,6 +14,7 @@ public record AdComputer
     public string DnsHostName { get; init; } = string.Empty;
     public string OperatingSystem { get; init; } = string.Empty;
     public string OperatingSystemVersion { get; init; } = string.Empty;
+    public string DistinguishedName { get; init; } = string.Empty;
     public string OuPath { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public string Sid { get; init; } = string.Empty;

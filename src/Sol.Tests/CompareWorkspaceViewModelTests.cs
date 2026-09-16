@@ -81,6 +81,60 @@ public class CompareWorkspaceViewModelTests
     }
 
     [Fact]
+    public void InitiateComparisonMessage_Computers_PrepopulatesComputerAAndClearsTargetB()
+    {
+        var vm = new CompareWorkspaceViewModel(_adService, _compService, _navService);
+        var c1 = new AdComputer { Name = "PC-TARGET-01" };
+
+        WeakReferenceMessenger.Default.Send(new InitiateComparisonMessage(ComparisonMode.Computers, c1));
+
+        Assert.Equal(ComparisonMode.Computers, vm.SelectedMode);
+        Assert.Equal(c1, vm.ComputerA);
+        Assert.Null(vm.ComputerB);
+        Assert.Null(vm.UserA);
+        Assert.Null(vm.UserB);
+    }
+
+    [Fact]
+    public void InitiateComparisonMessage_ClearsPreviousState()
+    {
+        var vm = new CompareWorkspaceViewModel(_adService, _compService, _navService);
+        var u1 = new AdUser { SamAccountName = "old1", Groups = ["GroupA"] };
+        var u2 = new AdUser { SamAccountName = "old2", Groups = ["GroupB"] };
+
+        vm.UserA = u1;
+        vm.UserB = u2;
+        Assert.NotNull(vm.UserResult);
+
+        var nextUser = new AdUser { SamAccountName = "new_target" };
+        vm.HandleInitiateComparison(new InitiateComparisonMessage(ComparisonMode.Users, nextUser));
+
+        Assert.Equal(ComparisonMode.Users, vm.SelectedMode);
+        Assert.Equal(nextUser, vm.UserA);
+        Assert.Null(vm.UserB);
+        Assert.Null(vm.UserResult);
+    }
+
+    [Fact]
+    public void SelectedMode_RaisesPropertyChanged_ForTargetFlags()
+    {
+        var vm = new CompareWorkspaceViewModel(_adService, _compService, _navService);
+        var changedProps = new List<string>();
+        vm.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName != null) changedProps.Add(e.PropertyName);
+        };
+
+        vm.SelectedMode = ComparisonMode.Computers;
+
+        Assert.Contains(nameof(vm.HasTargetA), changedProps);
+        Assert.Contains(nameof(vm.HasTargetB), changedProps);
+        Assert.Contains(nameof(vm.HasBothTargets), changedProps);
+        Assert.Contains(nameof(vm.HasNoTargets), changedProps);
+        Assert.Contains(nameof(vm.HasSingleTarget), changedProps);
+    }
+
+    [Fact]
     public void BuildReportText_IncludesAllDifferencesAndGroups()
     {
         var vm = new CompareWorkspaceViewModel(_adService, _compService, _navService);

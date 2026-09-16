@@ -160,6 +160,7 @@ public class Strings
     public string UpnLabel => "User Principal Name (UPN)";
     public string EmployeeIdLabel => "Employee ID";
     public string OuPathLabel => "OU Path";
+    public string DistinguishedNameLabel => "Distinguished Name";
     public string AccountExpiresLabel => "Account Expires";
     public string CopyPowerShellBtn => "Copy PowerShell Command";
     public string PowerShellCommandCopied => "PowerShell command copied to clipboard.";
@@ -958,6 +959,21 @@ public class Strings
     public string CompareDifferentBadge => "Divergent";
     public string CompareEqualBadge => "Matching";
     public string CompareCopyValueTooltip => "Copy value";
+
+    // JIRA Load More
+    public static string JiraFailedToLoadMoreTickets(string error) => $"Failed to load more Jira tickets: {error}";
+
+    // File Dialog Filter Strings
+    public string FileFilterTextDocument => "Text Document";
+    public string FileFilterCsvSpreadsheet => "CSV Spreadsheet";
+    public string FileFilterTsvDocument => "TSV Document";
+    public string FileFilterMarkdownDocument => "Markdown Document";
+    public string FileDefaultDocumentName => "Document";
+
+    // Diagnostic Action Fallback Strings
+    public string GpupdateNonZeroExit => "Command returned non-zero code.";
+    public string BitLockerSuspendFailedDefault => "Failed to suspend protection.";
+    public string BitLockerResumeFailedDefault => "Failed to resume protection.";
 
     public static string[] AllGreetings => new[] 
     {

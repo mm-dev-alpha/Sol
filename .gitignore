@@ -470,6 +470,8 @@ $RECYCLE.BIN/
 .audit/
 .planning/
 .antigravity/
+skills-lock.json
+brag-output/
 docs/
 GEMINI.md
 ARCHITECTURAL_AUDIT.md

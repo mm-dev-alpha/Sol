@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,6 +20,8 @@ public partial class UserWorkspaceViewModel : ObservableObject
     private readonly ISettingsService _settings;
     private readonly INavigationService _navigationService;
     private readonly IExportService _exportService;
+    private long _searchUserVersion;
+    private long _searchComputerVersion;
 
     public GlobalSearchViewModel Search { get; }
 
@@ -66,6 +69,11 @@ public partial class UserWorkspaceViewModel : ObservableObject
                 }
             });
         });
+    }
+
+    public void UnregisterMessenger()
+    {
+        WeakReferenceMessenger.Default.UnregisterAll(this);
     }
 
     [ObservableProperty] public partial bool IsLoading { get; set; }
@@ -154,6 +162,7 @@ public partial class UserWorkspaceViewModel : ObservableObject
     [RelayCommand]
     public async Task SearchCenterAsync(string query)
     {
+        long currentVersion = Interlocked.Increment(ref _searchUserVersion);
         CenterSearchQuery = query;
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
         {
@@ -164,6 +173,7 @@ public partial class UserWorkspaceViewModel : ObservableObject
         try
         {
             var results = await _adService.SearchUsersAsync(query);
+            if (currentVersion != Volatile.Read(ref _searchUserVersion)) return;
             CenterSuggestions.Clear();
             foreach (var u in results) CenterSuggestions.Add(u);
         }
@@ -176,6 +186,7 @@ public partial class UserWorkspaceViewModel : ObservableObject
     [RelayCommand]
     public async Task SearchCenterComputersAsync(string query)
     {
+        long currentVersion = Interlocked.Increment(ref _searchComputerVersion);
         CenterComputerSearchQuery = query;
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
         {
@@ -186,6 +197,7 @@ public partial class UserWorkspaceViewModel : ObservableObject
         try
         {
             var results = await _adService.SearchComputersAsync(query);
+            if (currentVersion != Volatile.Read(ref _searchComputerVersion)) return;
             CenterComputerSuggestions.Clear();
             foreach (var c in results) CenterComputerSuggestions.Add(c);
         }
@@ -723,8 +735,19 @@ public partial class UserWorkspaceViewModel : ObservableObject
     private void OpenCompareWith()
     {
         if (CurrentUser == null) return;
-        WeakReferenceMessenger.Default.Send(new InitiateComparisonMessage(ComparisonMode.Users, CurrentUser));
-        _navigationService.NavigateTo("CompareWorkspacePage");
+        AppLog.Write($"[COMPARE] UserWorkspaceViewModel.OpenCompareWith: {CurrentUser.SamAccountName}");
+        var message = new InitiateComparisonMessage(ComparisonMode.Users, CurrentUser);
+        try
+        {
+            var compareVm = App.GetService<CompareWorkspaceViewModel>();
+            compareVm.HandleInitiateComparison(message);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"[COMPARE] UserWorkspaceViewModel.OpenCompareWith could not pre-populate CompareWorkspaceViewModel: {ex.Message}");
+        }
+        WeakReferenceMessenger.Default.Send(message);
+        _navigationService.NavigateTo("CompareWorkspacePage", message);
     }
 
     [RelayCommand]

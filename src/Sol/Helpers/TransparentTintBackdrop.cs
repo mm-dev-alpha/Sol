@@ -14,12 +14,14 @@ namespace Sol.Helpers;
 public sealed class TransparentTintBackdrop : SystemBackdrop
 {
     private readonly IntPtr _hwnd;
+    private IntPtr _connectedHwnd;
     private Windows.UI.Composition.CompositionColorBrush? _brush;
     private readonly SubclassProc _subclassProc;
     private bool _isSubclassed;
 
     private const int SUBCLASS_ID = 0x5442; // 'TB'
     private const uint WM_ERASEBKGND = 0x0014;
+    private const uint WM_NCDESTROY = 0x0082;
     private const uint WM_DWMCOMPOSITIONCHANGED = 0x031E;
 
     private delegate IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
@@ -213,35 +215,36 @@ public sealed class TransparentTintBackdrop : SystemBackdrop
             IntPtr hWnd = _hwnd;
             if (hWnd == IntPtr.Zero && xamlRoot?.ContentIslandEnvironment != null)
             {
-                hWnd = (IntPtr)xamlRoot.ContentIslandEnvironment.AppWindowId.Value;
+                hWnd = Microsoft.UI.Win32Interop.GetWindowFromWindowId(xamlRoot.ContentIslandEnvironment.AppWindowId);
+            }
+            _connectedHwnd = hWnd;
+
+            if (_connectedHwnd != IntPtr.Zero && !_isSubclassed)
+            {
+                _isSubclassed = SetWindowSubclass(_connectedHwnd, _subclassProc, (UIntPtr)SUBCLASS_ID, UIntPtr.Zero);
             }
 
-            if (hWnd != IntPtr.Zero && !_isSubclassed)
+            if (_connectedHwnd != IntPtr.Zero)
             {
-                _isSubclassed = SetWindowSubclass(hWnd, _subclassProc, (UIntPtr)SUBCLASS_ID, UIntPtr.Zero);
-            }
-
-            if (hWnd != IntPtr.Zero)
-            {
-                ConfigureDwm(hWnd);
+                ConfigureDwm(_connectedHwnd);
             }
 
             _brush = Compositor.CreateColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
             connectedTarget.SystemBackdrop = _brush;
             AppLog.Write("TransparentTintBackdrop: successfully applied transparent brush to SystemBackdrop");
 
-            if (hWnd != IntPtr.Zero)
+            if (_connectedHwnd != IntPtr.Zero)
             {
-                IntPtr hdc = GetDC(hWnd);
+                IntPtr hdc = GetDC(_connectedHwnd);
                 if (hdc != IntPtr.Zero)
                 {
                     try
                     {
-                        ClearBackground(hWnd, hdc);
+                        ClearBackground(_connectedHwnd, hdc);
                     }
                     finally
                     {
-                        ReleaseDC(hWnd, hdc);
+                        ReleaseDC(_connectedHwnd, hdc);
                     }
                 }
             }
@@ -255,10 +258,11 @@ public sealed class TransparentTintBackdrop : SystemBackdrop
     /// <inheritdoc/>
     protected override void OnTargetDisconnected(ICompositionSupportsSystemBackdrop disconnectedTarget)
     {
-        if (_hwnd != IntPtr.Zero && _isSubclassed)
+        if (_connectedHwnd != IntPtr.Zero && _isSubclassed)
         {
-            RemoveWindowSubclass(_hwnd, _subclassProc, (UIntPtr)SUBCLASS_ID);
+            RemoveWindowSubclass(_connectedHwnd, _subclassProc, (UIntPtr)SUBCLASS_ID);
             _isSubclassed = false;
+            _connectedHwnd = IntPtr.Zero;
         }
 
         disconnectedTarget.SystemBackdrop = null;
@@ -270,6 +274,14 @@ public sealed class TransparentTintBackdrop : SystemBackdrop
 
     private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData)
     {
+        if (uMsg == WM_NCDESTROY)
+        {
+            RemoveWindowSubclass(hWnd, _subclassProc, (UIntPtr)SUBCLASS_ID);
+            _isSubclassed = false;
+            _connectedHwnd = IntPtr.Zero;
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+
         if (uMsg == WM_ERASEBKGND)
         {
             if (ClearBackground(hWnd, wParam))

@@ -25,8 +25,22 @@ public sealed partial class UserWorkspacePage : Page
         base.OnNavigatedTo(e);
         if (e.Parameter is string username && !string.IsNullOrWhiteSpace(username))
         {
-            await ViewModel.LoadUserAsync(username);
+            try
+            {
+                await ViewModel.LoadUserAsync(username);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"UserWorkspacePage.OnNavigatedTo failed: {ex.Message}");
+                ViewModel.ShowError(ex.Message);
+            }
         }
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.UnregisterMessenger();
     }
 
     private void ManagerSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
