@@ -32,6 +32,7 @@
 <div align="center">
   <img src="assets/Showcase.gif" alt="Sol Hero Showcase" width="95%">
   <p><em>Instant Active Directory search, remote diagnostics, and BitLocker recovery key discovery.</em></p>
+  <p>🔊 <a href="assets/Showcase_Sol.mp4"><strong>Watch the full 1080p showcase video with sound (MP4)</strong></a></p>
 </div>
 
 ---
