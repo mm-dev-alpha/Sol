@@ -17,6 +17,11 @@ public interface ISettingsService
     string JiraBaseUrl { get; set; }
     string JiraCloudEmail { get; set; }
 
+    // RDS Configuration
+    bool IsRdsEnabled { get; set; }
+    string RdsConnectionBroker { get; set; }
+    int RdsDefaultDiskIncreaseGB { get; set; }
+
     // Tools Configuration
     bool IsMmcLookupEnabled { get; set; }
     bool IsAdminCommandsEnabled { get; set; }

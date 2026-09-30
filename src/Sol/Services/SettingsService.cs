@@ -21,6 +21,11 @@ public class SettingsService : ISettingsService
     private string _jiraBaseUrl = string.Empty;
     private string _jiraCloudEmail = string.Empty;
 
+    // RDS Configuration Defaults
+    private bool _isRdsEnabled = false;
+    private string _rdsConnectionBroker = string.Empty;
+    private int _rdsDefaultDiskIncreaseGB = 1;
+
     // Tools Configuration Defaults
     private bool _isMmcLookupEnabled = true;
     private bool _isAdminCommandsEnabled = true;
@@ -83,6 +88,24 @@ public class SettingsService : ISettingsService
     {
         get { lock (_syncLock) return _jiraCloudEmail; }
         set { lock (_syncLock) _jiraCloudEmail = value; }
+    }
+
+    public bool IsRdsEnabled
+    {
+        get { lock (_syncLock) return _isRdsEnabled; }
+        set { lock (_syncLock) _isRdsEnabled = value; }
+    }
+
+    public string RdsConnectionBroker
+    {
+        get { lock (_syncLock) return _rdsConnectionBroker; }
+        set { lock (_syncLock) _rdsConnectionBroker = value; }
+    }
+
+    public int RdsDefaultDiskIncreaseGB
+    {
+        get { lock (_syncLock) return _rdsDefaultDiskIncreaseGB; }
+        set { lock (_syncLock) _rdsDefaultDiskIncreaseGB = value; }
     }
 
     public bool IsMmcLookupEnabled
@@ -233,6 +256,10 @@ public class SettingsService : ISettingsService
                 if (TryGetStringProperty(root, "JiraBaseUrl", out var jiraUrl)) _jiraBaseUrl = jiraUrl;
                 if (TryGetStringProperty(root, "JiraCloudEmail", out var jiraEmail)) _jiraCloudEmail = jiraEmail;
 
+                if (TryGetBoolProperty(root, "IsRdsEnabled", out var rdsEnabled)) _isRdsEnabled = rdsEnabled;
+                if (TryGetStringProperty(root, "RdsConnectionBroker", out var rdsBroker)) _rdsConnectionBroker = rdsBroker;
+                if (TryGetIntProperty(root, "RdsDefaultDiskIncreaseGB", out var rdsIncrease)) _rdsDefaultDiskIncreaseGB = rdsIncrease;
+
                 if (TryGetBoolProperty(root, "IsMmcLookupEnabled", out var mmcEn)) _isMmcLookupEnabled = mmcEn;
                 if (TryGetBoolProperty(root, "IsAdminCommandsEnabled", out var acEn)) _isAdminCommandsEnabled = acEn;
                 if (TryGetBoolProperty(root, "IsShortcutGuideEnabled", out var scgEn)) _isShortcutGuideEnabled = scgEn;
@@ -267,6 +294,9 @@ public class SettingsService : ISettingsService
                     ["JiraDeploymentMode"] = _jiraDeploymentMode ?? "DataCenter",
                     ["JiraBaseUrl"] = _jiraBaseUrl ?? "",
                     ["JiraCloudEmail"] = _jiraCloudEmail ?? "",
+                    ["IsRdsEnabled"] = _isRdsEnabled,
+                    ["RdsConnectionBroker"] = _rdsConnectionBroker ?? "",
+                    ["RdsDefaultDiskIncreaseGB"] = _rdsDefaultDiskIncreaseGB,
                     ["IsMmcLookupEnabled"] = _isMmcLookupEnabled,
                     ["IsAdminCommandsEnabled"] = _isAdminCommandsEnabled,
                     ["IsShortcutGuideEnabled"] = _isShortcutGuideEnabled,

@@ -94,6 +94,53 @@
                 </controls:SettingsExpander>
             </StackPanel>
 
+            <!-- Remote Desktop Services (RDS) Section -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind S.RdsSettingsGroupHeader}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <controls:SettingsExpander Header="{x:Bind S.RdsSettingsEnableToggle}"
+                                           Description="{x:Bind S.RdsSettingsEnableToggleDesc}"
+                                           IsExpanded="{x:Bind ViewModel.IsRdsEnabled, Mode=TwoWay}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE7F4;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsRdsEnabled, Mode=TwoWay}"/>
+
+                    <controls:SettingsExpander.Items>
+                        <!-- Connection Broker -->
+                        <controls:SettingsCard Header="{x:Bind S.RdsSettingsBrokerLabel}"
+                                               Description="{x:Bind S.RdsSettingsBrokerDesc}">
+                            <TextBox PlaceholderText="{x:Bind S.RdsSettingsBrokerPlaceholder}" 
+                                     Text="{x:Bind ViewModel.RdsConnectionBroker, Mode=TwoWay}" 
+                                     Width="320"/>
+                        </controls:SettingsCard>
+
+                        <!-- Default Disk Increase (GB) -->
+                        <controls:SettingsCard Header="{x:Bind S.RdsSettingsDefaultDiskIncrease}"
+                                               Description="{x:Bind S.RdsSettingsDefaultDiskIncreaseDesc}">
+                            <NumberBox Value="{x:Bind ViewModel.RdsDefaultDiskIncreaseGB, Mode=TwoWay}" 
+                                       Minimum="1" 
+                                       Maximum="1024" 
+                                       SpinButtonPlacementMode="Inline" 
+                                       Width="180"/>
+                        </controls:SettingsCard>
+
+                        <!-- Test Connection Action -->
+                        <controls:SettingsCard Header="{x:Bind S.RdsTestConnectionBtn}">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <ProgressRing IsActive="{x:Bind ViewModel.IsTestingRds, Mode=OneWay}" 
+                                              Width="16" Height="16" 
+                                              Visibility="{x:Bind ViewModel.IsTestingRds, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <Button Content="{x:Bind S.RdsTestConnectionBtn}" 
+                                        Command="{x:Bind ViewModel.TestRdsConnectionCommand}" 
+                                        IsEnabled="{x:Bind ViewModel.IsNotTestingRds, Mode=OneWay}"
+                                        Style="{ThemeResource DefaultButtonStyle}"/>
+                            </StackPanel>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+            </StackPanel>
+
             <!-- Tools Configuration Section -->
             <StackPanel Spacing="12">
                 <TextBlock Text="{x:Bind S.ToolsSettingsSection}" Style="{ThemeResource SubtitleTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

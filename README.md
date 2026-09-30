@@ -95,6 +95,11 @@ Sol includes a dedicated **Tools** page offering essential system management uti
 - Secure token storage using **Windows Credential Locker (PasswordVault / DPAPI)** — zero plaintext secrets on disk.
 - Query and view open tickets created by or associated with the active user directly in the workspace.
 
+### 🖥️ Remote Desktop Services (RDS) Workspace
+- **Session Management**: Query and monitor live active and disconnected user sessions across RDS farms via Connection Broker.
+- **Administrative Control**: Batch and single session disconnect (preserving user applications) and logoff with safety confirmation dialogs.
+- **User Profile Disk (UPD) Resizing**: Automated stepped expansion of virtual profile disks (`.vhdx`) and underlying NTFS partitions with elevation detection, active session conflict detection, and file-lock coordination.
+
 ### 📋 Comprehensive "Copy All" Export
 - One-click copy on both User and Computer workspaces exports 100% of all loaded Active Directory properties, metadata, and diagnostic modules into cleanly structured, key-value formatted text ready for tickets, audits, or documentation.
 
@@ -112,7 +117,7 @@ Sol includes a dedicated **Tools** page offering essential system management uti
 | **Remote Diagnostics** | WMI / CIM (`System.Management`) with CLI and native WTS fallback |
 | **Credential Security** | Windows Credential Locker (`Windows.Security.Credentials.PasswordVault`) |
 | **OCR & Vision** | Windows AI OCR & Windows.Media.Ocr (WinRT) |
-| **Deployment Model** | Self-contained, single-file unpackaged binary (no MSIX or Store required) |
+| **Deployment Model** | Self-contained unpackaged directory distribution (no MSIX or Store required) |
 
 ---
 
@@ -127,7 +132,7 @@ Sol includes a dedicated **Tools** page offering essential system management uti
 
 Download the latest standalone release from the [**Releases**](https://github.com/mm-dev-alpha/Sol/releases) page:
 
-1. Download `Sol-v4.0.0-win-x64.zip`.
+1. Download `Sol-v4.1.0-win-x64.zip`.
 2. Extract the archive to any folder.
 3. Run `Sol.exe`.
 

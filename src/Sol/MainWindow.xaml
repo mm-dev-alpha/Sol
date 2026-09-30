@@ -89,6 +89,13 @@
                         <BitmapIcon UriSource="ms-appx:///Assets/JiraLogo.png" ShowAsMonochrome="False"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="{x:Bind S.NavRdsWorkspace}" 
+                                    Tag="RdsWorkspacePage"
+                                    Visibility="{x:Bind ViewModel.RdsNavVisibility, Mode=OneWay}">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7F4;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="{x:Bind S.NavTools}" Tag="ToolsPage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xEC7A;" />

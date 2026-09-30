@@ -105,6 +105,7 @@ public partial class App : Application
             services.AddSingleton<Sol.Services.IMmcLookupService, Sol.Services.MmcLookupService>();
             services.AddSingleton<Sol.Services.IAdminCommandService, Sol.Services.AdminCommandService>();
             services.AddSingleton<Sol.Services.IEntityComparisonService, Sol.Services.EntityComparisonService>();
+            services.AddSingleton<Sol.Services.IRdsService, Sol.Services.RdsService>();
             services.AddSingleton<Sol.Services.IGlobalHotkeyService, Sol.Services.GlobalHotkeyService>();
 
             // ViewModels
@@ -115,9 +116,11 @@ public partial class App : Application
             services.AddTransient<Sol.ViewModels.ComputerWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.CompareWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.JiraWorkspaceViewModel>();
+            services.AddTransient<Sol.ViewModels.RdsWorkspaceViewModel>();
             services.AddSingleton<Sol.ViewModels.SettingsViewModel>();
             services.AddSingleton<Sol.ViewModels.ToolsViewModel>();
             services.AddTransient<Sol.ViewModels.FileLocksmithViewModel>();
+            services.AddTransient<Sol.Views.RdsWorkspacePage>();
         }).
         Build();
     }

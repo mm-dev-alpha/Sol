@@ -1377,6 +1377,9 @@ public class ComputerDiagnosticServiceTests
         public bool IsEditTextWindowEnabled { get; set; } = true;
         public bool EditTextWindowWordWrap { get; set; } = true;
         public bool EditTextWindowAlwaysOnTop { get; set; } = false;
+        public bool IsRdsEnabled { get; set; } = false;
+        public string RdsConnectionBroker { get; set; } = string.Empty;
+        public int RdsDefaultDiskIncreaseGB { get; set; } = 1;
         public void Load() { }
         public void Save() { }
     }

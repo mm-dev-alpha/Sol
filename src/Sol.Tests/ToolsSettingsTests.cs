@@ -57,6 +57,10 @@ public class ToolsSettingsTests : IDisposable
         public bool EditTextWindowWordWrap { get; set; } = true;
         public bool EditTextWindowAlwaysOnTop { get; set; } = false;
 
+        public bool IsRdsEnabled { get; set; }
+        public string RdsConnectionBroker { get; set; } = string.Empty;
+        public int RdsDefaultDiskIncreaseGB { get; set; } = 1;
+
         public int SaveCallCount { get; private set; }
 
         public void Load() { }

@@ -16,8 +16,9 @@ public partial class SettingsViewModel : ObservableObject
     private readonly ISettingsService _settings;
     private readonly IJiraService _jiraService;
     private readonly IFileLocksmithService? _fileLocksmithService;
+    private readonly IRdsService? _rdsService;
 
-    [ObservableProperty] public partial string Version { get; set; } = typeof(SettingsViewModel).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "4.0.0";
+    [ObservableProperty] public partial string Version { get; set; } = typeof(SettingsViewModel).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "4.1.0";
     [ObservableProperty] public partial string AdDomain { get; set; } = string.Empty;
     public string AppLanguage => "en";
 
@@ -29,6 +30,20 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial int JiraDeploymentModeIndex { get; set; }
     [ObservableProperty] public partial string JiraBaseUrl { get; set; } = string.Empty;
     [ObservableProperty] public partial string JiraCloudEmail { get; set; } = string.Empty;
+
+    // RDS Integration
+    [ObservableProperty] public partial bool IsRdsEnabled { get; set; }
+    [ObservableProperty] public partial string RdsConnectionBroker { get; set; } = string.Empty;
+    [ObservableProperty] public partial int RdsDefaultDiskIncreaseGB { get; set; } = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotTestingRds))]
+    public partial bool IsTestingRds { get; set; }
+    [ObservableProperty] public partial bool IsRdsTestStatusOpen { get; set; }
+    [ObservableProperty] public partial InfoBarSeverity RdsTestStatusSeverity { get; set; } = InfoBarSeverity.Informational;
+    [ObservableProperty] public partial string RdsTestStatusMessage { get; set; } = string.Empty;
+
+    public bool IsNotTestingRds => !IsTestingRds;
 
     // Isolated per-mode secrets
     [ObservableProperty] public partial string JiraPatSecret { get; set; } = string.Empty;
@@ -60,13 +75,14 @@ public partial class SettingsViewModel : ObservableObject
     public bool IsJiraDataCenter => string.Equals(JiraDeploymentMode, "DataCenter", StringComparison.OrdinalIgnoreCase);
     public bool IsJiraCloud => string.Equals(JiraDeploymentMode, "Cloud", StringComparison.OrdinalIgnoreCase);
 
-    public string AppVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "4.0.0.0";
+    public string AppVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "4.1.0.0";
 
-    public SettingsViewModel(ISettingsService settings, IJiraService jiraService, IFileLocksmithService? fileLocksmithService = null)
+    public SettingsViewModel(ISettingsService settings, IJiraService jiraService, IFileLocksmithService? fileLocksmithService = null, IRdsService? rdsService = null)
     {
         _settings = settings;
         _jiraService = jiraService;
         _fileLocksmithService = fileLocksmithService;
+        _rdsService = rdsService;
         LoadSettings();
     }
 
@@ -79,6 +95,11 @@ public partial class SettingsViewModel : ObservableObject
         JiraDeploymentModeIndex = string.Equals(JiraDeploymentMode, "Cloud", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         JiraBaseUrl = _settings.JiraBaseUrl ?? string.Empty;
         JiraCloudEmail = _settings.JiraCloudEmail ?? string.Empty;
+
+        // RDS settings
+        IsRdsEnabled = _settings.IsRdsEnabled;
+        RdsConnectionBroker = _settings.RdsConnectionBroker ?? string.Empty;
+        RdsDefaultDiskIncreaseGB = _settings.RdsDefaultDiskIncreaseGB > 0 ? _settings.RdsDefaultDiskIncreaseGB : 1;
 
         // Load isolated secrets from Windows Credential Locker
         JiraPatSecret = JiraCredentialHelper.GetSecret("DataCenter");
@@ -109,6 +130,14 @@ public partial class SettingsViewModel : ObservableObject
         _settings.IsJiraEnabled = value;
         _settings.Save();
         WeakReferenceMessenger.Default.Send(new JiraSettingsChangedMessage(value));
+    }
+
+    partial void OnIsRdsEnabledChanged(bool value)
+    {
+        // Real-time synchronization without requiring application restart
+        _settings.IsRdsEnabled = value;
+        _settings.Save();
+        WeakReferenceMessenger.Default.Send(new RdsSettingsChangedMessage(value));
     }
 
     partial void OnJiraDeploymentModeIndexChanged(int value)
@@ -207,6 +236,62 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task TestRdsConnectionAsync()
+    {
+        if (IsTestingRds) return;
+
+        string broker = (RdsConnectionBroker ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(broker))
+        {
+            RdsTestStatusMessage = Strings.S.RdsBrokerRequiredPrompt;
+            RdsTestStatusSeverity = InfoBarSeverity.Warning;
+            IsRdsTestStatusOpen = true;
+            WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.RdsBrokerRequiredPrompt, InfoBarSeverity.Warning));
+            return;
+        }
+
+        if (_rdsService == null)
+        {
+            RdsTestStatusMessage = Strings.S.RdsConnectionFailedPrompt;
+            RdsTestStatusSeverity = InfoBarSeverity.Error;
+            IsRdsTestStatusOpen = true;
+            return;
+        }
+
+        IsTestingRds = true;
+        IsRdsTestStatusOpen = false;
+        try
+        {
+            bool success = await _rdsService.TestBrokerConnectionAsync(broker);
+            if (success)
+            {
+                RdsTestStatusMessage = Strings.S.RdsConnectionSuccessPrompt;
+                RdsTestStatusSeverity = InfoBarSeverity.Success;
+                IsRdsTestStatusOpen = true;
+                WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.RdsConnectionSuccessPrompt, InfoBarSeverity.Success));
+            }
+            else
+            {
+                RdsTestStatusMessage = Strings.S.RdsConnectionFailedPrompt;
+                RdsTestStatusSeverity = InfoBarSeverity.Error;
+                IsRdsTestStatusOpen = true;
+                WeakReferenceMessenger.Default.Send(new AppNotificationMessage(Strings.S.RdsConnectionFailedPrompt, InfoBarSeverity.Error));
+            }
+        }
+        catch (Exception ex)
+        {
+            RdsTestStatusMessage = $"{Strings.S.RdsConnectionFailedPrompt}: {ex.Message}";
+            RdsTestStatusSeverity = InfoBarSeverity.Error;
+            IsRdsTestStatusOpen = true;
+            WeakReferenceMessenger.Default.Send(new AppNotificationMessage($"{Strings.S.RdsConnectionFailedPrompt}: {ex.Message}", InfoBarSeverity.Error));
+        }
+        finally
+        {
+            IsTestingRds = false;
+        }
+    }
+
+    [RelayCommand]
     private void Save()
     {
         try
@@ -218,6 +303,10 @@ public partial class SettingsViewModel : ObservableObject
             _settings.JiraDeploymentMode = JiraDeploymentMode;
             _settings.JiraBaseUrl = JiraBaseUrl;
             _settings.JiraCloudEmail = JiraCloudEmail;
+
+            _settings.IsRdsEnabled = IsRdsEnabled;
+            _settings.RdsConnectionBroker = RdsConnectionBroker;
+            _settings.RdsDefaultDiskIncreaseGB = RdsDefaultDiskIncreaseGB;
 
             // Save Tools Configuration
             _settings.IsShortcutGuideEnabled = IsShortcutGuideEnabled;
@@ -249,6 +338,7 @@ public partial class SettingsViewModel : ObservableObject
             
             // Notify MainWindow and workspaces to sync JIRA navigation in real-time
             WeakReferenceMessenger.Default.Send(new JiraSettingsChangedMessage(IsJiraEnabled));
+            WeakReferenceMessenger.Default.Send(new RdsSettingsChangedMessage(IsRdsEnabled));
 
             // Persist secrets securely to Windows Credential Locker without blocking general settings
             bool credentialError = false;
