@@ -20,8 +20,34 @@ public sealed class RdsSessionItem
     public bool IsActive => string.Equals(State, "STATE_ACTIVE", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(State, "Active", StringComparison.OrdinalIgnoreCase);
 
+    public bool IsConnected => string.Equals(State, "STATE_CONNECTED", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(State, "Connected", StringComparison.OrdinalIgnoreCase);
+
     public bool IsDisconnected => string.Equals(State, "STATE_DISCONNECTED", StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(State, "Disconnected", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsOtherState => !IsActive && !IsConnected && !IsDisconnected;
+
+    public string DisplayState
+    {
+        get
+        {
+            if (IsActive) return "Active";
+            if (IsConnected) return "Connected";
+            if (IsDisconnected) return "Disconnected";
+
+            string s = State ?? string.Empty;
+            if (s.StartsWith("STATE_", StringComparison.OrdinalIgnoreCase))
+            {
+                s = s.Substring(6);
+            }
+            if (s.Length > 0)
+            {
+                return char.ToUpperInvariant(s[0]) + s.Substring(1).ToLowerInvariant();
+            }
+            return "Unknown";
+        }
+    }
 
     public string UserPrincipalDisplay => string.IsNullOrWhiteSpace(Domain)
         ? Username

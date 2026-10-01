@@ -68,6 +68,38 @@ public class RdsServiceTests : IDisposable
     }
 
     [Fact]
+    public void RdsSessionItem_ConnectedAndOtherStates_EvaluatedCorrectly()
+    {
+        var connectedSession = new RdsSessionItem
+        {
+            Username = "mmezger",
+            Domain = "COWIE",
+            SessionId = 16,
+            State = "STATE_CONNECTED"
+        };
+
+        var listenSession = new RdsSessionItem
+        {
+            Username = "",
+            Domain = "",
+            SessionId = 65536,
+            State = "STATE_LISTEN"
+        };
+
+        Assert.False(connectedSession.IsActive);
+        Assert.True(connectedSession.IsConnected);
+        Assert.False(connectedSession.IsDisconnected);
+        Assert.False(connectedSession.IsOtherState);
+        Assert.Equal("Connected", connectedSession.DisplayState);
+
+        Assert.False(listenSession.IsActive);
+        Assert.False(listenSession.IsConnected);
+        Assert.False(listenSession.IsDisconnected);
+        Assert.True(listenSession.IsOtherState);
+        Assert.Equal("Listen", listenSession.DisplayState);
+    }
+
+    [Fact]
     public void RdsDiskLayoutInfo_CapacityGiBCalculation_IsAccurate()
     {
         var info = new RdsDiskLayoutInfo
