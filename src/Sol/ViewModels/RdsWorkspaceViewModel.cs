@@ -111,6 +111,11 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool IsInspectingDisk { get; set; }
 
+    public bool IsDiskDetailsLoading => IsLoadingCollectionConfig || IsInspectingDisk;
+
+    partial void OnIsLoadingCollectionConfigChanged(bool value) => OnPropertyChanged(nameof(IsDiskDetailsLoading));
+    partial void OnIsInspectingDiskChanged(bool value) => OnPropertyChanged(nameof(IsDiskDetailsLoading));
+
     public ObservableCollection<RdsSessionItem> ConflictingSessions { get; } = new();
 
     public bool HasSelectedUser => SelectedUser != null;
@@ -492,6 +497,10 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCollectionChanged(RdsCollectionInfo? value)
     {
+        DiskLayout = null;
+        ConflictingSessions.Clear();
+        NotifyUpdProperties();
+
         if (value != null && !value.IsConfigurationLoaded)
         {
             _ = LoadSelectedCollectionConfigAsync(value);
@@ -666,7 +675,6 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
             {
                 WeakReferenceMessenger.Default.Send(
                     new AppNotificationMessage(string.Format(Strings.S.RdsUpdExpandSuccess, result.FinalCapacityGiB), InfoBarSeverity.Success));
-                await InspectSelectedUserProfileDiskAsync();
             }
             else
             {
@@ -687,7 +695,9 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
         finally
         {
             IsExpanding = false;
+            ExpansionStepDescription = string.Empty;
             OnPropertyChanged(nameof(CanExpand));
+            await InspectSelectedUserProfileDiskAsync();
         }
     }
 

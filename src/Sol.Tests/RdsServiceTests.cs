@@ -764,6 +764,125 @@ public class RdsServiceTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task RdsWorkspaceViewModel_ExpandDisk_AutoRefreshesDiskLayoutEvenOnFailure()
+    {
+        int inspectCount = 0;
+        var mockRds = new MockRdsService
+        {
+            InspectUpdDiskFunc = path =>
+            {
+                inspectCount++;
+                return Task.FromResult(new RdsDiskLayoutInfo { Exists = true, CapacityBytes = 21474836480UL });
+            },
+            ExpandUpdDiskFunc = () =>
+            {
+                return Task.FromResult(new RdsDiskExpansionResult { IsSuccess = false, ErrorMessage = "Expansion failed test" });
+            }
+        };
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService { RdsConnectionBroker = "broker.corp.local" };
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+        try
+        {
+            vm.SelectedUser = new AdUser { SamAccountName = "testuser", Sid = "S-1-5-21-12345" };
+            var coll = new RdsCollectionInfo { CollectionName = "TestCollection", UpdEnabled = true, UpdDiskPath = @"\\share\upd", IsConfigurationLoaded = true };
+            vm.Collections.Add(coll);
+            vm.SelectedCollection = coll;
+            vm.DiskLayout = new RdsDiskLayoutInfo { Exists = true, VhdxPath = @"\\share\upd\UVHD-S-1-5-21-12345.vhdx", CapacityBytes = 21474836480UL };
+            vm.AdditionalGiB = 1;
+
+            inspectCount = 0;
+            Assert.Equal(0, inspectCount);
+
+            await vm.ExpandDiskAsync();
+
+            // Inspect must be called even on failure
+            Assert.True(inspectCount >= 1);
+        }
+        finally
+        {
+            vm.Dispose();
+        }
+    }
+
+    [Fact]
+    public void RdsWorkspaceViewModel_IsDiskDetailsLoading_NotifiesAndReflectsLoadingState()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService();
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+        try
+        {
+            var notifiedProps = new List<string>();
+            vm.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName != null) notifiedProps.Add(e.PropertyName);
+            };
+
+            Assert.False(vm.IsDiskDetailsLoading);
+
+            vm.IsLoadingCollectionConfig = true;
+            Assert.True(vm.IsDiskDetailsLoading);
+            Assert.Contains(nameof(vm.IsDiskDetailsLoading), notifiedProps);
+
+            notifiedProps.Clear();
+            vm.IsLoadingCollectionConfig = false;
+            Assert.False(vm.IsDiskDetailsLoading);
+            Assert.Contains(nameof(vm.IsDiskDetailsLoading), notifiedProps);
+
+            notifiedProps.Clear();
+            vm.IsInspectingDisk = true;
+            Assert.True(vm.IsDiskDetailsLoading);
+            Assert.Contains(nameof(vm.IsDiskDetailsLoading), notifiedProps);
+
+            notifiedProps.Clear();
+            vm.IsInspectingDisk = false;
+            Assert.False(vm.IsDiskDetailsLoading);
+            Assert.Contains(nameof(vm.IsDiskDetailsLoading), notifiedProps);
+        }
+        finally
+        {
+            vm.Dispose();
+        }
+    }
+
+    [Fact]
+    public void RdsWorkspaceViewModel_OnSelectedCollectionChanged_ClearsStaleDiskLayoutImmediately()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService();
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+        try
+        {
+            vm.DiskLayout = new RdsDiskLayoutInfo { Exists = true, VhdxPath = @"\\share1\upd\test.vhdx" };
+            vm.ConflictingSessions.Add(new RdsSessionItem { Username = "testuser" });
+
+            Assert.NotNull(vm.DiskLayout);
+            Assert.NotEmpty(vm.ConflictingSessions);
+
+            // Change selected collection to an unconfigured collection
+            var newColl = new RdsCollectionInfo { CollectionName = "Coll2", IsConfigurationLoaded = false };
+            vm.SelectedCollection = newColl;
+
+            // Stale layout and conflicting sessions must be immediately cleared
+            Assert.Null(vm.DiskLayout);
+            Assert.Empty(vm.ConflictingSessions);
+        }
+        finally
+        {
+            vm.Dispose();
+        }
+    }
+
     // --- Mock Implementations for VM Testing ---
 
     private class MockRdsService : IRdsService
@@ -790,8 +909,10 @@ public class RdsServiceTests : IDisposable
             => GetCollectionConfigFunc != null
                 ? GetCollectionConfigFunc(broker, collectionName)
                 : Task.FromResult(new RdsCollectionConfigurationInfo { CollectionName = collectionName, UpdEnabled = true, UpdDiskPath = @"\\share\upd" });
+        public Func<string, Task<RdsDiskLayoutInfo>>? InspectUpdDiskFunc { get; set; }
         public Task<RdsDiskLayoutInfo> InspectUpdDiskAsync(string vhdxPath, CancellationToken cancellationToken = default)
-            => Task.FromResult(new RdsDiskLayoutInfo { Exists = true, CapacityBytes = 21474836480UL });
+            => InspectUpdDiskFunc != null ? InspectUpdDiskFunc(vhdxPath) : Task.FromResult(new RdsDiskLayoutInfo { Exists = true, CapacityBytes = 21474836480UL });
+        public Func<Task<RdsDiskExpansionResult>>? ExpandUpdDiskFunc { get; set; }
         public Task<RdsDiskExpansionResult> ExpandUpdDiskAsync(
             string broker,
             string collectionName,
@@ -801,7 +922,7 @@ public class RdsServiceTests : IDisposable
             ulong additionalGigabytes,
             IProgress<RdsExpansionStep>? progress = null,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(new RdsDiskExpansionResult { IsSuccess = true });
+            => ExpandUpdDiskFunc != null ? ExpandUpdDiskFunc() : Task.FromResult(new RdsDiskExpansionResult { IsSuccess = true });
     }
 
     private class MockAdService : IActiveDirectoryService
