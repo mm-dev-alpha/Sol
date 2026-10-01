@@ -213,6 +213,87 @@ public class RdsServiceTests : IDisposable
         Assert.Contains("at least 1 GiB", zeroResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void SanitizePowerShellError_ExtractsCleanTextFromActualUserClixml()
+    {
+        string rawStderr = "#< CLIXML\r\n" +
+            "<Objs Version=\"1.1.0.1\" xmlns=\"http://schemas.microsoft.com/powershell/2004/04\"><S S=\"Error\">Der angegebene vollqualifizierte Domänenname (FQDN) _x0022_rds-com-b-01-p_x0022_ ist ungültig._x000D__x000A_</S><S S=\"Error\">In Zeile:1 Zeichen:1_x000D__x000A_</S><S S=\"Error\">+ Get-RDUserSession -ConnectionBroker 'rds-com-b-01-p'_x000D__x000A_</S><S S=\"Error\">+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~_x000D__x000A_</S><S S=\"Error\">    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException_x000D__x000A_</S><S S=\"Error\">    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Get-RDUserSession_x000D__x000A_</S></Objs>";
+
+        string sanitized = RdsService.SanitizePowerShellError(rawStderr);
+
+        Assert.Equal("Der angegebene vollqualifizierte Domänenname (FQDN) \"rds-com-b-01-p\" ist ungültig.", sanitized);
+        Assert.DoesNotContain("#< CLIXML", sanitized);
+        Assert.DoesNotContain("<Objs", sanitized);
+        Assert.DoesNotContain("_x0022_", sanitized);
+        Assert.DoesNotContain("In Zeile:", sanitized);
+        Assert.DoesNotContain("CategoryInfo", sanitized);
+    }
+
+    [Fact]
+    public void SanitizePowerShellError_LeavesPlainTextUntouched()
+    {
+        string plain = "Connection to broker timed out after 15000ms";
+        string result = RdsService.SanitizePowerShellError(plain);
+        Assert.Equal(plain, result);
+
+        Assert.Equal(string.Empty, RdsService.SanitizePowerShellError(null!));
+        Assert.Equal(string.Empty, RdsService.SanitizePowerShellError("   "));
+    }
+
+    [Fact]
+    public async Task ResolveBrokerFqdnAsync_KeepsExistingFqdn()
+    {
+        var service = new RdsService();
+        string fqdn = "broker01.corp.contoso.com";
+        string result = await service.ResolveBrokerFqdnAsync(fqdn);
+        Assert.Equal(fqdn, result);
+    }
+
+    [Fact]
+    public async Task ResolveBrokerFqdnAsync_AppendsAdDomainWhenConfigured()
+    {
+        var mockSettings = new MockSettingsService { AdDomain = "corp.contoso.com" };
+        var service = new RdsService(mockSettings);
+        string shortName = "rds-broker-test-dummy-unresolvable-xyz";
+        string result = await service.ResolveBrokerFqdnAsync(shortName);
+        Assert.Equal("rds-broker-test-dummy-unresolvable-xyz.corp.contoso.com", result);
+    }
+
+    [Fact]
+    public async Task ResolveBrokerFqdnAsync_ReturnsEmptyOnBlank()
+    {
+        var service = new RdsService();
+        Assert.Equal(string.Empty, await service.ResolveBrokerFqdnAsync(""));
+        Assert.Equal(string.Empty, await service.ResolveBrokerFqdnAsync("   "));
+        Assert.Equal(string.Empty, await service.ResolveBrokerFqdnAsync(null!));
+    }
+
+    [Fact]
+    public async Task RdsService_BrokerMethods_ThrowWhenBrokerCannotBeResolvedToFqdn()
+    {
+        var mockSettings = new MockSettingsService { AdDomain = string.Empty };
+        var service = new RdsService(mockSettings);
+        string unresolvable = "dummy-broker-no-fqdn-xyz";
+        string resolved = await service.ResolveBrokerFqdnAsync(unresolvable);
+        if (!resolved.Contains('.'))
+        {
+            bool testResult = await service.TestBrokerConnectionAsync(unresolvable);
+            Assert.False(testResult);
+
+            var exSessions = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetSessionsAsync(unresolvable));
+            Assert.Contains(unresolvable, exSessions.Message);
+
+            var exCollections = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetCollectionsAsync(unresolvable));
+            Assert.Contains(unresolvable, exCollections.Message);
+
+            var exLogoff = await Assert.ThrowsAsync<InvalidOperationException>(() => service.LogoffSessionAsync(unresolvable, "RDSH-01", 1));
+            Assert.Contains(unresolvable, exLogoff.Message);
+
+            var exDisconnect = await Assert.ThrowsAsync<InvalidOperationException>(() => service.DisconnectSessionAsync(unresolvable, "RDSH-01", 1));
+            Assert.Contains(unresolvable, exDisconnect.Message);
+        }
+    }
+
     // --- Settings Persistence Tests ---
 
     [Fact]
@@ -338,6 +419,8 @@ public class RdsServiceTests : IDisposable
     {
         public bool IsElevated() => true;
         public bool RestartAsAdministrator() => true;
+        public Task<string> ResolveBrokerFqdnAsync(string broker, CancellationToken cancellationToken = default)
+            => Task.FromResult(string.IsNullOrWhiteSpace(broker) ? string.Empty : (broker.Contains('.') ? broker : $"{broker}.corp.local"));
         public Task<bool> TestBrokerConnectionAsync(string broker, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
         public Task<IReadOnlyList<RdsSessionItem>> GetSessionsAsync(string broker, CancellationToken cancellationToken = default)

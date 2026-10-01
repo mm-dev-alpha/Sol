@@ -22,6 +22,11 @@ public interface IRdsService
     bool RestartAsAdministrator();
 
     /// <summary>
+    /// Normalizes a connection broker name to an FQDN using DNS resolution, configured AD domain, or local domain.
+    /// </summary>
+    Task<string> ResolveBrokerFqdnAsync(string broker, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Tests connectivity to the specified RDS Connection Broker.
     /// </summary>
     Task<bool> TestBrokerConnectionAsync(string broker, CancellationToken cancellationToken = default);

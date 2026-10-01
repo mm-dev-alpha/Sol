@@ -25,6 +25,118 @@ public class RdsService : IRdsService
         PropertyNameCaseInsensitive = true
     };
 
+    private readonly ISettingsService? _settings;
+
+    public RdsService(ISettingsService? settings = null)
+    {
+        _settings = settings;
+    }
+
+    /// <summary>
+    /// Decodes PowerShell CLIXML error streams and extracts clean, human-readable error messages.
+    /// </summary>
+    public static string SanitizePowerShellError(string rawStderr)
+    {
+        if (string.IsNullOrWhiteSpace(rawStderr))
+            return string.Empty;
+
+        string trimmed = rawStderr.Trim();
+        if (!trimmed.Contains("#< CLIXML") && !trimmed.Contains("<Objs"))
+            return trimmed;
+
+        try
+        {
+            var errorMatches = System.Text.RegularExpressions.Regex.Matches(trimmed, @"<S S=""Error"">([\s\S]*?)</S>");
+            if (errorMatches.Count > 0)
+            {
+                var sb = new StringBuilder();
+                foreach (System.Text.RegularExpressions.Match m in errorMatches)
+                {
+                    string decoded = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value, @"_x([0-9a-fA-F]{4})_", match =>
+                    {
+                        int charCode = Convert.ToInt32(match.Groups[1].Value, 16);
+                        return ((char)charCode).ToString();
+                    });
+                    sb.Append(decoded);
+                }
+
+                string combined = sb.ToString();
+                var lines = combined.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                var meaningfulLines = lines
+                    .Select(l => l.Trim())
+                    .Where(l =>
+                        l.Length > 0 &&
+                        !l.StartsWith(":") &&
+                        !l.StartsWith("+") &&
+                        !l.StartsWith("In Zeile:", StringComparison.OrdinalIgnoreCase) &&
+                        !l.StartsWith("At line:", StringComparison.OrdinalIgnoreCase) &&
+                        !l.StartsWith("CategoryInfo", StringComparison.OrdinalIgnoreCase) &&
+                        !l.StartsWith("FullyQualifiedErrorId", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (meaningfulLines.Count > 0)
+                {
+                    return string.Join(Environment.NewLine, meaningfulLines).Trim();
+                }
+
+                var fallback = lines.FirstOrDefault(l => !l.Trim().StartsWith("+") && !l.Trim().StartsWith("CategoryInfo"))?.Trim() ?? string.Empty;
+                return fallback.TrimStart(':', ' ');
+            }
+        }
+        catch
+        {
+            return System.Text.RegularExpressions.Regex.Replace(trimmed, @"<[^>]+>", " ").Trim();
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(trimmed, @"<[^>]+>", " ").Trim();
+    }
+
+    /// <inheritdoc />
+    public async Task<string> ResolveBrokerFqdnAsync(string broker, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(broker))
+            return string.Empty;
+
+        string trimmed = broker.Trim();
+        if (trimmed.Contains('.'))
+            return trimmed;
+
+        // 1. Try DNS resolution
+        try
+        {
+            var hostEntry = await System.Net.Dns.GetHostEntryAsync(trimmed, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(hostEntry.HostName) && hostEntry.HostName.Contains('.'))
+            {
+                return hostEntry.HostName;
+            }
+        }
+        catch { }
+
+        // 2. Fallback: Configured Active Directory domain
+        string? adDomain = _settings?.AdDomain;
+        if (!string.IsNullOrWhiteSpace(adDomain))
+        {
+            string cleanDomain = adDomain.Trim().TrimStart('.').TrimEnd('.');
+            if (!string.IsNullOrWhiteSpace(cleanDomain))
+            {
+                return $"{trimmed}.{cleanDomain}";
+            }
+        }
+
+        // 3. Fallback: Local machine DNS domain
+        try
+        {
+            string sysDomain = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().DomainName;
+            if (!string.IsNullOrWhiteSpace(sysDomain))
+            {
+                return $"{trimmed}.{sysDomain.Trim().TrimStart('.').TrimEnd('.')}";
+            }
+        }
+        catch { }
+
+        return trimmed;
+    }
+
     /// <inheritdoc />
     public bool IsElevated()
     {
@@ -89,14 +201,20 @@ public class RdsService : IRdsService
         if (string.IsNullOrWhiteSpace(broker))
             return false;
 
+        string resolvedBroker = await ResolveBrokerFqdnAsync(broker, cancellationToken).ConfigureAwait(false);
+        if (!resolvedBroker.Contains('.'))
+            return false;
+
         string script = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
-    $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(broker)}' -ErrorAction Stop)
+    $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
     [PSCustomObject]@{{ Success = $true; Count = $collections.Count }} | ConvertTo-Json -Compress
 }} catch {{
-    [PSCustomObject]@{{ Success = $false; Error = $_.Exception.Message }} | ConvertTo-Json -Compress
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 1
 }}
 ";
         try
@@ -129,11 +247,16 @@ try {{
         if (string.IsNullOrWhiteSpace(broker))
             return Array.Empty<RdsSessionItem>();
 
+        string resolvedBroker = await ResolveBrokerFqdnAsync(broker, cancellationToken).ConfigureAwait(false);
+        if (!resolvedBroker.Contains('.'))
+            throw new InvalidOperationException(string.Format(Strings.S.RdsBrokerFqdnRequiredError, broker.Trim()));
+
         string script = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
-    $sessions = @(Get-RDUserSession -ConnectionBroker '{EscapePsString(broker)}' -ErrorAction Stop)
+    $sessions = @(Get-RDUserSession -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
     $list = @()
     foreach ($s in $sessions) {{
         $logonRaw = $null
@@ -159,14 +282,14 @@ try {{
     }}
     $list | ConvertTo-Json -Compress
 }} catch {{
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }}
 ";
         var (exitCode, stdout, stderr) = await RunPowerShellScriptAsync(script, 30000, cancellationToken).ConfigureAwait(false);
         if (exitCode != 0)
         {
-            throw new InvalidOperationException($"Failed to query RDS sessions from broker '{broker}': {stderr}");
+            throw new InvalidOperationException($"Failed to query RDS sessions from broker '{resolvedBroker}': {stderr}");
         }
 
         string trimmed = stdout.Trim();
@@ -218,19 +341,24 @@ try {{
         if (string.IsNullOrWhiteSpace(hostServer))
             throw new ArgumentException("Host server cannot be null or empty.", nameof(hostServer));
 
+        string resolvedBroker = await ResolveBrokerFqdnAsync(broker, cancellationToken).ConfigureAwait(false);
+        if (!resolvedBroker.Contains('.'))
+            throw new InvalidOperationException(string.Format(Strings.S.RdsBrokerFqdnRequiredError, broker.Trim()));
+
         string script = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
     $baseParams = @{{ HostServer = '{EscapePsString(hostServer)}'; UnifiedSessionId = {unifiedSessionId}; Force = [bool]${force.ToString().ToLowerInvariant()} }}
     try {{
-        Invoke-RDUserLogoff -ConnectionBroker '{EscapePsString(broker)}' @baseParams -ErrorAction Stop
+        Invoke-RDUserLogoff -ConnectionBroker '{EscapePsString(resolvedBroker)}' @baseParams -ErrorAction Stop
     }} catch {{
         Invoke-RDUserLogoff @baseParams -ErrorAction Stop
     }}
     [PSCustomObject]@{{ Success = $true }} | ConvertTo-Json -Compress
 }} catch {{
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }}
 ";
@@ -243,20 +371,20 @@ try {{
             if (success)
             {
                 Log.Information("RDS Session Logoff: Operator={Operator}, Broker={Broker}, HostServer={HostServer}, UnifiedSessionId={UnifiedSessionId}, Force={Force}, Result=Success",
-                    operatorIdentity, broker, hostServer, unifiedSessionId, force);
+                    operatorIdentity, resolvedBroker, hostServer, unifiedSessionId, force);
                 return true;
             }
             else
             {
                 Log.Warning("RDS Session Logoff: Operator={Operator}, Broker={Broker}, HostServer={HostServer}, UnifiedSessionId={UnifiedSessionId}, Force={Force}, Result=Failure, Error={Error}",
-                    operatorIdentity, broker, hostServer, unifiedSessionId, force, stderr);
+                    operatorIdentity, resolvedBroker, hostServer, unifiedSessionId, force, stderr);
                 throw new InvalidOperationException(stderr);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "RDS Session Logoff Exception: Operator={Operator}, Broker={Broker}, HostServer={HostServer}, UnifiedSessionId={UnifiedSessionId}",
-                operatorIdentity, broker, hostServer, unifiedSessionId);
+                operatorIdentity, resolvedBroker, hostServer, unifiedSessionId);
             throw;
         }
     }
@@ -273,15 +401,20 @@ try {{
         if (string.IsNullOrWhiteSpace(hostServer))
             throw new ArgumentException("Host server cannot be null or empty.", nameof(hostServer));
 
+        string resolvedBroker = await ResolveBrokerFqdnAsync(broker, cancellationToken).ConfigureAwait(false);
+        if (!resolvedBroker.Contains('.'))
+            throw new InvalidOperationException(string.Format(Strings.S.RdsBrokerFqdnRequiredError, broker.Trim()));
+
         string script = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
     try {{
         Disconnect-RDUser -HostServer '{EscapePsString(hostServer)}' -UnifiedSessionId {unifiedSessionId} -ErrorAction Stop
     }} catch {{
         # Fallback to tsdiscon if Disconnect-RDUser cmdlet not available
-        $sessions = @(Get-RDUserSession -ConnectionBroker '{EscapePsString(broker)}' -ErrorAction SilentlyContinue)
+        $sessions = @(Get-RDUserSession -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction SilentlyContinue)
         $match = $sessions | Where-Object {{ $_.UnifiedSessionId -eq {unifiedSessionId} }} | Select-Object -First 1
         if ($match) {{
             & tsdiscon.exe $match.SessionId /server:'{EscapePsString(hostServer)}'
@@ -291,7 +424,7 @@ try {{
     }}
     [PSCustomObject]@{{ Success = $true }} | ConvertTo-Json -Compress
 }} catch {{
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }}
 ";
@@ -304,20 +437,20 @@ try {{
             if (success)
             {
                 Log.Information("RDS Session Disconnect: Operator={Operator}, Broker={Broker}, HostServer={HostServer}, UnifiedSessionId={UnifiedSessionId}, Result=Success",
-                    operatorIdentity, broker, hostServer, unifiedSessionId);
+                    operatorIdentity, resolvedBroker, hostServer, unifiedSessionId);
                 return true;
             }
             else
             {
                 Log.Warning("RDS Session Disconnect: Operator={Operator}, Broker={Broker}, HostServer={HostServer}, UnifiedSessionId={UnifiedSessionId}, Result=Failure, Error={Error}",
-                    operatorIdentity, broker, hostServer, unifiedSessionId, stderr);
+                    operatorIdentity, resolvedBroker, hostServer, unifiedSessionId, stderr);
                 throw new InvalidOperationException(stderr);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "RDS Session Disconnect Exception: Operator={Operator}, Broker={Broker}, HostServer={HostServer}, UnifiedSessionId={UnifiedSessionId}",
-                operatorIdentity, broker, hostServer, unifiedSessionId);
+                operatorIdentity, resolvedBroker, hostServer, unifiedSessionId);
             throw;
         }
     }
@@ -328,14 +461,19 @@ try {{
         if (string.IsNullOrWhiteSpace(broker))
             return Array.Empty<RdsCollectionInfo>();
 
+        string resolvedBroker = await ResolveBrokerFqdnAsync(broker, cancellationToken).ConfigureAwait(false);
+        if (!resolvedBroker.Contains('.'))
+            throw new InvalidOperationException(string.Format(Strings.S.RdsBrokerFqdnRequiredError, broker.Trim()));
+
         string script = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
-    $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(broker)}' -ErrorAction Stop)
+    $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
     $list = @()
     foreach ($c in $collections) {{
-        $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker '{EscapePsString(broker)}' -CollectionName $c.CollectionName -UserProfileDisk -ErrorAction SilentlyContinue
+        $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker '{EscapePsString(resolvedBroker)}' -CollectionName $c.CollectionName -UserProfileDisk -ErrorAction SilentlyContinue
         $list += [PSCustomObject]@{{
             CollectionName = [string]$c.CollectionName
             UpdEnabled = [bool]($cfg -and $cfg.EnableUserProfileDisk)
@@ -344,14 +482,14 @@ try {{
     }}
     $list | ConvertTo-Json -Compress
 }} catch {{
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }}
 ";
         var (exitCode, stdout, stderr) = await RunPowerShellScriptAsync(script, 30000, cancellationToken).ConfigureAwait(false);
         if (exitCode != 0)
         {
-            throw new InvalidOperationException($"Failed to query session collections from broker '{broker}': {stderr}");
+            throw new InvalidOperationException($"Failed to query session collections from broker '{resolvedBroker}': {stderr}");
         }
 
         string trimmed = stdout.Trim();
@@ -413,6 +551,7 @@ try {{
         // Query disk capacity and partition geometry via PowerShell
         string script = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 try {{
     $mounted = Mount-DiskImage -ImagePath '{EscapePsString(vhdxPath)}' -Access ReadOnly -NoDriveLetter -PassThru -ErrorAction Stop
     $disk = $mounted | Get-Disk
@@ -428,7 +567,7 @@ try {{
     $result | ConvertTo-Json -Compress
 }} catch {{
     $null = Dismount-DiskImage -ImagePath '{EscapePsString(vhdxPath)}' -ErrorAction SilentlyContinue
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }}
 ";
@@ -699,6 +838,7 @@ try {{
 
             string resizePsScript = $@"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $mounted = $false
 try {{
     $img = Mount-DiskImage -ImagePath '{EscapePsString(vhdxPath)}' -Access ReadWrite -NoDriveLetter -PassThru -ErrorAction Stop
@@ -724,7 +864,7 @@ try {{
     if ($mounted) {{
         $null = Dismount-DiskImage -ImagePath '{EscapePsString(vhdxPath)}' -ErrorAction SilentlyContinue
     }}
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }}
 ";
@@ -829,7 +969,8 @@ try {{
         }
 
         string stdout = await stdoutTask.ConfigureAwait(false);
-        string stderr = await stderrTask.ConfigureAwait(false);
+        string rawStderr = await stderrTask.ConfigureAwait(false);
+        string stderr = SanitizePowerShellError(rawStderr);
 
         return (proc.ExitCode, stdout, stderr);
     }
