@@ -38,13 +38,18 @@ public sealed partial class RdsWorkspacePage : Page
         }
     }
 
-    private void TabSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    private async void TabSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         if (sender.SelectedItem == ProfileDisksSelectorItem)
         {
             ViewModel.SelectedTabIndex = 1;
             SessionsContainer.Visibility = Visibility.Collapsed;
             ProfileDisksContainer.Visibility = Visibility.Visible;
+
+            if (ViewModel.Collections.Count == 0)
+            {
+                await ViewModel.LoadCollectionsAsync();
+            }
         }
         else
         {
@@ -232,6 +237,28 @@ public sealed partial class RdsWorkspacePage : Page
             }
             catch { }
         }
+    }
+
+    private async void UserSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (args.ChosenSuggestion is AdUser user)
+        {
+            await ViewModel.SelectUserAsync(user);
+        }
+        else if (!string.IsNullOrWhiteSpace(args.QueryText))
+        {
+            await ViewModel.SearchAndSelectFirstUserAsync(args.QueryText);
+        }
+    }
+
+    public Visibility GetNoCollectionsWarningVisibility(int collectionsCount, bool isLoadingCollections)
+    {
+        return collectionsCount == 0 && !isLoadingCollections ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public Visibility GetUpdNotEnabledWarningVisibility(RdsCollectionInfo? selectedCollection)
+    {
+        return selectedCollection != null && !selectedCollection.UpdEnabled ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void ExpandDisk_Click(object sender, RoutedEventArgs e)

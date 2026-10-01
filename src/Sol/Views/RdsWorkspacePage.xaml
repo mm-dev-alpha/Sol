@@ -402,18 +402,20 @@
                           Padding="0,4" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20" MaxWidth="900" HorizontalAlignment="Stretch">
 
-                    <!-- User Search & Collection Selector Card -->
-                    <controls:SettingsCard Header="{x:Bind S.RdsTabProfileDisks}">
+                    <!-- Card 1: User Account -->
+                    <controls:SettingsCard Header="{x:Bind S.RdsUpdSelectUserHeader}"
+                                           Description="{x:Bind S.RdsUpdSelectUserDesc}">
                         <controls:SettingsCard.HeaderIcon>
-                            <FontIcon Glyph="&#xEDA2;"/>
+                            <FontIcon Glyph="&#xE77B;"/>
                         </controls:SettingsCard.HeaderIcon>
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <!-- AD User AutoSuggestBox -->
                             <AutoSuggestBox PlaceholderText="{x:Bind S.RdsUpdSearchUserPlaceholder}"
                                             Text="{x:Bind ViewModel.UserSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             ItemsSource="{x:Bind ViewModel.UserSuggestions, Mode=OneWay}"
                                             TextChanged="UserSearchBox_TextChanged"
                                             SuggestionChosen="UserSearchBox_SuggestionChosen"
+                                            QuerySubmitted="UserSearchBox_QuerySubmitted"
                                             Width="360"
                                             UpdateTextOnSelect="False">
                                 <AutoSuggestBox.QueryIcon>
@@ -432,14 +434,81 @@
                                 </AutoSuggestBox.ItemTemplate>
                             </AutoSuggestBox>
 
+                            <!-- Selected User Badge Pill -->
+                            <Border Visibility="{x:Bind ViewModel.HasSelectedUser, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                                    BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
+                                    BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                    <TextBlock Text="{x:Bind ViewModel.SelectedUser.SamAccountName, Mode=OneWay}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                               FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- Card 2: Session Collection -->
+                    <controls:SettingsCard Header="{x:Bind S.RdsUpdCollectionHeader}"
+                                           Description="{x:Bind S.RdsUpdCollectionDesc}">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xEDA2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <!-- Collection Dropdown -->
                             <ComboBox ItemsSource="{x:Bind ViewModel.Collections, Mode=OneWay}"
                                       SelectedItem="{x:Bind ViewModel.SelectedCollection, Mode=TwoWay}"
                                       DisplayMemberPath="CollectionName"
                                       PlaceholderText="{x:Bind S.RdsUpdSelectCollectionPlaceholder}"
-                                      Width="240"/>
+                                      Width="280"/>
+                            <!-- Loading ProgressRing -->
+                            <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingCollections, Mode=OneWay}"
+                                          Visibility="{x:Bind ViewModel.IsLoadingCollections, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                          Width="16" Height="16"/>
+                            <!-- Refresh Button -->
+                            <Button Style="{StaticResource SubtleIconButtonStyle}"
+                                    Command="{x:Bind ViewModel.LoadCollectionsCommand}"
+                                    ToolTipService.ToolTip="{x:Bind S.RdsUpdRefreshCollectionsBtn}">
+                                <FontIcon Glyph="&#xE72C;"/>
+                            </Button>
                         </StackPanel>
                     </controls:SettingsCard>
+
+                    <!-- Warning: No Collections Found -->
+                    <Border Visibility="{x:Bind GetNoCollectionsWarningVisibility(ViewModel.Collections.Count, ViewModel.IsLoadingCollections), Mode=OneWay}"
+                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                            BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE7BA;" FontSize="20" Foreground="{ThemeResource SystemFillColorCautionBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind S.RdsUpdNoCollectionsFound}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Button Grid.Column="2" Content="{x:Bind S.RdsSessionsRetryBtn}"
+                                    Command="{x:Bind ViewModel.LoadCollectionsCommand}"
+                                    Style="{ThemeResource AccentButtonStyle}"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Warning: UPD Not Configured for Selected Collection -->
+                    <Border Visibility="{x:Bind GetUpdNotEnabledWarningVisibility(ViewModel.SelectedCollection), Mode=OneWay}"
+                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                            BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE7BA;" FontSize="20" Foreground="{ThemeResource SystemFillColorCautionBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind S.RdsUpdNotEnabledWarning}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
 
                     <!-- Conflicting Session Warning Card -->
                     <Border Visibility="{x:Bind ViewModel.HasConflictingSessions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"

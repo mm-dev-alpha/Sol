@@ -250,7 +250,8 @@ public partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        if (_rdsService == null)
+        var rdsService = _rdsService;
+        if (rdsService == null)
         {
             RdsTestStatusMessage = Strings.S.RdsConnectionFailedPrompt;
             RdsTestStatusSeverity = InfoBarSeverity.Error;
@@ -262,7 +263,19 @@ public partial class SettingsViewModel : ObservableObject
         IsRdsTestStatusOpen = false;
         try
         {
-            bool success = await _rdsService.TestBrokerConnectionAsync(broker);
+            if (!broker.Contains('.'))
+            {
+                string resolved = await rdsService.ResolveBrokerFqdnAsync(broker);
+                if (resolved.Contains('.'))
+                {
+                    RdsConnectionBroker = resolved;
+                    _settings.RdsConnectionBroker = resolved;
+                    _settings.Save();
+                    broker = resolved;
+                }
+            }
+
+            bool success = await rdsService.TestBrokerConnectionAsync(broker);
             if (success)
             {
                 RdsTestStatusMessage = Strings.S.RdsConnectionSuccessPrompt;

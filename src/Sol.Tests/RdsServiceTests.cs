@@ -327,6 +327,27 @@ public class RdsServiceTests : IDisposable
         Assert.False(msgOff.Value);
     }
 
+    [Fact]
+    public async Task SettingsViewModel_TestRdsConnection_AutoResolvesShortBrokerToFqdn()
+    {
+        var mockSettings = new MockSettingsService
+        {
+            RdsConnectionBroker = "rds-broker-01"
+        };
+        var mockRds = new MockRdsService();
+        var jira = new JiraService(mockSettings);
+        var vm = new SettingsViewModel(mockSettings, jira, null, mockRds);
+
+        Assert.Equal("rds-broker-01", vm.RdsConnectionBroker);
+
+        await vm.TestRdsConnectionCommand.ExecuteAsync(null);
+
+        Assert.Equal("rds-broker-01.corp.local", vm.RdsConnectionBroker);
+        Assert.Equal("rds-broker-01.corp.local", mockSettings.RdsConnectionBroker);
+        Assert.True(vm.IsRdsTestStatusOpen);
+        Assert.Equal(Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success, vm.RdsTestStatusSeverity);
+    }
+
     // --- ViewModel Tests ---
 
     [Fact]
