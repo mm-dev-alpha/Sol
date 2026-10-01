@@ -271,6 +271,16 @@ public sealed partial class RdsWorkspacePage : Page
         return selectedCollection != null && !selectedCollection.UpdEnabled && !isLoadingCollectionConfig ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private Visibility GetInspectingDiskLoadingVisibility(bool hasUser, bool isLoading)
+    {
+        return (hasUser && isLoading) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private Visibility GetDiskDetailsVisibility(bool hasItem, bool isLoading)
+    {
+        return (hasItem && !isLoading) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private async void ExpandDisk_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.DiskLayout == null || ViewModel.SelectedUser == null) return;

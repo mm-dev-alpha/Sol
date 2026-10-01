@@ -448,7 +448,7 @@
                     <controls:SettingsCard Header="{x:Bind S.RdsUpdCollectionHeader}"
                                            Description="{x:Bind S.RdsUpdCollectionDesc}">
                         <controls:SettingsCard.HeaderIcon>
-                            <FontIcon Glyph="&#xEDA2;"/>
+                            <FontIcon Glyph="&#xEE49;"/>
                         </controls:SettingsCard.HeaderIcon>
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <!-- Collection Dropdown -->
@@ -538,10 +538,17 @@
                         </Grid>
                     </Border>
 
+                    <!-- Loading State: Inspecting User Profile Disk -->
+                    <controls:SettingsCard Header="{x:Bind S.RdsUpdInspectingDiskTitle}"
+                                           Description="{x:Bind S.RdsUpdInspectingDiskDesc}"
+                                           Visibility="{x:Bind GetInspectingDiskLoadingVisibility(ViewModel.HasSelectedUser, ViewModel.IsDiskDetailsLoading), Mode=OneWay}">
+                        <ProgressRing IsActive="True" Width="16" Height="16"/>
+                    </controls:SettingsCard>
+
                     <!-- Disk Inspection Card -->
                     <controls:SettingsExpander Header="{x:Bind S.RdsUpdDiskInfoTitle}"
                                                IsExpanded="True"
-                                               Visibility="{x:Bind ViewModel.HasDisk, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                               Visibility="{x:Bind GetDiskDetailsVisibility(ViewModel.HasDisk, ViewModel.IsDiskDetailsLoading), Mode=OneWay}">
                         <controls:SettingsExpander.HeaderIcon>
                             <FontIcon Glyph="&#xEDA2;"/>
                         </controls:SettingsExpander.HeaderIcon>
@@ -587,7 +594,7 @@
                     </controls:SettingsExpander>
 
                     <!-- Disk Missing Notice -->
-                    <Border Visibility="{x:Bind ViewModel.IsDiskMissing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    <Border Visibility="{x:Bind GetDiskDetailsVisibility(ViewModel.IsDiskMissing, ViewModel.IsDiskDetailsLoading), Mode=OneWay}"
                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="20">
@@ -600,9 +607,9 @@
 
                     <!-- Expand Disk Configuration Card -->
                     <controls:SettingsCard Header="{x:Bind S.RdsUpdExpandHeader}"
-                                           Visibility="{x:Bind ViewModel.HasDisk, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                           Visibility="{x:Bind GetDiskDetailsVisibility(ViewModel.HasDisk, ViewModel.IsDiskDetailsLoading), Mode=OneWay}">
                         <controls:SettingsCard.HeaderIcon>
-                            <FontIcon Glyph="&#xE8B9;"/>
+                            <FontIcon Glyph="&#xE740;"/>
                         </controls:SettingsCard.HeaderIcon>
 
                         <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
