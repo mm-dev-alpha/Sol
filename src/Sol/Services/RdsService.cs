@@ -91,6 +91,17 @@ public class RdsService : IRdsService
         return System.Text.RegularExpressions.Regex.Replace(trimmed, @"<[^>]+>", " ").Trim();
     }
 
+    internal static bool IsDiskpartExpansionSuccessful(int exitCode, string dpOut, string dpErr)
+    {
+        if (exitCode != 0)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(dpErr))
+            return false;
+
+        return true;
+    }
+
     /// <inheritdoc />
     public async Task<string> ResolveBrokerFqdnAsync(string broker, CancellationToken cancellationToken = default)
     {
@@ -842,118 +853,125 @@ try {{
             }
 
             // Phase 2: Expanding Virtual Disk (diskpart)
-            progress?.Report(RdsExpansionStep.ExpandingVirtualDisk);
-
-            string? mappedDriveLetter = null;
-            string diskpartVhdxPath = vhdxPath;
-
-            if (vhdxPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+            if (targetMB > currentMB)
             {
-                char? letter = GetAvailableDriveLetter();
-                string dirPath = Path.GetDirectoryName(vhdxPath) ?? string.Empty;
-                string fileName = Path.GetFileName(vhdxPath);
+                progress?.Report(RdsExpansionStep.ExpandingVirtualDisk);
 
-                if (letter != null && !string.IsNullOrEmpty(dirPath) && !string.IsNullOrEmpty(fileName))
+                string? mappedDriveLetter = null;
+                string diskpartVhdxPath = vhdxPath;
+
+                if (vhdxPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
                 {
-                    try
+                    char? letter = GetAvailableDriveLetter();
+                    string dirPath = Path.GetDirectoryName(vhdxPath) ?? string.Empty;
+                    string fileName = Path.GetFileName(vhdxPath);
+
+                    if (letter != null && !string.IsNullOrEmpty(dirPath) && !string.IsNullOrEmpty(fileName))
                     {
-                        var mapPsi = new ProcessStartInfo
+                        try
                         {
-                            FileName = "net.exe",
-                            Arguments = $"use {letter}: \"{dirPath}\" /persistent:no",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true
-                        };
-                        using var mapProc = Process.Start(mapPsi);
-                        if (mapProc != null)
-                        {
-                            await mapProc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-                            if (mapProc.ExitCode == 0)
+                            var mapPsi = new ProcessStartInfo
                             {
-                                mappedDriveLetter = $"{letter}:";
-                                diskpartVhdxPath = Path.Combine(mappedDriveLetter, fileName);
+                                FileName = "net.exe",
+                                Arguments = $"use {letter}: \"{dirPath}\" /persistent:no",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            };
+                            using var mapProc = Process.Start(mapPsi);
+                            if (mapProc != null)
+                            {
+                                await mapProc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+                                if (mapProc.ExitCode == 0)
+                                {
+                                    mappedDriveLetter = $"{letter}:";
+                                    diskpartVhdxPath = Path.Combine(mappedDriveLetter, fileName);
+                                }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        AppLog.Write($"RdsService: Temporary net use mapping failed: {ex.Message}");
-                    }
-                }
-            }
-
-            string diskpartScript = $@"select vdisk file=""{diskpartVhdxPath}""{Environment.NewLine}expand vdisk maximum={targetMB}{Environment.NewLine}";
-            string tempScriptPath = Path.Combine(Path.GetTempPath(), $"sol_diskpart_{Guid.NewGuid():N}.txt");
-            await File.WriteAllTextAsync(tempScriptPath, diskpartScript, cancellationToken).ConfigureAwait(false);
-
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "diskpart.exe",
-                    Arguments = $"/s \"{tempScriptPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
-
-                using var proc = Process.Start(psi);
-                if (proc == null)
-                {
-                    result.ErrorMessage = "Failed to launch diskpart.exe.";
-                    return result;
-                }
-
-                using var dpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var stdoutTask = proc.StandardOutput.ReadToEndAsync(dpCts.Token);
-                var stderrTask = proc.StandardError.ReadToEndAsync(dpCts.Token);
-                var exitTask = proc.WaitForExitAsync(dpCts.Token);
-
-                var completed = await Task.WhenAny(exitTask, Task.Delay(60000, dpCts.Token)).ConfigureAwait(false);
-                if (completed != exitTask)
-                {
-                    try { proc.Kill(entireProcessTree: true); } catch { }
-                    result.ErrorMessage = "diskpart.exe execution timed out after 60 seconds.";
-                    return result;
-                }
-
-                string dpOut = await stdoutTask.ConfigureAwait(false);
-                string dpErr = await stderrTask.ConfigureAwait(false);
-
-                if (proc.ExitCode != 0 || !dpOut.Contains("successfully expanded", StringComparison.OrdinalIgnoreCase))
-                {
-                    result.ErrorMessage = $"diskpart failed to expand VHDX (ExitCode {proc.ExitCode}): {dpOut} {dpErr}";
-                    return result;
-                }
-            }
-            finally
-            {
-                try { File.Delete(tempScriptPath); } catch { }
-
-                if (mappedDriveLetter != null)
-                {
-                    try
-                    {
-                        var unmapPsi = new ProcessStartInfo
+                        catch (Exception ex)
                         {
-                            FileName = "net.exe",
-                            Arguments = $"use {mappedDriveLetter} /delete /y",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true
-                        };
-                        using var unmapProc = Process.Start(unmapPsi);
-                        if (unmapProc != null)
-                        {
-                            await unmapProc.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                            AppLog.Write($"RdsService: Temporary net use mapping failed: {ex.Message}");
                         }
                     }
-                    catch { }
                 }
+
+                string diskpartScript = $@"select vdisk file=""{diskpartVhdxPath}""{Environment.NewLine}expand vdisk maximum={targetMB}{Environment.NewLine}";
+                string tempScriptPath = Path.Combine(Path.GetTempPath(), $"sol_diskpart_{Guid.NewGuid():N}.txt");
+                await File.WriteAllTextAsync(tempScriptPath, diskpartScript, cancellationToken).ConfigureAwait(false);
+
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "diskpart.exe",
+                        Arguments = $"/s \"{tempScriptPath}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
+                    using var proc = Process.Start(psi);
+                    if (proc == null)
+                    {
+                        result.ErrorMessage = "Failed to launch diskpart.exe.";
+                        return result;
+                    }
+
+                    using var dpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    var stdoutTask = proc.StandardOutput.ReadToEndAsync(dpCts.Token);
+                    var stderrTask = proc.StandardError.ReadToEndAsync(dpCts.Token);
+                    var exitTask = proc.WaitForExitAsync(dpCts.Token);
+
+                    var completed = await Task.WhenAny(exitTask, Task.Delay(60000, dpCts.Token)).ConfigureAwait(false);
+                    if (completed != exitTask)
+                    {
+                        try { proc.Kill(entireProcessTree: true); } catch { }
+                        result.ErrorMessage = "diskpart.exe execution timed out after 60 seconds.";
+                        return result;
+                    }
+
+                    string dpOut = await stdoutTask.ConfigureAwait(false);
+                    string dpErr = await stderrTask.ConfigureAwait(false);
+
+                    if (!IsDiskpartExpansionSuccessful(proc.ExitCode, dpOut, dpErr))
+                    {
+                        result.ErrorMessage = $"diskpart failed to expand VHDX (ExitCode {proc.ExitCode}): {dpOut} {dpErr}";
+                        return result;
+                    }
+                }
+                finally
+                {
+                    try { File.Delete(tempScriptPath); } catch { }
+
+                    if (mappedDriveLetter != null)
+                    {
+                        try
+                        {
+                            var unmapPsi = new ProcessStartInfo
+                            {
+                                FileName = "net.exe",
+                                Arguments = $"use {mappedDriveLetter} /delete /y",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            };
+                            using var unmapProc = Process.Start(unmapPsi);
+                            if (unmapProc != null)
+                            {
+                                await unmapProc.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            else
+            {
+                Log.Information("VHDX container capacity ({CurrentMB} MB) is already at or above target capacity ({TargetMB} MB). Proceeding directly to partition extension.", currentMB, targetMB);
             }
 
             // Phase 3: Resizing NTFS Partition

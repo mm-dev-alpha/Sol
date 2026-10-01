@@ -248,6 +248,17 @@ public class RdsServiceTests : IDisposable
         Assert.Equal(string.Empty, RdsService.SanitizePowerShellError("   "));
     }
 
+    [Theory]
+    [InlineData(0, "Die Datei fr virtuelle Datentr„ger wurde von DiskPart erfolgreich ausgew„hlt.\r\n\r\n0 Prozent bearbeitet\r\n100 Prozent bearbeitet\r\n\r\nDie Datei fr virtuelle Datentr„ger wurde von DiskPart erfolgreich expandiert.", "", true)]
+    [InlineData(0, "DiskPart successfully selected the virtual disk file.\r\n\r\n0 percent completed\r\n100 percent completed\r\n\r\nDiskPart successfully expanded the virtual disk file.", "", true)]
+    [InlineData(1, "DiskPart hat einen Fehler festgestellt: Zugriff verweigert.", "", false)]
+    [InlineData(0, "", "Fatal disk error", false)]
+    public void RdsService_IsDiskpartExpansionSuccessful_EvaluatesCorrectly(int exitCode, string stdout, string stderr, bool expected)
+    {
+        bool actual = RdsService.IsDiskpartExpansionSuccessful(exitCode, stdout, stderr);
+        Assert.Equal(expected, actual);
+    }
+
     [Fact]
     public async Task ResolveBrokerFqdnAsync_KeepsExistingFqdn()
     {
