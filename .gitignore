@@ -470,13 +470,13 @@ $RECYCLE.BIN/
 .audit/
 .planning/
 .antigravity/
+.superpowers/
 skills-lock.json
 brag-output/
 docs/
 GEMINI.md
 ARCHITECTURAL_AUDIT.md
 .editorconfig
-RELEASE_NOTES*.md
 
 # Dev scripts (local only)
 scripts/
