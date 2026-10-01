@@ -25,6 +25,7 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
     private readonly INavigationService _navigationService;
 
     private CancellationTokenSource? _searchCts;
+    private int _configLoadCounter;
     private readonly System.Timers.Timer _filterDebounceTimer;
 
     // --- Navigation & Header ---
@@ -468,6 +469,11 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
             {
                 SelectedCollection = Collections[0];
             }
+            else if (SelectedCollection != null)
+            {
+                SelectedCollection.IsConfigurationLoaded = false;
+                _ = LoadSelectedCollectionConfigAsync(SelectedCollection);
+            }
         }
         catch (Exception ex)
         {
@@ -486,7 +492,7 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCollectionChanged(RdsCollectionInfo? value)
     {
-        if (value != null && string.IsNullOrEmpty(value.UpdDiskPath) && !value.UpdEnabled)
+        if (value != null && !value.IsConfigurationLoaded)
         {
             _ = LoadSelectedCollectionConfigAsync(value);
         }
@@ -498,14 +504,23 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
 
     public async Task LoadSelectedCollectionConfigAsync(RdsCollectionInfo collection)
     {
-        if (collection == null || !HasBroker) return;
+        if (collection == null || !HasBroker || collection.IsConfigurationLoaded) return;
 
+        int loadId = Interlocked.Increment(ref _configLoadCounter);
         IsLoadingCollectionConfig = true;
         try
         {
             var cfg = await _rdsService.GetCollectionConfigurationAsync(ConnectionBroker, collection.CollectionName);
+            if (loadId != _configLoadCounter || collection != SelectedCollection) return;
+
             collection.UpdEnabled = cfg.UpdEnabled;
             collection.UpdDiskPath = cfg.UpdDiskPath;
+            collection.IsConfigurationLoaded = true;
+
+            if (!string.IsNullOrEmpty(cfg.ErrorMessage))
+            {
+                AppLog.Write($"RdsWorkspaceViewModel.LoadSelectedCollectionConfigAsync error for '{collection.CollectionName}': {cfg.ErrorMessage}");
+            }
         }
         catch (Exception ex)
         {
@@ -513,9 +528,12 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            IsLoadingCollectionConfig = false;
-            OnPropertyChanged(nameof(SelectedCollection));
-            await InspectSelectedUserProfileDiskAsync();
+            if (loadId == _configLoadCounter)
+            {
+                IsLoadingCollectionConfig = false;
+                OnPropertyChanged(nameof(SelectedCollection));
+                await InspectSelectedUserProfileDiskAsync();
+            }
         }
     }
 

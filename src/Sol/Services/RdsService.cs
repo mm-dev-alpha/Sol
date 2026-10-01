@@ -301,33 +301,9 @@ try {{
         }
 
         string trimmed = stdout.Trim();
-        if (string.IsNullOrWhiteSpace(trimmed) || trimmed == "null")
-            return Array.Empty<RdsSessionItem>();
-
         try
         {
-            List<RdsSessionItem> results = new();
-            if (trimmed.StartsWith("["))
-            {
-                var parsed = JsonSerializer.Deserialize<List<RdsSessionRawDto>>(trimmed, JsonOptions);
-                if (parsed != null)
-                {
-                    results.AddRange(parsed.Select(MapSessionRawToModel));
-                }
-            }
-            else if (trimmed.StartsWith("{"))
-            {
-                var single = JsonSerializer.Deserialize<RdsSessionRawDto>(trimmed, JsonOptions);
-                if (single != null)
-                {
-                    results.Add(MapSessionRawToModel(single));
-                }
-            }
-
-            return results
-                .OrderByDescending(s => s.IsActive)
-                .ThenBy(s => s.Username)
-                .ToList();
+            return ParseSessionsFromJson(trimmed);
         }
         catch (Exception ex)
         {
@@ -594,16 +570,26 @@ try {{
     $cName = '{EscapePsString(collectionName.Trim())}'
 
     $cfg = $null
+    $lastErr = $null
     try {{
         $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $broker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
     }} catch {{
+        $lastErr = $_.Exception.Message
         try {{
             $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $shortBroker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
         }} catch {{
+            $lastErr = $_.Exception.Message
             try {{
-                $cfg = Get-RDSessionCollectionConfiguration -CollectionName $cName -UserProfileDisk -ErrorAction SilentlyContinue
-            }} catch {{ }}
+                $cfg = Get-RDSessionCollectionConfiguration -CollectionName $cName -UserProfileDisk -ErrorAction Stop
+            }} catch {{
+                $lastErr = $_.Exception.Message
+            }}
         }}
+    }}
+
+    if ($cfg -eq $null -and $lastErr) {{
+        [Console]::Error.WriteLine($lastErr)
+        exit 1
     }}
 
     $updEnabled = $false
@@ -1151,6 +1137,35 @@ try {{
         }
     }
 
+    internal static List<RdsSessionItem> ParseSessionsFromJson(string trimmed)
+    {
+        if (string.IsNullOrWhiteSpace(trimmed) || trimmed == "null")
+            return new List<RdsSessionItem>();
+
+        List<RdsSessionItem> results = new();
+        if (trimmed.StartsWith("["))
+        {
+            var parsed = JsonSerializer.Deserialize<List<RdsSessionRawDto>>(trimmed, JsonOptions);
+            if (parsed != null)
+            {
+                results.AddRange(parsed.Select(MapSessionRawToModel));
+            }
+        }
+        else if (trimmed.StartsWith("{"))
+        {
+            var single = JsonSerializer.Deserialize<RdsSessionRawDto>(trimmed, JsonOptions);
+            if (single != null)
+            {
+                results.Add(MapSessionRawToModel(single));
+            }
+        }
+
+        return results
+            .OrderByDescending(s => s.IsActive)
+            .ThenBy(s => s.Username)
+            .ToList();
+    }
+
     private static RdsSessionItem MapSessionRawToModel(RdsSessionRawDto dto)
     {
         DateTime? dt = null;
@@ -1169,6 +1184,7 @@ try {{
             SessionId = dto.SessionId,
             State = dto.State ?? string.Empty,
             HostServer = dto.HostServer ?? string.Empty,
+            CollectionName = dto.CollectionName ?? string.Empty,
             UnifiedSessionId = dto.UnifiedSessionId,
             LogonTime = dt,
             FormattedLogonTime = dt?.ToString("yyyy-MM-dd HH:mm") ?? (dto.LogonTime ?? string.Empty)
@@ -1182,6 +1198,7 @@ try {{
         public int SessionId { get; set; }
         public string? State { get; set; }
         public string? HostServer { get; set; }
+        public string? CollectionName { get; set; }
         public int UnifiedSessionId { get; set; }
         public string? LogonTime { get; set; }
     }

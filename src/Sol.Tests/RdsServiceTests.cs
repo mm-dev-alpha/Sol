@@ -662,6 +662,90 @@ public class RdsServiceTests : IDisposable
         vm.Dispose(); // Should stop timer and cancel CTS without throwing
     }
 
+    [Fact]
+    public void RdsService_ParseSessionsFromJson_MapsCollectionNameAndFieldsCorrectly()
+    {
+        string json = @"[
+            {
+                ""Username"": ""alice"",
+                ""Domain"": ""CORP"",
+                ""SessionId"": 1,
+                ""State"": ""STATE_ACTIVE"",
+                ""HostServer"": ""RDSH-01.corp.local"",
+                ""UnifiedSessionId"": 101,
+                ""LogonTime"": ""2026-10-01T08:30:00"",
+                ""CollectionName"": ""FinanceCollection""
+            },
+            {
+                ""Username"": ""bob"",
+                ""Domain"": ""CORP"",
+                ""SessionId"": 2,
+                ""State"": ""STATE_CONNECTED"",
+                ""HostServer"": ""RDSH-02.corp.local"",
+                ""UnifiedSessionId"": 102,
+                ""LogonTime"": ""2026-10-01T09:15:00"",
+                ""CollectionName"": ""HRCollection""
+            }
+        ]";
+
+        var sessions = RdsService.ParseSessionsFromJson(json);
+
+        Assert.Equal(2, sessions.Count);
+        Assert.Equal("alice", sessions[0].Username);
+        Assert.Equal("FinanceCollection", sessions[0].CollectionName);
+        Assert.True(sessions[0].IsActive);
+
+        Assert.Equal("bob", sessions[1].Username);
+        Assert.Equal("HRCollection", sessions[1].CollectionName);
+        Assert.True(sessions[1].IsConnected);
+    }
+
+    [Fact]
+    public async Task RdsWorkspaceViewModel_LoadSelectedCollectionConfig_DoesNotRepeatQueryWhenAlreadyLoaded()
+    {
+        int queryCount = 0;
+        var mockRds = new MockRdsService
+        {
+            GetCollectionConfigFunc = (broker, name) =>
+            {
+                queryCount++;
+                return Task.FromResult(new RdsCollectionConfigurationInfo
+                {
+                    CollectionName = name,
+                    UpdEnabled = false,
+                    UpdDiskPath = string.Empty
+                });
+            }
+        };
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService { RdsConnectionBroker = "broker.corp.local" };
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+        try
+        {
+            var coll = new RdsCollectionInfo { CollectionName = "EmptyCollection" };
+            vm.Collections.Add(coll);
+
+            // Selecting un-configured collection triggers load
+            vm.SelectedCollection = coll;
+            await vm.LoadSelectedCollectionConfigAsync(coll);
+
+            Assert.Equal(1, queryCount);
+            Assert.True(coll.IsConfigurationLoaded);
+
+            // Re-selecting should not trigger redundant query
+            vm.SelectedCollection = null;
+            vm.SelectedCollection = coll;
+
+            Assert.Equal(1, queryCount);
+        }
+        finally
+        {
+            vm.Dispose();
+        }
+    }
+
     // --- Mock Implementations for VM Testing ---
 
     private class MockRdsService : IRdsService

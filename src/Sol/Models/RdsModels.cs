@@ -63,6 +63,7 @@ public sealed class RdsCollectionInfo
     public string CollectionName { get; set; } = string.Empty;
     public bool UpdEnabled { get; set; }
     public string UpdDiskPath { get; set; } = string.Empty;
+    public bool IsConfigurationLoaded { get; set; }
 }
 
 /// <summary>
