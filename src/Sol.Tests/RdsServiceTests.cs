@@ -102,6 +102,21 @@ public class RdsServiceTests : IDisposable
         Assert.Equal(15.0, result.FinalPartitionGiB);
     }
 
+    [Fact]
+    public void Strings_RdsExtendedStrings_AreDefinedAndFormatted()
+    {
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsBrokerFqdnRequiredError));
+        Assert.Contains("{0}", Strings.S.RdsBrokerFqdnRequiredError);
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsSessionsConnectedBadgeFormat));
+        Assert.Contains("{0}", Strings.S.RdsSessionsConnectedBadgeFormat);
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdSelectUserHeader));
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdCollectionHeader));
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdNoCollectionsFound));
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdNotEnabledWarning));
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsSessionsSortUsername));
+        Assert.DoesNotContain("or hostname", Strings.S.RdsSettingsBrokerDesc, StringComparison.OrdinalIgnoreCase);
+    }
+
     // --- Service Tests ---
 
     [Fact]
