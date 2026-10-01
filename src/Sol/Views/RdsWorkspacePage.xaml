@@ -121,6 +121,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -154,6 +155,16 @@
                                        Foreground="{ThemeResource SystemFillColorSuccessBrush}" FontWeight="SemiBold"/>
                         </Border>
 
+                        <!-- Connected Count Pill -->
+                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                BorderThickness="1" CornerRadius="12" Padding="8,3"
+                                Visibility="{x:Bind ViewModel.ConnectedSessionsBadgeVisibility, Mode=OneWay}">
+                            <TextBlock Text="{x:Bind ViewModel.ConnectedSessionsBadge, Mode=OneWay}" 
+                                       Style="{ThemeResource CaptionTextBlockStyle}" 
+                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold"/>
+                        </Border>
+
                         <!-- Disconnected Count Pill -->
                         <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                                 BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
@@ -169,7 +180,7 @@
                         <Button Click="DisconnectSelected_Click"
                                 Style="{ThemeResource DefaultButtonStyle}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <FontIcon Glyph="&#xE81E;" FontSize="12"/>
+                                <FontIcon Glyph="&#xEECA;" FontSize="12"/>
                                 <TextBlock Text="{x:Bind S.RdsSessionsDisconnectBtn}"/>
                             </StackPanel>
                         </Button>
@@ -189,31 +200,82 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- Error State Card -->
+                <controls:SettingsCard Grid.Row="1"
+                                       Header="{x:Bind S.RdsSessionsErrorCardTitle}"
+                                       Description="{x:Bind ViewModel.SessionsErrorMessage, Mode=OneWay}"
+                                       Visibility="{x:Bind ViewModel.HasSessionsError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                       Margin="0,0,0,12">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE783;" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <Button Content="{x:Bind S.RdsSessionsRetryBtn}"
+                            Command="{x:Bind ViewModel.RefreshSessionsCommand}"
+                            Style="{ThemeResource AccentButtonStyle}"/>
+                </controls:SettingsCard>
+
                 <!-- Column Headers -->
-                <Border Grid.Row="1"
+                <Border Grid.Row="2"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1" CornerRadius="6" Padding="12,6" Margin="0,0,0,6">
+                        BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,0,6">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="130"/>
-                            <ColumnDefinition Width="1.8*"/>
-                            <ColumnDefinition Width="110"/>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="100"/>
                             <ColumnDefinition Width="160"/>
                             <ColumnDefinition Width="90"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{x:Bind S.RdsSessionsColUsername}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                        <TextBlock Grid.Column="1" Text="{x:Bind S.RdsSessionsColState}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                        <TextBlock Grid.Column="2" Text="{x:Bind S.RdsSessionsColServer}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                        <TextBlock Grid.Column="3" Text="{x:Bind S.RdsSessionsColSessionId}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                        <TextBlock Grid.Column="4" Text="{x:Bind S.RdsSessionsColLogonTime}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
+
+                        <!-- Col 0: Username -->
+                        <Button Grid.Column="0" Style="{StaticResource SubtleIconButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="SortColumn_Click" Tag="Username" Padding="4,2" ToolTipService.ToolTip="{x:Bind S.RdsSessionsSortUsername}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{x:Bind S.RdsSessionsColUsername}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SortIcon_Username" Text="" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Col 1: State -->
+                        <Button Grid.Column="1" Style="{StaticResource SubtleIconButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="SortColumn_Click" Tag="State" Padding="4,2" ToolTipService.ToolTip="{x:Bind S.RdsSessionsSortState}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{x:Bind S.RdsSessionsColState}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SortIcon_State" Text="" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Col 2: Host Server -->
+                        <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="SortColumn_Click" Tag="HostServer" Padding="4,2" ToolTipService.ToolTip="{x:Bind S.RdsSessionsSortServer}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{x:Bind S.RdsSessionsColServer}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SortIcon_HostServer" Text="" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Col 3: Session ID -->
+                        <Button Grid.Column="3" Style="{StaticResource SubtleIconButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="SortColumn_Click" Tag="SessionId" Padding="4,2" ToolTipService.ToolTip="{x:Bind S.RdsSessionsSortId}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{x:Bind S.RdsSessionsColSessionId}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SortIcon_SessionId" Text="" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Col 4: Logon Time -->
+                        <Button Grid.Column="4" Style="{StaticResource SubtleIconButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="SortColumn_Click" Tag="LogonTime" Padding="4,2" ToolTipService.ToolTip="{x:Bind S.RdsSessionsSortLogon}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{x:Bind S.RdsSessionsColLogonTime}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SortIcon_LogonTime" Text="" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Col 5: Actions Header -->
                         <TextBlock Grid.Column="5" Text="" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}" HorizontalAlignment="Center"/>
                     </Grid>
                 </Border>
 
                 <!-- Sessions ListView -->
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="3">
                     <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1" CornerRadius="8">
@@ -223,14 +285,21 @@
                                   SelectionMode="Extended"
                                   DoubleTapped="SessionsListView_DoubleTapped"
                                   Padding="0,4">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Setter Property="MinHeight" Value="42"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="models:RdsSessionItem">
-                                    <Grid ColumnSpacing="8" Padding="12,6" HorizontalAlignment="Stretch">
+                                    <Grid ColumnSpacing="8" HorizontalAlignment="Stretch">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="2*"/>
-                                            <ColumnDefinition Width="130"/>
-                                            <ColumnDefinition Width="1.8*"/>
-                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="100"/>
                                             <ColumnDefinition Width="160"/>
                                             <ColumnDefinition Width="90"/>
                                         </Grid.ColumnDefinitions>
@@ -246,17 +315,36 @@
 
                                         <!-- Col 1: Status Pill -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Active State Pill -->
                                             <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
                                                     BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
                                                     BorderThickness="1" CornerRadius="10" Padding="8,2"
                                                     Visibility="{x:Bind IsActive, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                <TextBlock Text="{x:Bind State}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{x:Bind DisplayState}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" FontWeight="SemiBold"/>
                                             </Border>
+
+                                            <!-- Connected State Pill -->
+                                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                    BorderBrush="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                    BorderThickness="1" CornerRadius="10" Padding="8,2"
+                                                    Visibility="{x:Bind IsConnected, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <TextBlock Text="{x:Bind DisplayState}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+
+                                            <!-- Disconnected State Pill -->
                                             <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                                                     BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
                                                     BorderThickness="1" CornerRadius="10" Padding="8,2"
                                                     Visibility="{x:Bind IsDisconnected, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                <TextBlock Text="{x:Bind State}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{x:Bind DisplayState}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+
+                                            <!-- Other / Unknown State Pill -->
+                                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                    BorderThickness="1" CornerRadius="10" Padding="8,2"
+                                                    Visibility="{x:Bind IsOtherState, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <TextBlock Text="{x:Bind DisplayState}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontWeight="SemiBold"/>
                                             </Border>
                                         </StackPanel>
 
@@ -277,7 +365,7 @@
                                             <Button Tag="{x:Bind}" Click="RowDisconnect_Click"
                                                     Style="{StaticResource SubtleIconButtonStyle}"
                                                     ToolTipService.ToolTip="{x:Bind local:Strings.S.RdsSessionsDisconnectBtn}">
-                                                <FontIcon Glyph="&#xE81E;" FontSize="12"/>
+                                                <FontIcon Glyph="&#xEECA;" FontSize="12"/>
                                             </Button>
                                             <Button Tag="{x:Bind}" Click="RowLogoff_Click"
                                                     Style="{StaticResource SubtleIconButtonStyle}"

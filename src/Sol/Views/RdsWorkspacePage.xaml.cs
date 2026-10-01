@@ -21,6 +21,7 @@ public sealed partial class RdsWorkspacePage : Page
     {
         ViewModel = App.GetService<RdsWorkspaceViewModel>();
         this.InitializeComponent();
+        UpdateSortIndicators();
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -29,6 +30,7 @@ public sealed partial class RdsWorkspacePage : Page
         try
         {
             await ViewModel.InitializeAsync();
+            UpdateSortIndicators();
         }
         catch (Exception ex)
         {
@@ -168,7 +170,7 @@ public sealed partial class RdsWorkspacePage : Page
             stack.Children.Add(new TextBlock { Text = $"{S.RdsSessionsColDomain}: {s.Domain}" });
             stack.Children.Add(new TextBlock { Text = $"{S.RdsSessionsColServer}: {s.HostServer}" });
             stack.Children.Add(new TextBlock { Text = $"{S.RdsSessionsColSessionId}: {s.SessionId} ({S.RdsUnifiedSessionIdLabel}: {s.UnifiedSessionId})" });
-            stack.Children.Add(new TextBlock { Text = $"{S.RdsSessionsColState}: {s.State}" });
+            stack.Children.Add(new TextBlock { Text = $"{S.RdsSessionsColState}: {s.DisplayState}" });
             stack.Children.Add(new TextBlock { Text = $"{S.RdsSessionsColLogonTime}: {s.FormattedLogonTime}" });
 
             var dialog = new ContentDialog
@@ -182,6 +184,29 @@ public sealed partial class RdsWorkspacePage : Page
 
             await dialog.ShowAsync();
         }
+    }
+
+    private void SortColumn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string column)
+        {
+            ViewModel.ToggleSessionSortCommand.Execute(column);
+            UpdateSortIndicators();
+        }
+    }
+
+    private void UpdateSortIndicators()
+    {
+        SortIcon_Username.Text = string.Equals(ViewModel.SessionSortColumn, "Username", StringComparison.OrdinalIgnoreCase)
+            ? (ViewModel.SessionSortAscending ? "▲" : "▼") : string.Empty;
+        SortIcon_State.Text = string.Equals(ViewModel.SessionSortColumn, "State", StringComparison.OrdinalIgnoreCase)
+            ? (ViewModel.SessionSortAscending ? "▲" : "▼") : string.Empty;
+        SortIcon_HostServer.Text = string.Equals(ViewModel.SessionSortColumn, "HostServer", StringComparison.OrdinalIgnoreCase)
+            ? (ViewModel.SessionSortAscending ? "▲" : "▼") : string.Empty;
+        SortIcon_SessionId.Text = string.Equals(ViewModel.SessionSortColumn, "SessionId", StringComparison.OrdinalIgnoreCase)
+            ? (ViewModel.SessionSortAscending ? "▲" : "▼") : string.Empty;
+        SortIcon_LogonTime.Text = string.Equals(ViewModel.SessionSortColumn, "LogonTime", StringComparison.OrdinalIgnoreCase)
+            ? (ViewModel.SessionSortAscending ? "▲" : "▼") : string.Empty;
     }
 
     // --- Profile Disks (UPD) Tab Actions ---
