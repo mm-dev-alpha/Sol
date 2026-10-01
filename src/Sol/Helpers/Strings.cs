@@ -1044,6 +1044,8 @@ public class Strings
     public string RdsUpdNotEnabledWarning => "User Profile Disks (UPD) are not configured for this collection.";
     public string RdsUpdRefreshCollectionsBtn => "Refresh Collections";
     public string RdsUpdDiskInfoTitle => "Profile Disk Details";
+    public string RdsUpdInspectingDiskTitle => "Inspecting Profile Disk";
+    public string RdsUpdInspectingDiskDesc => "Reading VHDX capacity, partition geometry, and lock state...";
     public string RdsUpdPathLabel => "VHDX Path:";
     public string RdsUpdCurrentCapacityLabel => "Capacity:";
     public string RdsUpdPartitionStyleLabel => "Partition Style:";

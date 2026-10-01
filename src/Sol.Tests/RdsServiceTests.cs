@@ -150,6 +150,13 @@ public class RdsServiceTests : IDisposable
         Assert.DoesNotContain("or hostname", Strings.S.RdsSettingsBrokerDesc, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Strings_RdsUpdInspectingStrings_DefinedAndNonEmpty()
+    {
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdInspectingDiskTitle));
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdInspectingDiskDesc));
+    }
+
     // --- Service Tests ---
 
     [Fact]
