@@ -477,6 +477,8 @@ docs/
 GEMINI.md
 ARCHITECTURAL_AUDIT.md
 .editorconfig
+RELEASE_NOTES*.md
+CHANGELOG*.md
 
 # Dev scripts (local only)
 scripts/
