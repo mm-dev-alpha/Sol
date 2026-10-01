@@ -546,9 +546,9 @@ public class RdsServiceTests : IDisposable
         Assert.True(vm.HasCollectionsError);
         Assert.Equal("Broker unreachable", vm.CollectionsErrorMessage);
 
-        // Case 2: Success with collections - auto select first with UpdEnabled == true
+        // Case 2: Success with collections - selects first collection and lazily loads config
         var coll1 = new RdsCollectionInfo { CollectionName = "Coll-Standard", UpdEnabled = false };
-        var coll2 = new RdsCollectionInfo { CollectionName = "Coll-UPD", UpdEnabled = true, UpdDiskPath = @"\\share\upd" };
+        var coll2 = new RdsCollectionInfo { CollectionName = "Coll-UPD", UpdEnabled = false };
         mockRds.GetCollectionsFunc = _ => Task.FromResult<IReadOnlyList<RdsCollectionInfo>>(new List<RdsCollectionInfo> { coll1, coll2 });
 
         await vm.LoadCollectionsAsync();
@@ -556,7 +556,34 @@ public class RdsServiceTests : IDisposable
         Assert.Equal(string.Empty, vm.CollectionsErrorMessage);
         Assert.Equal(2, vm.Collections.Count);
         Assert.NotNull(vm.SelectedCollection);
-        Assert.Equal("Coll-UPD", vm.SelectedCollection!.CollectionName);
+        Assert.Equal("Coll-Standard", vm.SelectedCollection!.CollectionName);
+
+        vm.Dispose();
+    }
+
+    [Fact]
+    public async Task RdsWorkspaceViewModel_Collections_PrepopulatedFromActiveSessionsImmediately()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService { RdsConnectionBroker = "broker.corp.local" };
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+
+        // Prepopulate sessions in AllSessions
+        vm.AllSessions.Add(new RdsSessionItem { Username = "user1", CollectionName = "FarmSessionColl", SessionId = 1, State = "STATE_ACTIVE" });
+
+        // Broker returns additional idle collection
+        var collIdle = new RdsCollectionInfo { CollectionName = "FarmIdleColl" };
+        mockRds.GetCollectionsFunc = _ => Task.FromResult<IReadOnlyList<RdsCollectionInfo>>(new List<RdsCollectionInfo> { collIdle });
+
+        await vm.LoadCollectionsAsync();
+
+        Assert.Equal(2, vm.Collections.Count);
+        Assert.Contains(vm.Collections, c => c.CollectionName == "FarmSessionColl");
+        Assert.Contains(vm.Collections, c => c.CollectionName == "FarmIdleColl");
+        Assert.NotNull(vm.SelectedCollection);
 
         vm.Dispose();
     }
@@ -656,6 +683,11 @@ public class RdsServiceTests : IDisposable
             => Task.FromResult(true);
         public Task<IReadOnlyList<RdsCollectionInfo>> GetCollectionsAsync(string broker, CancellationToken cancellationToken = default)
             => GetCollectionsFunc != null ? GetCollectionsFunc(broker) : Task.FromResult<IReadOnlyList<RdsCollectionInfo>>(new List<RdsCollectionInfo>());
+        public Func<string, string, Task<RdsCollectionConfigurationInfo>>? GetCollectionConfigFunc { get; set; }
+        public Task<RdsCollectionConfigurationInfo> GetCollectionConfigurationAsync(string broker, string collectionName, CancellationToken cancellationToken = default)
+            => GetCollectionConfigFunc != null
+                ? GetCollectionConfigFunc(broker, collectionName)
+                : Task.FromResult(new RdsCollectionConfigurationInfo { CollectionName = collectionName, UpdEnabled = true, UpdDiskPath = @"\\share\upd" });
         public Task<RdsDiskLayoutInfo> InspectUpdDiskAsync(string vhdxPath, CancellationToken cancellationToken = default)
             => Task.FromResult(new RdsDiskLayoutInfo { Exists = true, CapacityBytes = 21474836480UL });
         public Task<RdsDiskExpansionResult> ExpandUpdDiskAsync(

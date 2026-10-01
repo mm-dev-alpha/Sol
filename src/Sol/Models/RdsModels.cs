@@ -13,6 +13,7 @@ public sealed class RdsSessionItem
     public int SessionId { get; set; }
     public string State { get; set; } = string.Empty;
     public string HostServer { get; set; } = string.Empty;
+    public string CollectionName { get; set; } = string.Empty;
     public int UnifiedSessionId { get; set; }
     public DateTime? LogonTime { get; set; }
     public string FormattedLogonTime { get; set; } = string.Empty;
@@ -62,6 +63,18 @@ public sealed class RdsCollectionInfo
     public string CollectionName { get; set; } = string.Empty;
     public bool UpdEnabled { get; set; }
     public string UpdDiskPath { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// User Profile Disk (UPD) configuration details for an RDS session collection.
+/// </summary>
+public sealed class RdsCollectionConfigurationInfo
+{
+    public string CollectionName { get; set; } = string.Empty;
+    public bool UpdEnabled { get; set; }
+    public string UpdDiskPath { get; set; } = string.Empty;
+    public ulong MaxDiskSizeGB { get; set; }
+    public string? ErrorMessage { get; set; }
 }
 
 /// <summary>

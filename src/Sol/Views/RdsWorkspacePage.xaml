@@ -458,8 +458,8 @@
                                       PlaceholderText="{x:Bind S.RdsUpdSelectCollectionPlaceholder}"
                                       Width="280"/>
                             <!-- Loading ProgressRing -->
-                            <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingCollections, Mode=OneWay}"
-                                          Visibility="{x:Bind ViewModel.IsLoadingCollections, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            <ProgressRing IsActive="{x:Bind GetIsLoadingRingActive(ViewModel.IsLoadingCollections, ViewModel.IsLoadingCollectionConfig), Mode=OneWay}"
+                                          Visibility="{x:Bind GetLoadingRingVisibility(ViewModel.IsLoadingCollections, ViewModel.IsLoadingCollectionConfig), Mode=OneWay}"
                                           Width="16" Height="16"/>
                             <!-- Refresh Button -->
                             <Button Style="{StaticResource SubtleIconButtonStyle}"
@@ -502,7 +502,7 @@
                     </Border>
 
                     <!-- Warning: UPD Not Configured for Selected Collection -->
-                    <Border Visibility="{x:Bind GetUpdNotEnabledWarningVisibility(ViewModel.SelectedCollection), Mode=OneWay}"
+                    <Border Visibility="{x:Bind GetUpdNotEnabledWarningVisibility(ViewModel.SelectedCollection, ViewModel.IsLoadingCollectionConfig), Mode=OneWay}"
                             Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                             BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="16,12">

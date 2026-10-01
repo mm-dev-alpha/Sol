@@ -285,6 +285,7 @@ try {{
             HostServer = [string]$s.HostServer
             UnifiedSessionId = [int]$s.UnifiedSessionId
             LogonTime = $logonStr
+            CollectionName = if ($s.PSObject.Properties['CollectionName']) {{ [string]$s.CollectionName }} else {{ '' }}
         }}
     }}
     $list | ConvertTo-Json -Compress
@@ -474,7 +475,6 @@ try {{
 
         string shortBroker = broker.Split('.')[0];
         string script = $@"
-$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
@@ -483,22 +483,29 @@ try {{
 
     $collections = @()
     try {{
-        $collections = @(Get-RDSessionCollection -ConnectionBroker $broker -ErrorAction Stop)
+        $colls = @(Get-RDSessionCollection -ConnectionBroker $broker -ErrorAction Stop)
+        foreach ($c in $colls) {{
+            $name = if ($c.PSObject -and $c.PSObject.Properties['CollectionName']) {{ [string]$c.CollectionName }} else {{ [string]$c }}
+            $name = $name.Trim()
+            if (![string]::IsNullOrWhiteSpace($name)) {{ $collections += $name }}
+        }}
     }} catch {{
         try {{
-            $collections = @(Get-RDSessionCollection -ConnectionBroker $shortBroker -ErrorAction Stop)
+            $colls = @(Get-RDSessionCollection -ConnectionBroker $shortBroker -ErrorAction Stop)
+            foreach ($c in $colls) {{
+                $name = if ($c.PSObject -and $c.PSObject.Properties['CollectionName']) {{ [string]$c.CollectionName }} else {{ [string]$c }}
+                $name = $name.Trim()
+                if (![string]::IsNullOrWhiteSpace($name)) {{ $collections += $name }}
+            }}
         }} catch {{
             try {{
-                $collections = @(Get-RDSessionCollection -ErrorAction Stop)
-            }} catch {{
-                try {{
-                    $sessions = @(Get-RDUserSession -ConnectionBroker $broker -ErrorAction SilentlyContinue)
-                    $uniqueColls = $sessions | Where-Object {{ $_.PSObject.Properties['CollectionName'] -and $_.CollectionName }} | Select-Object -ExpandProperty CollectionName -Unique
-                    if ($uniqueColls) {{
-                        $collections = @($uniqueColls)
-                    }}
-                }} catch {{ }}
-            }}
+                $colls = @(Get-RDSessionCollection -ErrorAction Stop)
+                foreach ($c in $colls) {{
+                    $name = if ($c.PSObject -and $c.PSObject.Properties['CollectionName']) {{ [string]$c.CollectionName }} else {{ [string]$c }}
+                    $name = $name.Trim()
+                    if (![string]::IsNullOrWhiteSpace($name)) {{ $collections += $name }}
+                }}
+            }} catch {{ }}
         }}
     }}
 
@@ -515,42 +522,13 @@ try {{
         }} catch {{ }}
     }}
 
+    $uniqueNames = @($collections | Select-Object -Unique)
     $list = @()
-    foreach ($c in $collections) {{
-        $cName = if ($c.PSObject -and $c.PSObject.Properties['CollectionName']) {{ [string]$c.CollectionName }} else {{ [string]$c }}
-        $cName = $cName.Trim()
-        if ([string]::IsNullOrWhiteSpace($cName)) {{ continue }}
-
-        $updEnabled = $false
-        $updDiskPath = ''
-        try {{
-            $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $broker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
-            if ($cfg -and $cfg.EnableUserProfileDisk) {{
-                $updEnabled = [bool]$cfg.EnableUserProfileDisk
-                $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
-            }}
-        }} catch {{
-            try {{
-                $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $shortBroker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
-                if ($cfg -and $cfg.EnableUserProfileDisk) {{
-                    $updEnabled = [bool]$cfg.EnableUserProfileDisk
-                    $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
-                }}
-            }} catch {{
-                try {{
-                    $cfg = Get-RDSessionCollectionConfiguration -CollectionName $cName -UserProfileDisk -ErrorAction SilentlyContinue
-                    if ($cfg -and $cfg.EnableUserProfileDisk) {{
-                        $updEnabled = [bool]$cfg.EnableUserProfileDisk
-                        $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
-                    }}
-                }} catch {{ }}
-            }}
-        }}
-
+    foreach ($name in $uniqueNames) {{
         $list += [PSCustomObject]@{{
-            CollectionName = $cName
-            UpdEnabled = $updEnabled
-            UpdDiskPath = $updDiskPath
+            CollectionName = [string]$name
+            UpdEnabled = $false
+            UpdDiskPath = ''
         }}
     }}
     ConvertTo-Json -InputObject @($list) -Compress
@@ -559,7 +537,7 @@ try {{
     exit 1
 }}
 ";
-        var (exitCode, stdout, stderr) = await RunPowerShellScriptAsync(script, 30000, cancellationToken).ConfigureAwait(false);
+        var (exitCode, stdout, stderr) = await RunPowerShellScriptAsync(script, 45000, cancellationToken).ConfigureAwait(false);
         if (exitCode != 0)
         {
             throw new InvalidOperationException($"Failed to query session collections from broker '{resolvedBroker}': {stderr}");
@@ -589,6 +567,93 @@ try {{
             AppLog.Write($"RdsService.GetCollectionsAsync JSON parse error: {ex.Message}");
             throw new InvalidOperationException($"Failed to parse collections data: {ex.Message}", ex);
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<RdsCollectionConfigurationInfo> GetCollectionConfigurationAsync(string broker, string collectionName, CancellationToken cancellationToken = default)
+    {
+        var result = new RdsCollectionConfigurationInfo
+        {
+            CollectionName = collectionName ?? string.Empty
+        };
+
+        if (string.IsNullOrWhiteSpace(broker) || string.IsNullOrWhiteSpace(collectionName))
+            return result;
+
+        string resolvedBroker = await ResolveBrokerFqdnAsync(broker, cancellationToken).ConfigureAwait(false);
+        if (!resolvedBroker.Contains('.'))
+            throw new InvalidOperationException(string.Format(Strings.S.RdsBrokerFqdnRequiredError, broker.Trim()));
+
+        string shortBroker = broker.Split('.')[0];
+        string script = $@"
+$ProgressPreference = 'SilentlyContinue'
+try {{
+    Import-Module RemoteDesktop -ErrorAction Stop
+    $broker = '{EscapePsString(resolvedBroker)}'
+    $shortBroker = '{EscapePsString(shortBroker)}'
+    $cName = '{EscapePsString(collectionName.Trim())}'
+
+    $cfg = $null
+    try {{
+        $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $broker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
+    }} catch {{
+        try {{
+            $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $shortBroker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
+        }} catch {{
+            try {{
+                $cfg = Get-RDSessionCollectionConfiguration -CollectionName $cName -UserProfileDisk -ErrorAction SilentlyContinue
+            }} catch {{ }}
+        }}
+    }}
+
+    $updEnabled = $false
+    $updDiskPath = ''
+    $maxSize = 0
+    if ($cfg -and $cfg.EnableUserProfileDisk) {{
+        $updEnabled = [bool]$cfg.EnableUserProfileDisk
+        $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
+        $maxSize = if ($cfg.MaxUserProfileDiskSizeGB) {{ [int]$cfg.MaxUserProfileDiskSizeGB }} else {{ 0 }}
+    }}
+
+    [PSCustomObject]@{{
+        CollectionName = $cName
+        UpdEnabled = $updEnabled
+        UpdDiskPath = $updDiskPath
+        MaxDiskSizeGB = $maxSize
+    }} | ConvertTo-Json -Compress
+}} catch {{
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 1
+}}
+";
+        var (exitCode, stdout, stderr) = await RunPowerShellScriptAsync(script, 45000, cancellationToken).ConfigureAwait(false);
+        if (exitCode != 0)
+        {
+            result.ErrorMessage = stderr;
+            return result;
+        }
+
+        string trimmed = stdout.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+            return result;
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<RdsCollectionConfigurationInfo>(trimmed, JsonOptions);
+            if (parsed != null)
+            {
+                result.UpdEnabled = parsed.UpdEnabled;
+                result.UpdDiskPath = parsed.UpdDiskPath ?? string.Empty;
+                result.MaxDiskSizeGB = parsed.MaxDiskSizeGB;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"RdsService.GetCollectionConfigurationAsync JSON parse error: {ex.Message}");
+            result.ErrorMessage = ex.Message;
+        }
+
+        return result;
     }
 
     /// <inheritdoc />

@@ -96,6 +96,9 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
     public partial bool IsLoadingCollections { get; set; }
 
     [ObservableProperty]
+    public partial bool IsLoadingCollectionConfig { get; set; }
+
+    [ObservableProperty]
     public partial bool HasCollectionsError { get; set; }
 
     [ObservableProperty]
@@ -429,28 +432,50 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
         HasCollectionsError = false;
         CollectionsErrorMessage = string.Empty;
 
+        // Step 1: Prepopulate from active sessions in memory if available
+        var sessionCollections = AllSessions
+            .Select(s => s.CollectionName)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (sessionCollections.Count > 0 && Collections.Count == 0)
+        {
+            foreach (var name in sessionCollections)
+            {
+                Collections.Add(new RdsCollectionInfo { CollectionName = name });
+            }
+            if (SelectedCollection == null)
+            {
+                SelectedCollection = Collections[0];
+            }
+        }
+
         try
         {
             var colls = await _rdsService.GetCollectionsAsync(ConnectionBroker);
-            Collections.Clear();
+
+            // Merge newly discovered collections
             foreach (var c in colls)
             {
-                Collections.Add(c);
+                if (!Collections.Any(existing => string.Equals(existing.CollectionName, c.CollectionName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Collections.Add(c);
+                }
             }
 
-            if (Collections.Count > 0)
+            if (Collections.Count > 0 && SelectedCollection == null)
             {
-                SelectedCollection = Collections.FirstOrDefault(c => c.UpdEnabled) ?? Collections[0];
-            }
-            else
-            {
-                SelectedCollection = null;
+                SelectedCollection = Collections[0];
             }
         }
         catch (Exception ex)
         {
-            HasCollectionsError = true;
-            CollectionsErrorMessage = ex.Message;
+            if (Collections.Count == 0)
+            {
+                HasCollectionsError = true;
+                CollectionsErrorMessage = ex.Message;
+            }
             AppLog.Write($"RdsWorkspaceViewModel.LoadCollectionsAsync error: {ex.Message}");
         }
         finally
@@ -461,7 +486,37 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCollectionChanged(RdsCollectionInfo? value)
     {
-        _ = InspectSelectedUserProfileDiskAsync();
+        if (value != null && string.IsNullOrEmpty(value.UpdDiskPath) && !value.UpdEnabled)
+        {
+            _ = LoadSelectedCollectionConfigAsync(value);
+        }
+        else
+        {
+            _ = InspectSelectedUserProfileDiskAsync();
+        }
+    }
+
+    public async Task LoadSelectedCollectionConfigAsync(RdsCollectionInfo collection)
+    {
+        if (collection == null || !HasBroker) return;
+
+        IsLoadingCollectionConfig = true;
+        try
+        {
+            var cfg = await _rdsService.GetCollectionConfigurationAsync(ConnectionBroker, collection.CollectionName);
+            collection.UpdEnabled = cfg.UpdEnabled;
+            collection.UpdDiskPath = cfg.UpdDiskPath;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"RdsWorkspaceViewModel.LoadSelectedCollectionConfigAsync error: {ex.Message}");
+        }
+        finally
+        {
+            IsLoadingCollectionConfig = false;
+            OnPropertyChanged(nameof(SelectedCollection));
+            await InspectSelectedUserProfileDiskAsync();
+        }
     }
 
     partial void OnAdditionalGiBChanged(double value)

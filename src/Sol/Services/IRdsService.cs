@@ -52,6 +52,11 @@ public interface IRdsService
     Task<IReadOnlyList<RdsCollectionInfo>> GetCollectionsAsync(string broker, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Queries the User Profile Disk (UPD) configuration for a specific session collection.
+    /// </summary>
+    Task<RdsCollectionConfigurationInfo> GetCollectionConfigurationAsync(string broker, string collectionName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Inspects a User Profile Disk (VHDX) file on a UNC share or local volume.
     /// </summary>
     Task<RdsDiskLayoutInfo> InspectUpdDiskAsync(string vhdxPath, CancellationToken cancellationToken = default);

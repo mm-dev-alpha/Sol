@@ -256,9 +256,19 @@ public sealed partial class RdsWorkspacePage : Page
         return collectionsCount == 0 && !isLoadingCollections && !hasCollectionsError ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    public Visibility GetUpdNotEnabledWarningVisibility(RdsCollectionInfo? selectedCollection)
+    public bool GetIsLoadingRingActive(bool isLoadingCollections, bool isLoadingCollectionConfig)
     {
-        return selectedCollection != null && !selectedCollection.UpdEnabled ? Visibility.Visible : Visibility.Collapsed;
+        return isLoadingCollections || isLoadingCollectionConfig;
+    }
+
+    public Visibility GetLoadingRingVisibility(bool isLoadingCollections, bool isLoadingCollectionConfig)
+    {
+        return (isLoadingCollections || isLoadingCollectionConfig) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public Visibility GetUpdNotEnabledWarningVisibility(RdsCollectionInfo? selectedCollection, bool isLoadingCollectionConfig)
+    {
+        return selectedCollection != null && !selectedCollection.UpdEnabled && !isLoadingCollectionConfig ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void ExpandDisk_Click(object sender, RoutedEventArgs e)
