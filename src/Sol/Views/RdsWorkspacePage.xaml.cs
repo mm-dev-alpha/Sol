@@ -251,9 +251,9 @@ public sealed partial class RdsWorkspacePage : Page
         }
     }
 
-    public Visibility GetNoCollectionsWarningVisibility(int collectionsCount, bool isLoadingCollections)
+    public Visibility GetNoCollectionsWarningVisibility(int collectionsCount, bool isLoadingCollections, bool hasCollectionsError)
     {
-        return collectionsCount == 0 && !isLoadingCollections ? Visibility.Visible : Visibility.Collapsed;
+        return collectionsCount == 0 && !isLoadingCollections && !hasCollectionsError ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public Visibility GetUpdNotEnabledWarningVisibility(RdsCollectionInfo? selectedCollection)

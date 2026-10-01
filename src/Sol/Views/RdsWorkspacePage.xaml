@@ -23,14 +23,8 @@
 
         <!-- 0. Header & Sub-Navigation SelectorBar -->
         <Grid Grid.Row="0" Margin="0,0,0,16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Page Title & Icon -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <!-- Page Title & Icon on Left -->
+            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Spacing="12">
                 <FontIcon Glyph="&#xE7F4;" FontSize="24" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                 <StackPanel Spacing="2">
                     <TextBlock Text="{x:Bind S.NavRdsWorkspace}" Style="{ThemeResource TitleLargeTextBlockStyle}" FontWeight="SemiBold"/>
@@ -40,8 +34,8 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- SelectorBar (Sessions vs Profile Disks) -->
-            <SelectorBar Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <!-- SelectorBar (Sessions vs Profile Disks) Truly Centered -->
+            <SelectorBar HorizontalAlignment="Center" VerticalAlignment="Center"
                          SelectionChanged="TabSelectorBar_SelectionChanged">
                 <SelectorBarItem x:Name="SessionsSelectorItem" Text="{x:Bind S.RdsTabSessions}" IsSelected="True">
                     <SelectorBarItem.Icon>
@@ -55,8 +49,9 @@
                 </SelectorBarItem>
             </SelectorBar>
 
-            <!-- Settings Shortcut Button -->
-            <Button Grid.Column="2" Style="{StaticResource SubtleIconButtonStyle}"
+            <!-- Settings Shortcut Button on Right -->
+            <Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Style="{StaticResource SubtleIconButtonStyle}"
                     Command="{x:Bind ViewModel.OpenSettingsCommand}"
                     ToolTipService.ToolTip="{x:Bind S.NavSettings}">
                 <FontIcon Glyph="&#xE713;" FontSize="16"/>
@@ -127,21 +122,19 @@
 
                 <!-- Filter & Action Bar -->
                 <Grid Grid.Row="0" Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                    <!-- Search Filter on Left -->
+                    <TextBox HorizontalAlignment="Left" VerticalAlignment="Center"
+                             PlaceholderText="{x:Bind S.RdsSessionsFilterPlaceholder}"
+                             Text="{x:Bind ViewModel.SessionFilterQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Width="320"/>
 
-                    <!-- Search Filter & Status Badges -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <TextBox PlaceholderText="{x:Bind S.RdsSessionsFilterPlaceholder}"
-                                 Text="{x:Bind ViewModel.SessionFilterQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="340"/>
-
+                    <!-- Status Badges Truly Centered in Toolbar -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Orientation="Horizontal" Spacing="8">
                         <!-- Total Count Pill -->
                         <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1" CornerRadius="12" Padding="8,3">
+                                BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.TotalSessionsBadge, Mode=OneWay}" 
                                        Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
                         </Border>
@@ -149,7 +142,7 @@
                         <!-- Active Count Pill -->
                         <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
                                 BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
-                                BorderThickness="1" CornerRadius="12" Padding="8,3">
+                                BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.ActiveSessionsBadge, Mode=OneWay}" 
                                        Style="{ThemeResource CaptionTextBlockStyle}" 
                                        Foreground="{ThemeResource SystemFillColorSuccessBrush}" FontWeight="SemiBold"/>
@@ -158,7 +151,7 @@
                         <!-- Connected Count Pill -->
                         <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                BorderThickness="1" CornerRadius="12" Padding="8,3"
+                                BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center"
                                 Visibility="{x:Bind ViewModel.ConnectedSessionsBadgeVisibility, Mode=OneWay}">
                             <TextBlock Text="{x:Bind ViewModel.ConnectedSessionsBadge, Mode=OneWay}" 
                                        Style="{ThemeResource CaptionTextBlockStyle}" 
@@ -168,15 +161,16 @@
                         <!-- Disconnected Count Pill -->
                         <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                                 BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
-                                BorderThickness="1" CornerRadius="12" Padding="8,3">
+                                BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.DisconnectedSessionsBadge, Mode=OneWay}" 
                                        Style="{ThemeResource CaptionTextBlockStyle}" 
                                        Foreground="{ThemeResource SystemFillColorCautionBrush}" FontWeight="SemiBold"/>
                         </Border>
                     </StackPanel>
 
-                    <!-- Top Action Buttons -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- Top Action Buttons on Right -->
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Orientation="Horizontal" Spacing="8">
                         <Button Click="DisconnectSelected_Click"
                                 Style="{ThemeResource DefaultButtonStyle}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -476,8 +470,20 @@
                         </StackPanel>
                     </controls:SettingsCard>
 
+                    <!-- Error State Card: Failed to Query Collections -->
+                    <controls:SettingsCard Header="{x:Bind S.RdsUpdCollectionsErrorTitle}"
+                                           Description="{x:Bind ViewModel.CollectionsErrorMessage, Mode=OneWay}"
+                                           Visibility="{x:Bind ViewModel.HasCollectionsError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE783;" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <Button Content="{x:Bind S.RdsSessionsRetryBtn}"
+                                Command="{x:Bind ViewModel.LoadCollectionsCommand}"
+                                Style="{ThemeResource AccentButtonStyle}"/>
+                    </controls:SettingsCard>
+
                     <!-- Warning: No Collections Found -->
-                    <Border Visibility="{x:Bind GetNoCollectionsWarningVisibility(ViewModel.Collections.Count, ViewModel.IsLoadingCollections), Mode=OneWay}"
+                    <Border Visibility="{x:Bind GetNoCollectionsWarningVisibility(ViewModel.Collections.Count, ViewModel.IsLoadingCollections, ViewModel.HasCollectionsError), Mode=OneWay}"
                             Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                             BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="16,12">

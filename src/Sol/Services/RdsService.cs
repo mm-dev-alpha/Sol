@@ -210,8 +210,15 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
-    $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
-    [PSCustomObject]@{{ Success = $true; Count = $collections.Count }} | ConvertTo-Json -Compress
+    $count = 0
+    try {{
+        $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
+        $count = $collections.Count
+    }} catch {{
+        $sessions = @(Get-RDUserSession -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
+        $count = $sessions.Count
+    }}
+    [PSCustomObject]@{{ Success = $true; Count = $count }} | ConvertTo-Json -Compress
 }} catch {{
     [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
@@ -465,22 +472,88 @@ try {{
         if (!resolvedBroker.Contains('.'))
             throw new InvalidOperationException(string.Format(Strings.S.RdsBrokerFqdnRequiredError, broker.Trim()));
 
+        string shortBroker = broker.Split('.')[0];
         string script = $@"
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {{
     Import-Module RemoteDesktop -ErrorAction Stop
-    $collections = @(Get-RDSessionCollection -ConnectionBroker '{EscapePsString(resolvedBroker)}' -ErrorAction Stop)
-    $list = @()
-    foreach ($c in $collections) {{
-        $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker '{EscapePsString(resolvedBroker)}' -CollectionName $c.CollectionName -UserProfileDisk -ErrorAction SilentlyContinue
-        $list += [PSCustomObject]@{{
-            CollectionName = [string]$c.CollectionName
-            UpdEnabled = [bool]($cfg -and $cfg.EnableUserProfileDisk)
-            UpdDiskPath = if ($cfg -and $cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
+    $broker = '{EscapePsString(resolvedBroker)}'
+    $shortBroker = '{EscapePsString(shortBroker)}'
+
+    $collections = @()
+    try {{
+        $collections = @(Get-RDSessionCollection -ConnectionBroker $broker -ErrorAction Stop)
+    }} catch {{
+        try {{
+            $collections = @(Get-RDSessionCollection -ConnectionBroker $shortBroker -ErrorAction Stop)
+        }} catch {{
+            try {{
+                $collections = @(Get-RDSessionCollection -ErrorAction Stop)
+            }} catch {{
+                try {{
+                    $sessions = @(Get-RDUserSession -ConnectionBroker $broker -ErrorAction SilentlyContinue)
+                    $uniqueColls = $sessions | Where-Object {{ $_.PSObject.Properties['CollectionName'] -and $_.CollectionName }} | Select-Object -ExpandProperty CollectionName -Unique
+                    if ($uniqueColls) {{
+                        $collections = @($uniqueColls)
+                    }}
+                }} catch {{ }}
+            }}
         }}
     }}
-    $list | ConvertTo-Json -Compress
+
+    if ($collections.Count -eq 0) {{
+        try {{
+            $sessions = @(Get-RDUserSession -ConnectionBroker $broker -ErrorAction SilentlyContinue)
+            if (-not $sessions -or $sessions.Count -eq 0) {{
+                $sessions = @(Get-RDUserSession -ConnectionBroker $shortBroker -ErrorAction SilentlyContinue)
+            }}
+            $uniqueColls = $sessions | Where-Object {{ $_.PSObject.Properties['CollectionName'] -and $_.CollectionName }} | Select-Object -ExpandProperty CollectionName -Unique
+            if ($uniqueColls) {{
+                $collections = @($uniqueColls)
+            }}
+        }} catch {{ }}
+    }}
+
+    $list = @()
+    foreach ($c in $collections) {{
+        $cName = if ($c.PSObject -and $c.PSObject.Properties['CollectionName']) {{ [string]$c.CollectionName }} else {{ [string]$c }}
+        $cName = $cName.Trim()
+        if ([string]::IsNullOrWhiteSpace($cName)) {{ continue }}
+
+        $updEnabled = $false
+        $updDiskPath = ''
+        try {{
+            $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $broker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
+            if ($cfg -and $cfg.EnableUserProfileDisk) {{
+                $updEnabled = [bool]$cfg.EnableUserProfileDisk
+                $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
+            }}
+        }} catch {{
+            try {{
+                $cfg = Get-RDSessionCollectionConfiguration -ConnectionBroker $shortBroker -CollectionName $cName -UserProfileDisk -ErrorAction Stop
+                if ($cfg -and $cfg.EnableUserProfileDisk) {{
+                    $updEnabled = [bool]$cfg.EnableUserProfileDisk
+                    $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
+                }}
+            }} catch {{
+                try {{
+                    $cfg = Get-RDSessionCollectionConfiguration -CollectionName $cName -UserProfileDisk -ErrorAction SilentlyContinue
+                    if ($cfg -and $cfg.EnableUserProfileDisk) {{
+                        $updEnabled = [bool]$cfg.EnableUserProfileDisk
+                        $updDiskPath = if ($cfg.DiskPath) {{ [string]$cfg.DiskPath }} else {{ '' }}
+                    }}
+                }} catch {{ }}
+            }}
+        }}
+
+        $list += [PSCustomObject]@{{
+            CollectionName = $cName
+            UpdEnabled = $updEnabled
+            UpdDiskPath = $updDiskPath
+        }}
+    }}
+    ConvertTo-Json -InputObject @($list) -Compress
 }} catch {{
     [Console]::Error.WriteLine($_.Exception.Message)
     exit 1

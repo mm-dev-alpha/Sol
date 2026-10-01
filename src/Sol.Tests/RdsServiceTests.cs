@@ -143,6 +143,7 @@ public class RdsServiceTests : IDisposable
         Assert.Contains("{0}", Strings.S.RdsSessionsConnectedBadgeFormat);
         Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdSelectUserHeader));
         Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdCollectionHeader));
+        Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdCollectionsErrorTitle));
         Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdNoCollectionsFound));
         Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsUpdNotEnabledWarning));
         Assert.False(string.IsNullOrWhiteSpace(Strings.S.RdsSessionsSortUsername));

@@ -1039,6 +1039,7 @@ public class Strings
     public string RdsUpdCollectionDesc => "Select the target RDS session collection hosting user profile disks.";
     public string RdsUpdCollectionLabel => "Session Collection:";
     public string RdsUpdSelectCollectionPlaceholder => "Select collection...";
+    public string RdsUpdCollectionsErrorTitle => "Unable to Query Session Collections";
     public string RdsUpdNoCollectionsFound => "No session collections found on the broker.";
     public string RdsUpdNotEnabledWarning => "User Profile Disks (UPD) are not configured for this collection.";
     public string RdsUpdRefreshCollectionsBtn => "Refresh Collections";
