@@ -402,6 +402,206 @@ public class RdsServiceTests : IDisposable
     }
 
     [Fact]
+    public void RdsWorkspaceViewModel_Sorting_SortsByColumnsCorrectly()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService();
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+
+        // Verify default sort state
+        Assert.Equal("LogonTime", vm.SessionSortColumn);
+        Assert.False(vm.SessionSortAscending);
+
+        var s1 = new RdsSessionItem
+        {
+            Username = "alice",
+            Domain = "CORP",
+            SessionId = 3,
+            State = "STATE_DISCONNECTED",
+            HostServer = "rdsh-02",
+            LogonTime = new DateTime(2026, 1, 1, 10, 0, 0)
+        };
+        var s2 = new RdsSessionItem
+        {
+            Username = "bob",
+            Domain = "CORP",
+            SessionId = 1,
+            State = "STATE_ACTIVE",
+            HostServer = "rdsh-01",
+            LogonTime = new DateTime(2026, 1, 1, 12, 0, 0)
+        };
+        var s3 = new RdsSessionItem
+        {
+            Username = "charlie",
+            Domain = "CORP",
+            SessionId = 2,
+            State = "STATE_CONNECTED",
+            HostServer = "rdsh-03",
+            LogonTime = new DateTime(2026, 1, 1, 8, 0, 0)
+        };
+
+        vm.AllSessions.Add(s1);
+        vm.AllSessions.Add(s2);
+        vm.AllSessions.Add(s3);
+
+        // Apply default filter & sort (LogonTime descending: s2, s1, s3)
+        vm.ApplySessionFilter();
+        Assert.Equal(3, vm.FilteredSessions.Count);
+        Assert.Equal("bob", vm.FilteredSessions[0].Username);
+        Assert.Equal("alice", vm.FilteredSessions[1].Username);
+        Assert.Equal("charlie", vm.FilteredSessions[2].Username);
+
+        // Toggle sort on LogonTime (same column -> toggle to ascending: s3, s1, s2)
+        vm.ToggleSessionSort("LogonTime");
+        Assert.True(vm.SessionSortAscending);
+        Assert.Equal("charlie", vm.FilteredSessions[0].Username);
+        Assert.Equal("alice", vm.FilteredSessions[1].Username);
+        Assert.Equal("bob", vm.FilteredSessions[2].Username);
+
+        // Toggle sort to Username (new column -> ascending: alice, bob, charlie)
+        vm.ToggleSessionSort("Username");
+        Assert.Equal("Username", vm.SessionSortColumn);
+        Assert.True(vm.SessionSortAscending);
+        Assert.Equal("alice", vm.FilteredSessions[0].Username);
+        Assert.Equal("bob", vm.FilteredSessions[1].Username);
+        Assert.Equal("charlie", vm.FilteredSessions[2].Username);
+
+        // Toggle sort on Username again (descending: charlie, bob, alice)
+        vm.ToggleSessionSort("Username");
+        Assert.False(vm.SessionSortAscending);
+        Assert.Equal("charlie", vm.FilteredSessions[0].Username);
+        Assert.Equal("bob", vm.FilteredSessions[1].Username);
+        Assert.Equal("alice", vm.FilteredSessions[2].Username);
+
+        // Toggle sort to SessionId (ascending: 1, 2, 3 -> s2, s3, s1)
+        vm.ToggleSessionSort("SessionId");
+        Assert.Equal("SessionId", vm.SessionSortColumn);
+        Assert.True(vm.SessionSortAscending);
+        Assert.Equal(1, vm.FilteredSessions[0].SessionId);
+        Assert.Equal(2, vm.FilteredSessions[1].SessionId);
+        Assert.Equal(3, vm.FilteredSessions[2].SessionId);
+
+        // Toggle sort to HostServer (ascending: rdsh-01, rdsh-02, rdsh-03 -> s2, s1, s3)
+        vm.ToggleSessionSort("HostServer");
+        Assert.Equal("HostServer", vm.SessionSortColumn);
+        Assert.True(vm.SessionSortAscending);
+        Assert.Equal("rdsh-01", vm.FilteredSessions[0].HostServer);
+        Assert.Equal("rdsh-02", vm.FilteredSessions[1].HostServer);
+        Assert.Equal("rdsh-03", vm.FilteredSessions[2].HostServer);
+
+        // Toggle sort to State (ascending: STATE_ACTIVE, STATE_CONNECTED, STATE_DISCONNECTED)
+        vm.ToggleSessionSort("State");
+        Assert.Equal("State", vm.SessionSortColumn);
+        Assert.True(vm.SessionSortAscending);
+        Assert.Equal("STATE_ACTIVE", vm.FilteredSessions[0].State);
+        Assert.Equal("STATE_CONNECTED", vm.FilteredSessions[1].State);
+        Assert.Equal("STATE_DISCONNECTED", vm.FilteredSessions[2].State);
+
+        // Verify connected metrics
+        Assert.Equal(1, vm.ConnectedSessionsCount);
+        Assert.Equal(string.Format(Strings.S.RdsSessionsConnectedBadgeFormat, 1), vm.ConnectedSessionsBadge);
+        Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.ConnectedSessionsBadgeVisibility);
+
+        vm.Dispose();
+    }
+
+    [Fact]
+    public async Task RdsWorkspaceViewModel_Collections_ErrorHandlingAndAutoSelection()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService { RdsConnectionBroker = "broker.corp.local" };
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+
+        // Case 1: Exception on load
+        mockRds.GetCollectionsFunc = _ => throw new InvalidOperationException("Broker unreachable");
+        await vm.LoadCollectionsAsync();
+        Assert.True(vm.HasCollectionsError);
+        Assert.Equal("Broker unreachable", vm.CollectionsErrorMessage);
+
+        // Case 2: Success with collections - auto select first with UpdEnabled == true
+        var coll1 = new RdsCollectionInfo { CollectionName = "Coll-Standard", UpdEnabled = false };
+        var coll2 = new RdsCollectionInfo { CollectionName = "Coll-UPD", UpdEnabled = true, UpdDiskPath = @"\\share\upd" };
+        mockRds.GetCollectionsFunc = _ => Task.FromResult<IReadOnlyList<RdsCollectionInfo>>(new List<RdsCollectionInfo> { coll1, coll2 });
+
+        await vm.LoadCollectionsAsync();
+        Assert.False(vm.HasCollectionsError);
+        Assert.Equal(string.Empty, vm.CollectionsErrorMessage);
+        Assert.Equal(2, vm.Collections.Count);
+        Assert.NotNull(vm.SelectedCollection);
+        Assert.Equal("Coll-UPD", vm.SelectedCollection!.CollectionName);
+
+        vm.Dispose();
+    }
+
+    [Fact]
+    public async Task RdsWorkspaceViewModel_SearchAndSelectFirstUserAsync_SelectsUser()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService();
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+
+        var targetUser = new AdUser { SamAccountName = "jdoe", DisplayName = "John Doe", Upn = "jdoe@corp.local", Sid = "S-1-5-21-1234" };
+        mockAd.SearchUsersFunc = q => Task.FromResult(new List<AdUser> { targetUser });
+
+        await vm.SearchAndSelectFirstUserAsync("jdoe");
+        Assert.NotNull(vm.SelectedUser);
+        Assert.Equal("jdoe", vm.SelectedUser!.SamAccountName);
+        Assert.Equal("John Doe", vm.UserSearchQuery);
+
+        vm.Dispose();
+    }
+
+    [Fact]
+    public async Task RdsWorkspaceViewModel_RefreshSessions_DeduplicatesPrefix()
+    {
+        var mockRds = new MockRdsService();
+        var mockAd = new MockAdService();
+        var mockSettings = new MockSettingsService { RdsConnectionBroker = "broker.corp.local" };
+        var mockNav = new MockNavigationService();
+
+        var vm = new RdsWorkspaceViewModel(mockRds, mockAd, mockSettings, mockNav);
+
+        string? receivedNotification = null;
+        WeakReferenceMessenger.Default.Register<RdsServiceTests, AppNotificationMessage>(this, (r, m) =>
+        {
+            receivedNotification = m.Message;
+        });
+
+        try
+        {
+            // Case 1: Exception already starts with Strings.S.RdsConnectionFailedPrompt
+            string rawError = $"{Strings.S.RdsConnectionFailedPrompt} RPC server unavailable";
+            mockRds.GetSessionsFunc = _ => throw new Exception(rawError);
+
+            await vm.RefreshSessionsAsync();
+
+            Assert.True(vm.HasSessionsError);
+            Assert.Equal(rawError, receivedNotification);
+
+            // Case 2: Exception does not start with prefix
+            mockRds.GetSessionsFunc = _ => throw new Exception("WMI service stopped");
+            await vm.RefreshSessionsAsync();
+
+            Assert.True(vm.HasSessionsError);
+            Assert.Equal($"{Strings.S.RdsConnectionFailedPrompt} WMI service stopped", receivedNotification);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<AppNotificationMessage>(this);
+            vm.Dispose();
+        }
+    }
+
+    [Fact]
     public void RdsWorkspaceViewModel_Dispose_CleansUpWithoutThrowing()
     {
         var mockRds = new MockRdsService();
@@ -417,6 +617,9 @@ public class RdsServiceTests : IDisposable
 
     private class MockRdsService : IRdsService
     {
+        public Func<string, Task<IReadOnlyList<RdsCollectionInfo>>>? GetCollectionsFunc { get; set; }
+        public Func<string, Task<IReadOnlyList<RdsSessionItem>>>? GetSessionsFunc { get; set; }
+
         public bool IsElevated() => true;
         public bool RestartAsAdministrator() => true;
         public Task<string> ResolveBrokerFqdnAsync(string broker, CancellationToken cancellationToken = default)
@@ -424,13 +627,13 @@ public class RdsServiceTests : IDisposable
         public Task<bool> TestBrokerConnectionAsync(string broker, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
         public Task<IReadOnlyList<RdsSessionItem>> GetSessionsAsync(string broker, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<RdsSessionItem>>(new List<RdsSessionItem>());
+            => GetSessionsFunc != null ? GetSessionsFunc(broker) : Task.FromResult<IReadOnlyList<RdsSessionItem>>(new List<RdsSessionItem>());
         public Task<bool> LogoffSessionAsync(string broker, string hostServer, int unifiedSessionId, bool force = true, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
         public Task<bool> DisconnectSessionAsync(string broker, string hostServer, int unifiedSessionId, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
         public Task<IReadOnlyList<RdsCollectionInfo>> GetCollectionsAsync(string broker, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<RdsCollectionInfo>>(new List<RdsCollectionInfo>());
+            => GetCollectionsFunc != null ? GetCollectionsFunc(broker) : Task.FromResult<IReadOnlyList<RdsCollectionInfo>>(new List<RdsCollectionInfo>());
         public Task<RdsDiskLayoutInfo> InspectUpdDiskAsync(string vhdxPath, CancellationToken cancellationToken = default)
             => Task.FromResult(new RdsDiskLayoutInfo { Exists = true, CapacityBytes = 21474836480UL });
         public Task<RdsDiskExpansionResult> ExpandUpdDiskAsync(
@@ -447,7 +650,9 @@ public class RdsServiceTests : IDisposable
 
     private class MockAdService : IActiveDirectoryService
     {
-        public Task<List<AdUser>> SearchUsersAsync(string query) => Task.FromResult(new List<AdUser>());
+        public Func<string, Task<List<AdUser>>>? SearchUsersFunc { get; set; }
+
+        public Task<List<AdUser>> SearchUsersAsync(string query) => SearchUsersFunc != null ? SearchUsersFunc(query) : Task.FromResult(new List<AdUser>());
         public Task<List<string>> SearchGroupsAsync(string query) => Task.FromResult(new List<string>());
         public Task<List<KeyValuePair<string, string>>> GetAllUserAttributesAsync(string samAccountName) => Task.FromResult(new List<KeyValuePair<string, string>>());
         public Task UnlockAccountAsync(string samAccountName) => Task.CompletedTask;

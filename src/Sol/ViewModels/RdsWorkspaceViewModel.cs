@@ -59,12 +59,21 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial RdsSessionItem? SelectedSession { get; set; }
 
+    [ObservableProperty]
+    public partial string SessionSortColumn { get; set; } = "LogonTime";
+
+    [ObservableProperty]
+    public partial bool SessionSortAscending { get; set; } = false;
+
     public int TotalSessionsCount => AllSessions.Count;
     public int ActiveSessionsCount => AllSessions.Count(s => s.IsActive);
+    public int ConnectedSessionsCount => AllSessions.Count(s => s.IsConnected);
     public int DisconnectedSessionsCount => AllSessions.Count(s => s.IsDisconnected);
 
     public string TotalSessionsBadge => string.Format(Strings.S.RdsSessionsTotalBadgeFormat, TotalSessionsCount);
     public string ActiveSessionsBadge => string.Format(Strings.S.RdsSessionsActiveBadgeFormat, ActiveSessionsCount);
+    public string ConnectedSessionsBadge => string.Format(Strings.S.RdsSessionsConnectedBadgeFormat, ConnectedSessionsCount);
+    public Visibility ConnectedSessionsBadgeVisibility => ConnectedSessionsCount > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string DisconnectedSessionsBadge => string.Format(Strings.S.RdsSessionsDisconnectedBadgeFormat, DisconnectedSessionsCount);
 
     public bool HasNoSessions => !IsLoadingSessions && FilteredSessions.Count == 0 && !HasSessionsError;
@@ -85,6 +94,12 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool IsLoadingCollections { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasCollectionsError { get; set; }
+
+    [ObservableProperty]
+    public partial string CollectionsErrorMessage { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial RdsDiskLayoutInfo? DiskLayout { get; set; }
@@ -201,8 +216,11 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
         {
             HasSessionsError = true;
             SessionsErrorMessage = ex.Message;
+            string notifyText = ex.Message.StartsWith(Strings.S.RdsConnectionFailedPrompt, StringComparison.OrdinalIgnoreCase)
+                ? ex.Message
+                : $"{Strings.S.RdsConnectionFailedPrompt} {ex.Message}";
             WeakReferenceMessenger.Default.Send(
-                new AppNotificationMessage($"{Strings.S.RdsConnectionFailedPrompt}: {ex.Message}", InfoBarSeverity.Error));
+                new AppNotificationMessage(notifyText, InfoBarSeverity.Error));
         }
         finally
         {
@@ -217,19 +235,45 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
         _filterDebounceTimer.Start();
     }
 
+    [RelayCommand]
+    public void ToggleSessionSort(string column)
+    {
+        if (string.Equals(SessionSortColumn, column, StringComparison.OrdinalIgnoreCase))
+        {
+            SessionSortAscending = !SessionSortAscending;
+        }
+        else
+        {
+            SessionSortColumn = column;
+            SessionSortAscending = true;
+        }
+
+        ApplySessionFilter();
+    }
+
     public void ApplySessionFilter()
     {
         FilteredSessions.Clear();
         string q = (SessionFilterQuery ?? string.Empty).Trim();
 
         var matches = string.IsNullOrWhiteSpace(q)
-            ? AllSessions
+            ? (IEnumerable<RdsSessionItem>)AllSessions
             : AllSessions.Where(s =>
                 s.Username.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                 s.Domain.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                 s.HostServer.Contains(q, StringComparison.OrdinalIgnoreCase));
 
-        foreach (var item in matches)
+        IEnumerable<RdsSessionItem> sorted = (SessionSortColumn ?? string.Empty).ToLowerInvariant() switch
+        {
+            "username" => SessionSortAscending ? matches.OrderBy(s => s.Username) : matches.OrderByDescending(s => s.Username),
+            "state" => SessionSortAscending ? matches.OrderBy(s => s.State) : matches.OrderByDescending(s => s.State),
+            "hostserver" => SessionSortAscending ? matches.OrderBy(s => s.HostServer) : matches.OrderByDescending(s => s.HostServer),
+            "sessionid" => SessionSortAscending ? matches.OrderBy(s => s.SessionId) : matches.OrderByDescending(s => s.SessionId),
+            "logontime" => SessionSortAscending ? matches.OrderBy(s => s.LogonTime ?? DateTime.MinValue) : matches.OrderByDescending(s => s.LogonTime ?? DateTime.MinValue),
+            _ => SessionSortAscending ? matches.OrderBy(s => s.LogonTime ?? DateTime.MinValue) : matches.OrderByDescending(s => s.LogonTime ?? DateTime.MinValue)
+        };
+
+        foreach (var item in sorted)
         {
             FilteredSessions.Add(item);
         }
@@ -309,9 +353,12 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(TotalSessionsCount));
         OnPropertyChanged(nameof(ActiveSessionsCount));
+        OnPropertyChanged(nameof(ConnectedSessionsCount));
         OnPropertyChanged(nameof(DisconnectedSessionsCount));
         OnPropertyChanged(nameof(TotalSessionsBadge));
         OnPropertyChanged(nameof(ActiveSessionsBadge));
+        OnPropertyChanged(nameof(ConnectedSessionsBadge));
+        OnPropertyChanged(nameof(ConnectedSessionsBadgeVisibility));
         OnPropertyChanged(nameof(DisconnectedSessionsBadge));
     }
 
@@ -356,12 +403,32 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
         await InspectSelectedUserProfileDiskAsync();
     }
 
+    public async Task SearchAndSelectFirstUserAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return;
+        try
+        {
+            var results = await _adService.SearchUsersAsync(query.Trim());
+            if (results.Count > 0)
+            {
+                await SelectUserAsync(results[0]);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"RdsWorkspaceViewModel.SearchAndSelectFirstUserAsync error: {ex.Message}");
+        }
+    }
+
     [RelayCommand]
     public async Task LoadCollectionsAsync()
     {
         if (!HasBroker || IsLoadingCollections) return;
 
         IsLoadingCollections = true;
+        HasCollectionsError = false;
+        CollectionsErrorMessage = string.Empty;
+
         try
         {
             var colls = await _rdsService.GetCollectionsAsync(ConnectionBroker);
@@ -371,13 +438,19 @@ public partial class RdsWorkspaceViewModel : ObservableObject, IDisposable
                 Collections.Add(c);
             }
 
-            if (SelectedCollection == null && Collections.Count > 0)
+            if (Collections.Count > 0)
             {
                 SelectedCollection = Collections.FirstOrDefault(c => c.UpdEnabled) ?? Collections[0];
+            }
+            else
+            {
+                SelectedCollection = null;
             }
         }
         catch (Exception ex)
         {
+            HasCollectionsError = true;
+            CollectionsErrorMessage = ex.Message;
             AppLog.Write($"RdsWorkspaceViewModel.LoadCollectionsAsync error: {ex.Message}");
         }
         finally
