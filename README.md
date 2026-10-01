@@ -132,7 +132,7 @@ Sol includes a dedicated **Tools** page offering essential system management uti
 
 Download the latest standalone release from the [**Releases**](https://github.com/mm-dev-alpha/Sol/releases) page:
 
-1. Download `Sol-v4.1.0-win-x64.zip`.
+1. Download `Sol-v4.1.1-win-x64.zip`.
 2. Extract the archive to any folder.
 3. Run `Sol.exe`.
 
